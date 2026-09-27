@@ -9,7 +9,7 @@ export default async function Home() {
 
   if (!process.env.DATABASE_URL) {
     return (
-      <Card className="mx-auto max-w-xl">
+      <Card className="mx-auto mt-12 max-w-xl">
         <CardHeader>
           <CardTitle>Database not configured</CardTitle>
           <CardDescription>
@@ -27,7 +27,7 @@ export default async function Home() {
   if (latest) redirect(`/periods/${latest.year}/${latest.month}`);
 
   return (
-    <Card className="mx-auto max-w-xl">
+    <Card className="mx-auto mt-12 max-w-xl">
       <CardHeader>
         <CardTitle>No months yet</CardTitle>
         <CardDescription>

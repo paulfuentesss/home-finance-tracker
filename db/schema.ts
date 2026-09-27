@@ -27,6 +27,9 @@ export const periodStatus = pgEnum("period_status", ["open", "closed"]);
 export const billSource = pgEnum("bill_source", ["manual", "email"]);
 // Email-parsed bills land as "pending" and are ignored by settlement until confirmed.
 export const billStatus = pgEnum("bill_status", ["confirmed", "pending"]);
+// equal = split evenly; points = split by each member's points (Meralco);
+// manual = amounts typed per member, and the bill total is their sum.
+export const billSplitMode = pgEnum("bill_split_mode", ["equal", "points", "manual"]);
 
 // ---------- Shared column helpers ----------
 
@@ -85,7 +88,9 @@ export const billItems = pgTable(
     paidById: integer("paid_by_id")
       .notNull()
       .references(() => members.id, { onDelete: "restrict" }),
+    splitMode: billSplitMode("split_mode").notNull().default("equal"),
     dueDate: date("due_date", { mode: "string" }),
+    paidOn: date("paid_on", { mode: "string" }),
     receiptPath: text("receipt_path"),
     source: billSource("source").notNull().default("manual"),
     status: billStatus("status").notNull().default("confirmed"),
@@ -94,7 +99,8 @@ export const billItems = pgTable(
   },
   (t) => [
     uniqueIndex("bill_items_period_name").on(t.periodId, t.name),
-    check("bill_items_total_positive", sql`${t.totalAmount} > 0`),
+    // ₱0 is allowed: a new month's copied bill columns start empty until the bill arrives.
+    check("bill_items_total_nonneg", sql`${t.totalAmount} >= 0`),
   ],
 ).enableRLS();
 
@@ -108,7 +114,9 @@ export const billItemShares = pgTable(
       .notNull()
       .references(() => members.id, { onDelete: "restrict" }),
     amount: money("amount").notNull(),
-    // true = manually set; kept as-is when the bill total is edited and the rest re-split.
+    // Points-mode bills only: this member's points (e.g. Meralco 2.5).
+    points: numeric("points", { precision: 5, scale: 2 }),
+    // Legacy per-member override flag; no longer used by the UI (use split_mode "manual").
     isOverride: boolean("is_override").notNull().default(false),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -132,7 +140,10 @@ export const advances = pgTable(
     category: advanceCategory("category").notNull(),
     description: text("description").notNull(),
     amount: money("amount").notNull(),
-    spentOn: date("spent_on", { mode: "string" }).notNull(),
+    // Optional: some sheet entries were logged without a date.
+    spentOn: date("spent_on", { mode: "string" }),
+    // Equal-split advances: the member ids sharing it (sorted). null = everyone in the month.
+    sharedWith: integer("shared_with").array(),
     receiptPath: text("receipt_path"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

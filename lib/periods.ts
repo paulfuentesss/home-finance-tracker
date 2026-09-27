@@ -1,11 +1,23 @@
-// Loads a billing period from the database and shapes it for the UI.
-// Everything returned here is plain JSON (no Maps) so it can be passed to Client Components.
+// Loads billing periods from the database and shapes them for the UI.
+// Everything returned is plain JSON (no Maps) so it can be passed to Client Components.
 
 import "server-only";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { asc, desc } from "drizzle-orm";
+import { cache } from "react";
 import { billingPeriods, db } from "@/db";
-import { toCentavos, type Centavos } from "@/lib/money";
-import { computeMonth, type SettlementMember } from "@/lib/settlement";
+import { memberDotClass } from "@/lib/members";
+import { sumCentavos, toCentavos, type Centavos } from "@/lib/money";
+import {
+  computeMonth,
+  openingBalancesFrom,
+  poolLabel,
+  SettlementError,
+  type MemberId,
+  type MonthInput,
+  type MonthResult,
+  type SettlementMember,
+  type SplitMode,
+} from "@/lib/settlement";
 
 export type Category = "grocery" | "food" | "service" | "misc";
 
@@ -15,41 +27,83 @@ export interface PeriodSummary {
   month: number;
 }
 
+export interface ViewMember extends SettlementMember {
+  dotClass: string;
+}
+
+export interface ViewBill {
+  id: number;
+  name: string;
+  total: Centavos;
+  paidById: number;
+  status: "confirmed" | "pending";
+  splitMode: SplitMode;
+  dueDate: string | null;
+  paidOn: string | null;
+  /** Keyed by member id (as string, for JSON). */
+  shares: Record<string, { amount: Centavos; points: number | null }>;
+  /** Sum of points (points mode only). */
+  totalPoints: number;
+  /** "₱434.73 / person" or "₱1,863.08 / point" (rounded, for display only). */
+  perUnit: { amount: Centavos; unit: "person" | "point" } | null;
+}
+
+export interface ViewRow {
+  memberId: number;
+  billShares: Record<string, Centavos>;
+  poolShares: Record<string, Centavos>;
+  customShares: Record<string, Centavos>;
+  total: Centavos;
+  ownAdvances: Centavos;
+  billsPaid: Centavos;
+  monthFinal: Centavos;
+  opening: Centavos;
+  balance: Centavos;
+}
+
+export interface ViewAdvance {
+  id: number;
+  payerId: number;
+  category: Category;
+  description: string;
+  amount: Centavos;
+  spentOn: string | null;
+  sharedWith: number[] | null;
+  /** "w/o PA" style tag when not shared by everyone. */
+  sharedLabel: string | null;
+  customSplit: boolean;
+}
+
 export interface PeriodView {
   period: PeriodSummary & { status: "open" | "closed" };
-  members: SettlementMember[];
-  bills: {
-    id: number;
-    name: string;
-    total: Centavos;
-    paidById: number;
-    status: "confirmed" | "pending";
-  }[];
-  rows: {
-    memberId: number;
-    name: string;
-    isCollector: boolean;
-    /** Keyed by bill id (as string, for JSON). */
-    billShares: Record<string, Centavos>;
-    advanceShare: Centavos;
-    ownAdvances: Centavos;
-    billPayerCredit: Centavos;
-    monthFinal: Centavos;
-    balance: Centavos;
-  }[];
-  advances: {
-    id: number;
-    payerId: number;
-    payerName: string;
-    category: Category;
-    description: string;
-    amount: Centavos;
-    spentOn: string;
-    customSplit: boolean;
-  }[];
+  members: ViewMember[];
+  bills: ViewBill[];
+  pools: { key: string; label: string; total: Centavos }[];
+  /** Custom-split advances get their own "<description> Adj." column. */
+  adjustments: { advanceId: number; label: string; total: Centavos }[];
+  rows: ViewRow[];
+  advances: ViewAdvance[];
+  stats: { coreBills: Centavos; sharedAdvances: Centavos };
+  periods: PeriodSummary[];
   prev: PeriodSummary | null;
   next: PeriodSummary | null;
+  isLatest: boolean;
+  /** Set when the numbers can't be computed (e.g. shares that don't add up). */
+  issue: string | null;
 }
+
+const loadPeriods = () =>
+  db.query.billingPeriods.findMany({
+    orderBy: [asc(billingPeriods.year), asc(billingPeriods.month)],
+    with: {
+      balances: { with: { member: true } },
+      billItems: { with: { shares: true }, orderBy: (b) => [asc(b.id)] },
+      advances: { with: { shares: true }, orderBy: (a) => [asc(a.spentOn), asc(a.id)] },
+      payments: true,
+    },
+  });
+
+type LoadedPeriod = Awaited<ReturnType<typeof loadPeriods>>[number];
 
 export async function getLatestPeriod(): Promise<PeriodSummary | null> {
   const [latest] = await db
@@ -60,79 +114,154 @@ export async function getLatestPeriod(): Promise<PeriodSummary | null> {
   return latest ?? null;
 }
 
-export async function getPeriodView(year: number, month: number): Promise<PeriodView | null> {
-  const period = await db.query.billingPeriods.findFirst({
-    where: and(eq(billingPeriods.year, year), eq(billingPeriods.month, month)),
-    with: {
-      balances: { with: { member: true } },
-      billItems: { with: { shares: true }, orderBy: (b) => [asc(b.id)] },
-      advances: { with: { shares: true }, orderBy: (a) => [asc(a.spentOn), asc(a.id)] },
-      payments: true,
-    },
+/**
+ * One month, fully computed. Wrapped in React `cache()` so the layout and the tab page
+ * share a single database round trip per request.
+ */
+export const getPeriodView = cache(async (year: number, month: number): Promise<PeriodView | null> => {
+  // The whole history is small (a handful of rows per month), and carry-over needs every
+  // earlier month anyway, so load it in one query.
+  const all = await loadPeriods();
+  const index = all.findIndex((p) => p.year === year && p.month === month);
+  if (index === -1) return null;
+
+  // Live carry-over: each month opens with the previous month's Final. The first month,
+  // and any month after a closed one, uses its stored opening balances instead.
+  let opening = new Map<MemberId, Centavos>();
+  let result: MonthResult | null = null;
+  let issue: string | null = null;
+  for (let i = 0; i <= index; i++) {
+    const period = all[i];
+    if (i === 0 || all[i - 1].status === "closed") {
+      opening = new Map(period.balances.map((b) => [b.memberId, toCentavos(b.openingBalance)]));
+    }
+    try {
+      result = computeMonth(toMonthInput(period, opening));
+      opening = openingBalancesFrom(result);
+    } catch (error) {
+      if (!(error instanceof SettlementError)) throw error;
+      const label = `${period.year}-${String(period.month).padStart(2, "0")}`;
+      issue = i === index ? error.message : `Carry-over from ${label} couldn't be computed: ${error.message}`;
+      result = null;
+      opening = new Map();
+    }
+  }
+
+  const period = all[index];
+  const members = periodMembers(period).map((m) => ({
+    id: m.id,
+    name: m.name,
+    sortOrder: m.sortOrder,
+    isCollector: m.isCollector,
+    dotClass: memberDotClass(m.sortOrder - 1),
+  }));
+  const summaries = all.map(({ id, year, month }) => ({ id, year, month }));
+
+  const bills: ViewBill[] = period.billItems.map((b) => {
+    const total = toCentavos(b.totalAmount);
+    const totalPoints = b.shares.reduce((sum, s) => sum + (s.points === null ? 0 : Number(s.points)), 0);
+    const perUnit =
+      b.splitMode === "equal" && members.length > 0
+        ? { amount: Math.round(total / members.length), unit: "person" as const }
+        : b.splitMode === "points" && totalPoints > 0
+          ? { amount: Math.round(total / totalPoints), unit: "point" as const }
+          : null;
+    return {
+      id: b.id,
+      name: b.name,
+      total,
+      paidById: b.paidById,
+      status: b.status,
+      splitMode: b.splitMode,
+      dueDate: b.dueDate,
+      paidOn: b.paidOn,
+      shares: Object.fromEntries(
+        b.shares.map((s) => [
+          String(s.memberId),
+          { amount: toCentavos(s.amount), points: s.points === null ? null : Number(s.points) },
+        ]),
+      ),
+      totalPoints,
+      perUnit,
+    };
   });
-  if (!period) return null;
 
-  // The period's members are the ones with a period_balances row (see docs/settlement-rules.md).
-  const members = period.balances
-    .map((b) => b.member)
-    .sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
-  const nameOf = new Map(members.map((m) => [m.id, m.name]));
-
-  // TODO(close-month): while the previous month is still open, compute the opening balance
-  // live from it. Until month closing exists, the stored opening balance is used.
-  const settlement = computeMonth({
-    members,
-    bills: period.billItems,
-    billShares: new Map(period.billItems.map((b) => [b.id, b.shares])),
-    advances: period.advances,
-    advanceShares: new Map(period.advances.filter((a) => a.shares.length > 0).map((a) => [a.id, a.shares])),
-    payments: period.payments,
-    openingBalances: new Map(period.balances.map((b) => [b.memberId, b.openingBalance])),
-  });
-
-  const { prev, next } = await adjacentPeriods(year, month);
+  const settlementMembers = members as SettlementMember[];
+  const adjustments = period.advances
+    .filter((a) => a.shares.length > 0)
+    .map((a) => ({ advanceId: a.id, label: `${a.description} Adj.`, total: toCentavos(a.amount) }));
 
   return {
     period: { id: period.id, year: period.year, month: period.month, status: period.status },
-    members: members.map(({ id, name, sortOrder, isCollector }) => ({ id, name, sortOrder, isCollector })),
-    bills: period.billItems.map((b) => ({
-      id: b.id,
-      name: b.name,
-      total: toCentavos(b.totalAmount),
-      paidById: b.paidById,
-      status: b.status,
-    })),
-    rows: settlement.map((r) => ({
+    members,
+    bills,
+    pools: (result?.pools ?? []).map((p) => ({ key: p.key, label: poolLabel(p, settlementMembers), total: p.total })),
+    adjustments,
+    rows: (result?.rows ?? []).map((r) => ({
       memberId: r.member.id,
-      name: r.member.name,
-      isCollector: r.member.isCollector,
-      billShares: Object.fromEntries([...r.billShares].map(([billId, c]) => [String(billId), c])),
-      advanceShare: r.advanceShare,
+      billShares: mapToRecord(r.billShares),
+      poolShares: mapToRecord(r.poolShares),
+      customShares: mapToRecord(r.customShares),
+      total: r.total,
       ownAdvances: r.ownAdvances,
-      billPayerCredit: r.billPayerCredit,
+      billsPaid: r.billsPaid,
       monthFinal: r.monthFinal,
+      opening: r.opening,
       balance: r.balance,
     })),
     advances: period.advances.map((a) => ({
       id: a.id,
       payerId: a.payerId,
-      payerName: nameOf.get(a.payerId) ?? "Unknown",
       category: a.category,
       description: a.description,
       amount: toCentavos(a.amount),
       spentOn: a.spentOn,
+      sharedWith: a.sharedWith,
+      sharedLabel: a.sharedWith
+        ? poolLabel({ memberIds: a.sharedWith }, settlementMembers).replace(/^Adv shared \((.*)\)$/, "$1")
+        : null,
       customSplit: a.shares.length > 0,
     })),
-    prev,
-    next,
+    stats: {
+      coreBills: sumCentavos(bills.filter((b) => b.status === "confirmed").map((b) => b.total)),
+      sharedAdvances: sumCentavos(period.advances.map((a) => toCentavos(a.amount))),
+    },
+    periods: summaries,
+    prev: summaries[index - 1] ?? null,
+    next: summaries[index + 1] ?? null,
+    isLatest: index === all.length - 1,
+    issue,
+  };
+});
+
+/** Points-mode bills in the latest month, for the "How it works" page. */
+export async function getLatestPointsBills() {
+  const latest = await getLatestPeriod();
+  if (!latest) return { period: null, bills: [] as ViewBill[], members: [] as ViewMember[] };
+  const view = await getPeriodView(latest.year, latest.month);
+  return {
+    period: latest,
+    bills: (view?.bills ?? []).filter((b) => b.splitMode === "points"),
+    members: view?.members ?? [],
   };
 }
 
-async function adjacentPeriods(year: number, month: number) {
-  const all = await db
-    .select({ id: billingPeriods.id, year: billingPeriods.year, month: billingPeriods.month })
-    .from(billingPeriods)
-    .orderBy(asc(billingPeriods.year), asc(billingPeriods.month));
-  const index = all.findIndex((p) => p.year === year && p.month === month);
-  return { prev: all[index - 1] ?? null, next: all[index + 1] ?? null };
+function periodMembers(period: LoadedPeriod) {
+  return period.balances.map((b) => b.member).sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
+}
+
+function toMonthInput(period: LoadedPeriod, opening: Map<MemberId, Centavos>): MonthInput {
+  return {
+    members: periodMembers(period),
+    bills: period.billItems,
+    billShares: new Map(period.billItems.map((b) => [b.id, b.shares])),
+    advances: period.advances,
+    advanceShares: new Map(period.advances.filter((a) => a.shares.length > 0).map((a) => [a.id, a.shares])),
+    payments: period.payments,
+    openingBalances: opening,
+  };
+}
+
+function mapToRecord<K extends string | number>(map: Map<K, Centavos>): Record<string, Centavos> {
+  return Object.fromEntries([...map].map(([k, v]) => [String(k), v]));
 }

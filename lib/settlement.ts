@@ -1,12 +1,13 @@
 // Monthly settlement math. Pure functions only (no DB access) so it's easy to test and
-// reuse from Server Components. The rules are explained in docs/settlement-rules.md.
+// reuse from Server Components and Server Actions. The rules are in docs/settlement-rules.md.
 //
-// Sign convention (same as the Google Sheet / App.jsx prototype):
-//   positive balance = member owes the collector, negative = member is owed.
+// Full-ledger sign convention (same as the household Google Sheet):
+//   positive = member owes, negative = member is owed. Everyone's Month Final sums to 0.
 
-import { splitEqually, sumCentavos, toCentavos, type Centavos } from "@/lib/money";
+import { splitByWeights, splitEqually, sumCentavos, toCentavos, type Centavos } from "@/lib/money";
 
 export type MemberId = number;
+export type SplitMode = "equal" | "points" | "manual";
 
 export interface SettlementMember {
   id: MemberId;
@@ -32,6 +33,8 @@ export interface SettlementAdvance {
   id: number;
   payerId: MemberId;
   amount: string;
+  /** Members sharing an equal-split advance. null = everyone in the period. */
+  sharedWith: MemberId[] | null;
 }
 
 export interface SettlementPayment {
@@ -50,25 +53,45 @@ export interface MonthInput {
   /** Keyed by advance id. Only custom-split advances appear here. */
   advanceShares: Map<number, SettlementShare[]>;
   payments: SettlementPayment[];
-  /** Opening balance per member (the previous month's closing balance). Missing = 0. */
-  openingBalances: Map<MemberId, string>;
+  /** Opening balance per member (what carried over from last month). Missing = 0. */
+  openingBalances: Map<MemberId, Centavos>;
+}
+
+/** Equal-split advances shared by the same set of members, split once as a pool. */
+export interface AdvancePool {
+  /** "all" or the sorted member ids joined by "-". */
+  key: string;
+  memberIds: MemberId[];
+  total: Centavos;
 }
 
 export interface MemberMonth {
   member: SettlementMember;
+  /** Keyed by bill id. */
   billShares: Map<number, Centavos>;
-  billSharesTotal: Centavos;
-  advanceShare: Centavos;
+  /** Keyed by pool key. */
+  poolShares: Map<string, Centavos>;
+  /** Keyed by advance id (custom-split advances, e.g. the Ice Maker). */
+  customShares: Map<number, Centavos>;
+  /** Bill shares + pool shares + custom shares ("Total" in the sheet). */
+  total: Centavos;
+  /** Advances this member paid for. */
   ownAdvances: Centavos;
-  /** Adjustment when someone other than the collector paid a bill provider. */
-  billPayerCredit: Centavos;
-  /** billSharesTotal + advanceShare − ownAdvances + billPayerCredit ("Month Final" in the sheet). */
+  /** Bills this member paid to the provider. */
+  billsPaid: Centavos;
+  /** total − ownAdvances − billsPaid ("Month Final"). */
   monthFinal: Centavos;
+  /** Carried over from last month ("Prev Month Unsettled"). */
   opening: Centavos;
   paidOut: Centavos;
   received: Centavos;
-  /** What carries into next month. Always 0 for the collector. */
+  /** opening + monthFinal − paidOut + received ("Final"); carries into next month. */
   balance: Centavos;
+}
+
+export interface MonthResult {
+  rows: MemberMonth[];
+  pools: AdvancePool[];
 }
 
 export class SettlementError extends Error {}
@@ -84,18 +107,47 @@ export function splitOrder(members: readonly SettlementMember[]): MemberId[] {
     .map((m) => m.id);
 }
 
-export function computeMonth(input: MonthInput): MemberMonth[] {
-  const members = [...input.members].sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
-  const memberIds = members.map((m) => m.id);
-  const memberSet = new Set(memberIds);
-  const collectors = members.filter((m) => m.isCollector);
-  if (collectors.length !== 1) {
-    throw new SettlementError(`Expected exactly one collector, found ${collectors.length}`);
+/**
+ * The one place bill shares are computed (used by Server Actions, seeds and tests).
+ * - equal:  total split equally, leftovers in `order`
+ * - points: total split by points (e.g. Meralco 2.5 / 1.8 / 1.5 / 1.5 / 1)
+ * - manual: the given shares as-is; the bill total is their sum
+ */
+export function computeBillShares(
+  mode: SplitMode,
+  total: Centavos,
+  order: readonly MemberId[],
+  options: { points?: ReadonlyMap<MemberId, number>; manual?: ReadonlyMap<MemberId, Centavos> } = {},
+): Map<MemberId, Centavos> {
+  if (order.length === 0) throw new SettlementError("A bill needs at least one member to split between");
+  switch (mode) {
+    case "equal":
+      return splitEqually(total, order);
+    case "points": {
+      const weights = order.map((id) => [id, options.points?.get(id) ?? 0] as const);
+      if (weights.some(([, w]) => !Number.isFinite(w) || w < 0)) {
+        throw new SettlementError("Points can't be negative");
+      }
+      if (weights.every(([, w]) => w === 0)) {
+        throw new SettlementError("Give at least one person some points");
+      }
+      return splitByWeights(total, weights);
+    }
+    case "manual":
+      return new Map(order.map((id) => [id, options.manual?.get(id) ?? 0]));
   }
-  const collectorId = collectors[0].id;
+}
+
+export function computeMonth(input: MonthInput): MonthResult {
+  const members = [...input.members].sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
+  const memberSet = new Set(members.map((m) => m.id));
+  const order = splitOrder(members);
+  if (members.filter((m) => m.isCollector).length > 1) {
+    throw new SettlementError("Only one member can be the collector");
+  }
 
   const assertMember = (id: MemberId, context: string) => {
-    if (!memberSet.has(id)) throw new SettlementError(`${context}: member ${id} is not in this period`);
+    if (!memberSet.has(id)) throw new SettlementError(`${context}: member ${id} isn't in this month`);
   };
 
   const rows = new Map<MemberId, MemberMonth>(
@@ -104,10 +156,11 @@ export function computeMonth(input: MonthInput): MemberMonth[] {
       {
         member,
         billShares: new Map(),
-        billSharesTotal: 0,
-        advanceShare: 0,
+        poolShares: new Map(),
+        customShares: new Map(),
+        total: 0,
         ownAdvances: 0,
-        billPayerCredit: 0,
+        billsPaid: 0,
         monthFinal: 0,
         opening: 0,
         paidOut: 0,
@@ -121,26 +174,22 @@ export function computeMonth(input: MonthInput): MemberMonth[] {
   // --- Bills: materialized shares; pending (unconfirmed email) bills are ignored ---
   for (const bill of input.bills) {
     if (bill.status !== "confirmed") continue;
-    assertMember(bill.paidById, `Bill "${bill.name}" paid_by`);
+    assertMember(bill.paidById, `Bill "${bill.name}" paid by`);
     const total = toCentavos(bill.totalAmount);
     const shares = input.billShares.get(bill.id) ?? [];
-    assertSharesSumTo(shares, total, `Bill "${bill.name}"`, assertMember);
+    assertSharesSumTo(shares, total, `Shares for ${bill.name}`, assertMember);
     for (const share of shares) {
       const amount = toCentavos(share.amount);
       row(share.memberId).billShares.set(bill.id, amount);
-      row(share.memberId).billSharesTotal += amount;
+      row(share.memberId).total += amount;
     }
-    // Collector model: everyone settles with the collector. If someone else paid this
-    // provider, they're owed the full total and the collector owes it instead.
-    if (bill.paidById !== collectorId) {
-      row(bill.paidById).billPayerCredit -= total;
-      row(collectorId).billPayerCredit += total;
-    }
+    // Full ledger: whoever paid the provider (usually the collector) is credited in full.
+    row(bill.paidById).billsPaid += total;
   }
 
-  // --- Advances: equal-split ones are pooled and split once (like the prototype's
-  //     totalSharedAdvances / 5); custom-split ones use their own share rows ---
-  let pooled: Centavos = 0;
+  // --- Advances: custom-split ones use their own shares; equal-split ones are pooled by
+  //     who shares them and each pool is split once (like the sheet's "w PA" / "w/o PA") ---
+  const pools = new Map<string, AdvancePool>();
   for (const advance of input.advances) {
     assertMember(advance.payerId, `Advance ${advance.id} payer`);
     const amount = toCentavos(advance.amount);
@@ -148,14 +197,27 @@ export function computeMonth(input: MonthInput): MemberMonth[] {
 
     const custom = input.advanceShares.get(advance.id);
     if (custom && custom.length > 0) {
-      assertSharesSumTo(custom, amount, `Advance ${advance.id}`, assertMember);
-      for (const share of custom) row(share.memberId).advanceShare += toCentavos(share.amount);
-    } else {
-      pooled += amount;
+      assertSharesSumTo(custom, amount, `Custom split for advance ${advance.id}`, assertMember);
+      for (const share of custom) {
+        const value = toCentavos(share.amount);
+        row(share.memberId).customShares.set(advance.id, value);
+        row(share.memberId).total += value;
+      }
+      continue;
     }
+
+    const pool = poolFor(advance, order, assertMember);
+    const existing = pools.get(pool.key);
+    if (existing) existing.total += amount;
+    else pools.set(pool.key, { ...pool, total: amount });
   }
-  if (pooled > 0) {
-    for (const [id, share] of splitEqually(pooled, splitOrder(members))) row(id).advanceShare += share;
+  for (const pool of pools.values()) {
+    // Keep the collector-first leftover order within the pool.
+    const poolOrder = order.filter((id) => pool.memberIds.includes(id));
+    for (const [id, share] of splitEqually(pool.total, poolOrder)) {
+      row(id).poolShares.set(pool.key, share);
+      row(id).total += share;
+    }
   }
 
   // --- Payments ---
@@ -167,39 +229,58 @@ export function computeMonth(input: MonthInput): MemberMonth[] {
     row(payment.toMemberId).received += amount;
   }
 
-  // --- Totals and carry-over ---
+  // --- Totals and carry-over (the same formula for everyone, collector included) ---
   for (const r of rows.values()) {
-    r.monthFinal = r.billSharesTotal + r.advanceShare - r.ownAdvances + r.billPayerCredit;
-    r.opening = toCentavos(input.openingBalances.get(r.member.id) ?? "0");
-    // The collector's Month Final is their own fair share, which they've already paid
-    // by fronting the bills — so nothing carries over for them.
-    r.balance = r.member.isCollector ? 0 : r.opening + r.monthFinal - r.paidOut + r.received;
+    r.monthFinal = r.total - r.ownAdvances - r.billsPaid;
+    r.opening = input.openingBalances.get(r.member.id) ?? 0;
+    r.balance = r.opening + r.monthFinal - r.paidOut + r.received;
   }
 
-  return members.map((m) => row(m.id));
+  return {
+    rows: members.map((m) => row(m.id)),
+    // "all" first, then the others in a stable order.
+    pools: [...pools.values()].sort((a, b) => (a.key === "all" ? -1 : b.key === "all" ? 1 : a.key.localeCompare(b.key))),
+  };
+}
+
+/** Each member's Final this month = their opening balance next month. */
+export function openingBalancesFrom(result: MonthResult): Map<MemberId, Centavos> {
+  return new Map(result.rows.map((r) => [r.member.id, r.balance]));
 }
 
 /**
- * Re-split a bill after its total changes: overridden shares stay as they are and the
- * remainder is split equally among everyone else (in the given order).
+ * Normalizes an advance's `shared_with` list: null (or a list covering everyone) means
+ * everyone; otherwise it must be a non-empty subset of the month's members.
  */
-export function resplitBill(
-  total: Centavos,
-  memberIds: readonly MemberId[],
-  overrides: ReadonlyMap<MemberId, Centavos>,
-): Map<MemberId, Centavos> {
-  const overrideTotal = sumCentavos(overrides.values());
-  const remaining = total - overrideTotal;
-  if (remaining < 0) {
-    throw new SettlementError("Overridden shares exceed the bill total");
-  }
-  const rest = memberIds.filter((id) => !overrides.has(id));
-  if (rest.length === 0) {
-    if (remaining !== 0) throw new SettlementError("Overrides must sum to the total when every share is overridden");
-    return new Map(overrides);
-  }
-  const split = splitEqually(remaining, rest);
-  return new Map(memberIds.map((id) => [id, overrides.get(id) ?? split.get(id)!]));
+export function normalizeSharedWith(
+  sharedWith: readonly MemberId[] | null,
+  periodMemberIds: readonly MemberId[],
+): MemberId[] | null {
+  if (!sharedWith) return null;
+  const unique = [...new Set(sharedWith)].sort((a, b) => a - b);
+  if (unique.length === 0) throw new SettlementError("Choose at least one person to share this with");
+  const inPeriod = new Set(periodMemberIds);
+  if (unique.some((id) => !inPeriod.has(id))) throw new SettlementError("Someone in this split isn't in this month");
+  return unique.length === inPeriod.size ? null : unique;
+}
+
+/** Column label for a pool: "Adv shared (all)" or "Adv shared (w/o PA, PJ)". */
+export function poolLabel(pool: Pick<AdvancePool, "memberIds">, members: readonly SettlementMember[]): string {
+  const excluded = members.filter((m) => !pool.memberIds.includes(m.id)).map((m) => m.name);
+  return excluded.length === 0 ? "Adv shared (all)" : `Adv shared (w/o ${excluded.join(", ")})`;
+}
+
+function poolFor(
+  advance: SettlementAdvance,
+  order: readonly MemberId[],
+  assertMember: (id: MemberId, context: string) => void,
+): Omit<AdvancePool, "total"> {
+  if (!advance.sharedWith) return { key: "all", memberIds: [...order] };
+  for (const id of advance.sharedWith) assertMember(id, `Advance ${advance.id} shared with`);
+  const ids = [...new Set(advance.sharedWith)].sort((a, b) => a - b);
+  if (ids.length === 0) throw new SettlementError(`Advance ${advance.id} isn't shared with anyone`);
+  if (ids.length === order.length) return { key: "all", memberIds: [...order] };
+  return { key: ids.join("-"), memberIds: ids };
 }
 
 function assertSharesSumTo(
@@ -208,9 +289,11 @@ function assertSharesSumTo(
   context: string,
   assertMember: (id: MemberId, context: string) => void,
 ) {
-  for (const share of shares) assertMember(share.memberId, `${context} share`);
+  for (const share of shares) assertMember(share.memberId, context);
   const actual = sumCentavos(shares.map((s) => toCentavos(s.amount)));
   if (actual !== expected) {
-    throw new SettlementError(`${context}: shares sum to ${actual} centavos, expected ${expected}`);
+    throw new SettlementError(
+      `${context} add up to ₱${(actual / 100).toFixed(2)}, but the total is ₱${(expected / 100).toFixed(2)}`,
+    );
   }
 }

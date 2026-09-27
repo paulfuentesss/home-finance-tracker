@@ -1,0 +1,247 @@
+import { ArrowLeft, CircleHelp } from "lucide-react";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { connection } from "next/server";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { monthLabel } from "@/lib/format";
+import { MERALCO_POINT_ITEMS, MERALCO_POINTS_AS_OF } from "@/lib/household-config";
+import { formatPHP } from "@/lib/money";
+import { getLatestPointsBills } from "@/lib/periods";
+import { cn } from "@/lib/utils";
+
+export const metadata: Metadata = { title: "How it works" };
+
+// A plain-language guide for the household. Keep it in sync with docs/settlement-rules.md.
+export default async function HowItWorksPage() {
+  await connection();
+  const { period, bills, members } = await getLatestPointsBills();
+  const back = period ? `/periods/${period.year}/${period.month}` : "/";
+
+  const faqs = [
+    {
+      id: "equal",
+      q: "How are bills split?",
+      a: (
+        <>
+          <p>
+            Most bills (Water, PLDT, Helper) are split <strong>equally</strong> between everyone in the house that
+            month. Amounts are worked out to the exact centavo, so everyone&apos;s shares always add up to the real
+            bill.
+          </p>
+          <p>
+            When a bill doesn&apos;t divide evenly, the leftover centavo or two goes to <strong>PA</strong> (who
+            collects), so it never lands on anyone else. Example: ₱2,173.63 Water ÷ 5 = ₱434.726…, so three people pay
+            ₱434.73 and two pay ₱434.72.
+          </p>
+        </>
+      ),
+    },
+    {
+      id: "points",
+      q: "How is Meralco split? What do the points mean?",
+      a: (
+        <>
+          <p>
+            Electricity isn&apos;t used equally — aircon and a PC use a lot more — so Meralco is split with a{" "}
+            <strong>point system</strong>. Each person has points based on what they use (see the table above). The
+            bill is divided into as many equal parts as there are points in total, and each person pays for their own
+            points.
+          </p>
+          <p>
+            <strong>Cost per point = bill ÷ total points.</strong> Someone with 2 points pays twice as much as someone
+            with 1 point.
+          </p>
+        </>
+      ),
+    },
+    {
+      id: "manual",
+      q: "Can a bill be split some other way?",
+      a: (
+        <p>
+          Yes. Any bill column can be switched to <strong>Manual</strong> in the Monthly Split Table, and then each
+          person&apos;s amount is typed in by hand. The bill&apos;s total becomes the sum of what everyone was given.
+        </p>
+      ),
+    },
+    {
+      id: "shared-advances",
+      q: "What are shared advances? Why are some “w/o PA”?",
+      a: (
+        <>
+          <p>
+            A shared advance is something one person paid for the whole house — groceries, palengke, gas, a service.
+            It&apos;s added to a <strong>pool</strong> and everyone who shared it pays an equal part, including the
+            person who paid (they get the rest back).
+          </p>
+          <p>
+            If someone wasn&apos;t around — for example PA was away from Aug 8 — those purchases are shared only by the
+            people who were there. They show up as a separate column, like &ldquo;Adv shared (w/o PA)&rdquo;.
+          </p>
+        </>
+      ),
+    },
+    {
+      id: "custom-split",
+      q: "What if something isn't shared equally?",
+      a: (
+        <p>
+          Some purchases have their own split — like the <strong>Ice Maker</strong>: Ate Toni covers half and the other
+          four split the other half (12.5% each). These get their own &ldquo;Adj.&rdquo; column in the table.
+        </p>
+      ),
+    },
+    {
+      id: "month-final",
+      q: "What does Month Final mean?",
+      a: (
+        <>
+          <p>
+            <strong>Month Final = your share of everything − what you paid this month</strong> (advances and any
+            bills you paid).
+          </p>
+          <ul className="list-disc space-y-1 pl-5">
+            <li>
+              <span className="font-medium text-rose-600">Owes</span> — positive: you still need to pay this amount.
+            </li>
+            <li>
+              <span className="font-medium text-emerald-600">Owed / Reimburse</span> — negative: you paid more than your
+              share and get this back.
+            </li>
+            <li>
+              <span className="font-medium text-zinc-600">Settled</span> — ₱0.00.
+            </li>
+          </ul>
+          <p>Everyone&apos;s Month Finals always add up to exactly ₱0.00 — what some owe is what others get back.</p>
+        </>
+      ),
+    },
+    {
+      id: "who-pays",
+      q: "Why does PA usually pay the bills?",
+      a: (
+        <p>
+          PA pays Meralco, Water, PLDT and usually the Helper upfront, and everyone settles with PA. Whoever pays a bill
+          — PA or anyone else — gets it counted as money they paid, so it comes off their Month Final.
+        </p>
+      ),
+    },
+    {
+      id: "carry-over",
+      q: "What happens if I don't pay in full?",
+      a: (
+        <p>
+          Nothing is lost: whatever is still unpaid at the end of a month carries over to the next month&apos;s
+          &ldquo;Prev Month Unsettled&rdquo; column and is added to that month&apos;s Final.
+        </p>
+      ),
+    },
+  ];
+
+  return (
+    <div className="min-h-full">
+      <header className="border-b bg-white">
+        <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-4 px-4 py-5">
+          <div className="flex items-center gap-3">
+            <div className="flex size-11 items-center justify-center rounded-xl border border-amber-200 bg-amber-50 text-amber-600">
+              <CircleHelp className="size-5" />
+            </div>
+            <div>
+              <h1 className="text-xl font-semibold tracking-tight">How it works</h1>
+              <p className="text-sm text-muted-foreground">How MyHouse splits the house costs</p>
+            </div>
+          </div>
+          <Link href={back} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="size-4" />
+            {period ? `Back to ${monthLabel(period.year, period.month)}` : "Back"}
+          </Link>
+        </div>
+      </header>
+
+      <main className="mx-auto w-full max-w-3xl space-y-6 px-4 py-8">
+        <section id="points-table" className="rounded-xl border bg-white p-5 shadow-xs">
+          <h2 className="font-semibold">Meralco point system</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Current allocation as of {MERALCO_POINTS_AS_OF}.</p>
+
+          {bills.length === 0 ? (
+            <p className="mt-4 text-sm text-muted-foreground">
+              No bill is split by points in the latest month. Switch a column to Points in the Monthly Split Table to use it.
+            </p>
+          ) : (
+            bills.map((bill) => {
+              const perPoint = bill.totalPoints > 0 ? Math.round(bill.total / bill.totalPoints) : 0;
+              return (
+                <div key={bill.id} className="mt-4">
+                  <table className="w-full text-sm">
+                    <thead className="border-b text-left text-muted-foreground">
+                      <tr>
+                        <th className="py-2 font-medium">{bill.name}</th>
+                        <th className="py-2 text-right font-medium">Points</th>
+                        <th className="py-2 text-right font-medium">
+                          {period ? monthLabel(period.year, period.month) : ""} share
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {members.map((m) => {
+                        const share = bill.shares[String(m.id)];
+                        return (
+                          <tr key={m.id}>
+                            <td className="py-2">
+                              <span className="flex items-center gap-2">
+                                <span className={cn("size-2 rounded-full", m.dotClass)} aria-hidden />
+                                {m.name}
+                              </span>
+                            </td>
+                            <td className="py-2 text-right font-mono tabular-nums">{share?.points ?? 0}</td>
+                            <td className="py-2 text-right font-mono tabular-nums">{formatPHP(share?.amount ?? 0)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot className="border-t font-semibold">
+                      <tr>
+                        <td className="py-2">Total</td>
+                        <td className="py-2 text-right font-mono tabular-nums">{bill.totalPoints}</td>
+                        <td className="py-2 text-right font-mono tabular-nums">{formatPHP(bill.total)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                  {bill.total > 0 && (
+                    <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                      Worked example: {formatPHP(bill.total)} ÷ {bill.totalPoints} points ≈{" "}
+                      <strong>{formatPHP(perPoint)} per point</strong>. Someone with 1.5 points pays about{" "}
+                      {formatPHP(Math.round(perPoint * 1.5))}.
+                    </p>
+                  )}
+                </div>
+              );
+            })
+          )}
+
+          <h3 className="mt-6 text-sm font-semibold">Items considered</h3>
+          <p className="text-sm text-muted-foreground">What each person&apos;s points are built from:</p>
+          <ul className="mt-2 divide-y rounded-lg border text-sm">
+            {MERALCO_POINT_ITEMS.map(({ item, points }) => (
+              <li key={item} className="flex justify-between px-3 py-2">
+                <span>{item}</span>
+                <span className="font-mono tabular-nums">{points}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="rounded-xl border bg-white px-5 py-2 shadow-xs">
+          <Accordion multiple defaultValue={faqs.map((f) => f.id)}>
+            {faqs.map((faq) => (
+              <AccordionItem key={faq.id} value={faq.id} id={faq.id} className="scroll-mt-6">
+                <AccordionTrigger className="text-base">{faq.q}</AccordionTrigger>
+                <AccordionContent className="space-y-2 text-muted-foreground">{faq.a}</AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </section>
+      </main>
+    </div>
+  );
+}

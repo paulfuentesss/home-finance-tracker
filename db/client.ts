@@ -6,8 +6,15 @@ import postgres from "postgres";
 import * as schema from "./schema";
 
 export function createDb(url: string, options: postgres.Options<Record<string, never>> = {}) {
-  // prepare: false — Supabase's transaction pooler (port 6543) doesn't support prepared statements.
-  const client = postgres(url, { prepare: false, ...options });
+  const client = postgres(url, {
+    // Supabase's transaction pooler (port 6543) doesn't support prepared statements.
+    prepare: false,
+    // Close idle connections and recycle old ones, so a connection left behind by a dev
+    // hot reload can't sit on locks (that once blocked a migration for 38 minutes).
+    idle_timeout: 20,
+    max_lifetime: 60 * 30,
+    ...options,
+  });
   return { db: drizzle(client, { schema }), client };
 }
 

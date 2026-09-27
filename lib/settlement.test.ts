@@ -1,23 +1,34 @@
 import { describe, expect, it } from "vitest";
-import { AUGUST_2026, HOUSEHOLD_MEMBERS, type MemberName } from "@/lib/__fixtures__/august-2026";
-import { fromCentavos, splitByWeights, splitEqually, sumCentavos, toCentavos } from "@/lib/money";
 import {
+  AUGUST_2026,
+  HOUSEHOLD_MEMBERS,
+  SHEET_MONTH_FINALS,
+  type MemberName,
+} from "@/lib/__fixtures__/august-2026";
+import { fromCentavos, sumCentavos, toCentavos, type Centavos } from "@/lib/money";
+import {
+  computeBillShares,
   computeMonth,
-  resplitBill,
+  normalizeSharedWith,
+  openingBalancesFrom,
+  poolLabel,
   SettlementError,
+  splitOrder,
   type MonthInput,
   type SettlementMember,
-  splitOrder,
   type SettlementShare,
 } from "@/lib/settlement";
 
 const members: SettlementMember[] = HOUSEHOLD_MEMBERS.map((m, i) => ({ id: i + 1, ...m }));
 const idOf = (name: MemberName) => members.find((m) => m.name === name)!.id;
-const memberIds = members.map((m) => m.id);
-const leftoverOrder = splitOrder(members);
+const order = splitOrder(members);
+const byName = <T,>(record: Partial<Record<MemberName, T>>) =>
+  new Map(Object.entries(record).map(([name, v]) => [idOf(name as MemberName), v as T]));
+const asShares = (shares: Map<number, Centavos>): SettlementShare[] =>
+  [...shares].map(([memberId, c]) => ({ memberId, amount: fromCentavos(c) }));
 
-/** Build the August 2026 month the same way the app will: materialized equal bill shares. */
-function augustInput({ customIceMaker }: { customIceMaker: boolean }): MonthInput {
+/** Builds August 2026 the same way seed-august does, via computeBillShares. */
+function augustInput(): MonthInput {
   const bills = AUGUST_2026.bills.map((b, i) => ({
     id: i + 1,
     name: b.name,
@@ -25,97 +36,135 @@ function augustInput({ customIceMaker }: { customIceMaker: boolean }): MonthInpu
     paidById: idOf(b.paidBy),
     status: "confirmed" as const,
   }));
-  const billShares = new Map<number, SettlementShare[]>(
-    bills.map((b) => [
-      b.id,
-      [...splitEqually(toCentavos(b.totalAmount), leftoverOrder)].map(([memberId, c]) => ({
-        memberId,
-        amount: fromCentavos(c),
-      })),
+  const billShares = new Map(
+    AUGUST_2026.bills.map((b, i) => [
+      i + 1,
+      asShares(computeBillShares(b.splitMode, toCentavos(b.totalAmount), order, { points: byName(b.points ?? {}) })),
     ]),
   );
-
-  const advances = AUGUST_2026.advances.map((a, i) => ({ id: i + 1, payerId: idOf(a.payer), amount: a.amount }));
+  const advances = AUGUST_2026.advances.map((a, i) => ({
+    id: i + 1,
+    payerId: idOf(a.payer),
+    amount: a.amount,
+    sharedWith: a.sharedWith ? a.sharedWith.map(idOf) : null,
+  }));
   const advanceShares = new Map<number, SettlementShare[]>();
-  if (customIceMaker) {
-    AUGUST_2026.advances.forEach((a, i) => {
-      if (!("customWeights" in a)) return;
-      const weights = Object.entries(a.customWeights).map(([name, w]) => [idOf(name as MemberName), w] as const);
-      const split = splitByWeights(toCentavos(a.amount), weights);
-      advanceShares.set(
-        i + 1,
-        [...split].map(([memberId, c]) => ({ memberId, amount: fromCentavos(c) })),
-      );
-    });
-  }
-
+  AUGUST_2026.advances.forEach((a, i) => {
+    if (!a.customWeights) return;
+    const shares = computeBillShares("points", toCentavos(a.amount), order, { points: byName(a.customWeights) });
+    advanceShares.set(i + 1, asShares(shares));
+  });
   return { members, bills, billShares, advances, advanceShares, payments: [], openingBalances: new Map() };
 }
 
-/** The App.jsx formula, float math and all, for comparison. */
-function prototypeMonthFinal(name: MemberName): number {
-  const n = HOUSEHOLD_MEMBERS.length;
-  const billTotal = AUGUST_2026.bills.reduce((s, b) => s + Number((Number(b.totalAmount) / n).toFixed(2)), 0);
-  const allAdvances = AUGUST_2026.advances.reduce((s, a) => s + Number(a.amount), 0);
-  const own = AUGUST_2026.advances.filter((a) => a.payer === name).reduce((s, a) => s + Number(a.amount), 0);
-  return billTotal + allAdvances / n - own;
-}
+const rowOf = (result: ReturnType<typeof computeMonth>, name: MemberName) =>
+  result.rows.find((r) => r.member.name === name)!;
 
-describe("computeMonth — August 2026 fixture", () => {
-  it("matches the prototype's Month Final to within the centavo rounding fixes", () => {
-    const result = computeMonth(augustInput({ customIceMaker: false }));
-    for (const r of result) {
-      const expected = Math.round(prototypeMonthFinal(r.member.name as MemberName) * 100);
-      // Up to 1 centavo per bill (4 bills) + 1 from the pooled advance split.
-      expect(Math.abs(r.monthFinal - expected)).toBeLessThanOrEqual(5);
+describe("August 2026 — reproduces the household sheet", () => {
+  const result = computeMonth(augustInput());
+
+  it("matches the hand-computed values exactly", () => {
+    const expected: Record<MemberName, { total: string; own: string; final: string }> = {
+      "Ate Toni": { total: "24156.54", own: "5732.00", final: "18424.54" },
+      Mayee: { total: "20883.09", own: "8785.00", final: "12098.09" },
+      Skyler: { total: "20883.06", own: "37851.00", final: "-16967.94" },
+      PJ: { total: "19951.52", own: "13636.40", final: "6315.12" },
+      PA: { total: "11519.91", own: "31389.72", final: "-19869.81" },
+    };
+    for (const [name, e] of Object.entries(expected) as [MemberName, (typeof expected)[MemberName]][]) {
+      const r = rowOf(result, name);
+      expect(fromCentavos(r.total), name).toBe(e.total);
+      expect(fromCentavos(r.ownAdvances + r.billsPaid), name).toBe(e.own);
+      expect(fromCentavos(r.monthFinal), name).toBe(e.final);
     }
   });
 
-  it("everyone's Month Final sums exactly to the bills the collector fronted", () => {
-    const result = computeMonth(augustInput({ customIceMaker: true }));
-    const bills = sumCentavos(AUGUST_2026.bills.map((b) => toCentavos(b.totalAmount)));
-    expect(sumCentavos(result.map((r) => r.monthFinal))).toBe(bills);
+  it("is within ₱0.02 of the sheet (which rounds each share on its own)", () => {
+    for (const r of result.rows) {
+      const sheet = toCentavos(SHEET_MONTH_FINALS[r.member.name as MemberName]);
+      expect(Math.abs(r.monthFinal - sheet), r.member.name).toBeLessThanOrEqual(2);
+    }
   });
 
-  it("applies the Ice Maker custom split (PA 50%, others 12.5%) instead of 20% each", () => {
-    const equal = computeMonth(augustInput({ customIceMaker: false }));
-    const custom = computeMonth(augustInput({ customIceMaker: true }));
-    const delta = (name: MemberName) =>
-      custom.find((r) => r.member.name === name)!.advanceShare - equal.find((r) => r.member.name === name)!.advanceShare;
+  it("everyone's Month Final sums to exactly ₱0.00 (full ledger)", () => {
+    expect(sumCentavos(result.rows.map((r) => r.monthFinal))).toBe(0);
+  });
 
-    // PA: 1,880.50 instead of 752.20.
-    expect(delta("PA")).toBe(188050 - 75220);
-    // Everyone else: ~470.13 instead of 752.20, so ~282.07 less.
+  // Exact points shares are 4,657.708 / 2,794.625 / 2,794.625 / 1,863.083 / 3,353.550. The 3
+  // leftover centavos go to the largest remainders (ties: collector first, then sort order),
+  // so Mayee gets the centavo the sheet drops (its Meralco shares sum to ₱0.01 short).
+  it("splits Meralco by points (8.3) like the sheet", () => {
+    const meralco = (name: MemberName) => fromCentavos(rowOf(result, name).billShares.get(1)!);
+    expect((["Ate Toni", "Mayee", "Skyler", "PJ", "PA"] as const).map(meralco)).toEqual([
+      "4657.71",
+      "2794.63",
+      "2794.62",
+      "1863.08",
+      "3353.55",
+    ]);
+  });
+
+  it("has a 'w PA' and a 'w/o PA' pool, each split once", () => {
+    const [all, withoutPa] = result.pools;
+    expect(all.key).toBe("all");
+    expect(fromCentavos(all.total)).toBe("27208.50");
+    expect(fromCentavos(withoutPa.total)).toBe("39688.40");
+    expect(poolLabel(withoutPa, members)).toBe("Adv shared (w/o PA)");
     for (const name of ["Ate Toni", "Mayee", "Skyler", "PJ"] as const) {
-      expect(delta(name)).toBeGreaterThanOrEqual(-28209);
-      expect(delta(name)).toBeLessThanOrEqual(-28206);
+      expect(rowOf(result, name).poolShares.get(all.key)).toBe(544170);
+      expect(rowOf(result, name).poolShares.get(withoutPa.key)).toBe(992210);
     }
-    expect(sumCentavos(custom.map((r) => r.advanceShare))).toBe(
-      sumCentavos(AUGUST_2026.advances.map((a) => toCentavos(a.amount))),
-    );
+    expect(rowOf(result, "PA").poolShares.get(withoutPa.key)).toBeUndefined();
   });
 
-  it("carries non-collector balances forward and keeps the collector at 0", () => {
-    const result = computeMonth(augustInput({ customIceMaker: true }));
-    for (const r of result) {
-      expect(r.balance).toBe(r.member.isCollector ? 0 : r.monthFinal);
-    }
+  it("splits the Ice Maker 50% Ate Toni / 12.5% others", () => {
+    const iceMaker = AUGUST_2026.advances.findIndex((a) => a.description === "Ice Maker") + 1;
+    expect(rowOf(result, "Ate Toni").customShares.get(iceMaker)).toBe(188050);
+    const others = (["Mayee", "Skyler", "PJ", "PA"] as const).map((n) => rowOf(result, n).customShares.get(iceMaker)!);
+    expect(sumCentavos(others)).toBe(188050);
+    expect(others.every((c) => c === 47012 || c === 47013)).toBe(true);
+  });
+
+  it("credits PA for the bills he paid", () => {
+    expect(fromCentavos(rowOf(result, "PA").billsPaid)).toBe("26736.22");
+  });
+});
+
+describe("computeBillShares", () => {
+  it("equal: leftover centavos go to the collector first", () => {
+    const shares = computeBillShares("equal", toCentavos("2173.63"), order);
+    expect(shares.get(idOf("PA"))).toBe(43473);
+    expect(shares.get(idOf("PJ"))).toBe(43472);
+    expect(sumCentavos(shares.values())).toBe(217363);
+  });
+
+  it("points: rejects negative or all-zero points", () => {
+    expect(() => computeBillShares("points", 1000, order, { points: byName({ PA: -1, PJ: 2 }) })).toThrow(
+      SettlementError,
+    );
+    expect(() => computeBillShares("points", 1000, order, { points: new Map() })).toThrow(SettlementError);
+  });
+
+  it("points: a member with 0 points pays nothing", () => {
+    const shares = computeBillShares("points", 10000, order, { points: byName({ PA: 1, PJ: 1 }) });
+    expect(shares.get(idOf("Mayee"))).toBe(0);
+    expect(sumCentavos(shares.values())).toBe(10000);
+  });
+
+  it("manual: shares as given (the bill total is their sum)", () => {
+    const shares = computeBillShares("manual", 0, order, { manual: byName({ PA: 500, Mayee: 250 }) });
+    expect(sumCentavos(shares.values())).toBe(750);
+    expect(shares.get(idOf("PJ"))).toBe(0);
   });
 });
 
 describe("computeMonth — rules", () => {
-  const collector = idOf("PA");
-  const skyler = idOf("Skyler");
-  const mayee = idOf("Mayee");
-
-  function helperOnly(paidById: number): MonthInput {
-    const total = "6400.00";
+  function helperOnly(paidBy: MemberName): MonthInput {
+    const total = toCentavos("6400.00");
     return {
       members,
-      bills: [{ id: 1, name: "Helper", totalAmount: total, paidById, status: "confirmed" }],
-      billShares: new Map([
-        [1, [...splitEqually(toCentavos(total), memberIds)].map(([memberId, c]) => ({ memberId, amount: fromCentavos(c) }))],
-      ]),
+      bills: [{ id: 1, name: "Helper", totalAmount: fromCentavos(total), paidById: idOf(paidBy), status: "confirmed" }],
+      billShares: new Map([[1, asShares(computeBillShares("equal", total, order))]]),
       advances: [],
       advanceShares: new Map(),
       payments: [],
@@ -123,89 +172,85 @@ describe("computeMonth — rules", () => {
     };
   }
 
-  it("credits a non-collector who paid a bill and debits the collector", () => {
-    const result = computeMonth(helperOnly(skyler));
-    const row = (id: number) => result.find((r) => r.member.id === id)!;
-    expect(row(skyler).billPayerCredit).toBe(-640000);
-    expect(row(collector).billPayerCredit).toBe(640000);
-    // Skyler's share is 1,280, but they fronted 6,400 → owed 5,120.
-    expect(row(skyler).monthFinal).toBe(128000 - 640000);
-    expect(row(mayee).monthFinal).toBe(128000);
-  });
-
-  it("does nothing extra when the collector paid", () => {
-    const result = computeMonth(helperOnly(collector));
-    expect(result.every((r) => r.billPayerCredit === 0)).toBe(true);
+  it("credits whoever paid the bill, collector or not", () => {
+    for (const payer of ["PA", "Skyler"] as const) {
+      const result = computeMonth(helperOnly(payer));
+      expect(rowOf(result, payer).monthFinal).toBe(128000 - 640000);
+      expect(rowOf(result, "Mayee").monthFinal).toBe(128000);
+      expect(sumCentavos(result.rows.map((r) => r.monthFinal))).toBe(0);
+    }
   });
 
   it("ignores pending (unconfirmed email) bills", () => {
-    const input = helperOnly(collector);
+    const input = helperOnly("PA");
     input.bills[0].status = "pending";
     input.billShares = new Map();
-    expect(computeMonth(input).every((r) => r.monthFinal === 0)).toBe(true);
+    expect(computeMonth(input).rows.every((r) => r.monthFinal === 0)).toBe(true);
   });
 
-  it("carries over: opening + monthFinal − paid out + received", () => {
-    const input = helperOnly(collector);
-    input.openingBalances = new Map([
-      [mayee, "500.00"],
-      [collector, "999.00"], // ignored — the collector never carries a balance
-    ]);
-    input.payments = [
-      { fromMemberId: mayee, toMemberId: collector, amount: "1000.00" },
-      { fromMemberId: collector, toMemberId: skyler, amount: "200.00" },
-    ];
+  it("carry-over uses one formula for everyone: opening + final − paid out + received", () => {
+    const input = helperOnly("PA");
+    input.openingBalances = byName({ Mayee: 50000, PA: -50000 });
+    input.payments = [{ fromMemberId: idOf("Mayee"), toMemberId: idOf("PA"), amount: "1780.00" }];
     const result = computeMonth(input);
-    const row = (id: number) => result.find((r) => r.member.id === id)!;
-    expect(row(mayee).balance).toBe(50000 + 128000 - 100000);
-    expect(row(skyler).balance).toBe(128000 + 20000);
-    expect(row(collector).balance).toBe(0);
+    expect(rowOf(result, "Mayee").balance).toBe(50000 + 128000 - 178000);
+    expect(rowOf(result, "PA").balance).toBe(-50000 + (128000 - 640000) + 178000);
   });
 
-  it("rejects shares that don't sum to the bill total", () => {
-    const input = helperOnly(collector);
+  it("chains live: this month's Final is next month's opening", () => {
+    const august = computeMonth(augustInput());
+    const september = computeMonth({ ...helperOnly("PA"), openingBalances: openingBalancesFrom(august) });
+    expect(rowOf(september, "Skyler").opening).toBe(rowOf(august, "Skyler").balance);
+    expect(rowOf(september, "Skyler").balance).toBe(
+      rowOf(august, "Skyler").balance + rowOf(september, "Skyler").monthFinal,
+    );
+  });
+
+  it("reports shares that don't add up", () => {
+    const input = helperOnly("PA");
     input.billShares.get(1)![0].amount = "0.00";
-    expect(() => computeMonth(input)).toThrow(SettlementError);
+    expect(() => computeMonth(input)).toThrow(/add up to/);
   });
 
-  it("rejects members outside the period", () => {
-    const input = helperOnly(collector);
-    input.advances = [{ id: 1, payerId: 999, amount: "10.00" }];
+  it("rejects people who aren't in the month", () => {
+    const input = helperOnly("PA");
+    input.advances = [{ id: 1, payerId: 999, amount: "10.00", sharedWith: null }];
+    expect(() => computeMonth(input)).toThrow(SettlementError);
+    input.advances = [{ id: 1, payerId: idOf("PA"), amount: "10.00", sharedWith: [999] }];
     expect(() => computeMonth(input)).toThrow(SettlementError);
   });
+});
 
-  it("requires exactly one collector", () => {
-    const input = helperOnly(collector);
-    input.members = members.map((m) => ({ ...m, isCollector: false }));
-    expect(() => computeMonth(input)).toThrow(SettlementError);
+describe("advance sharing", () => {
+  const ids = members.map((m) => m.id);
+
+  it("normalizeSharedWith: everyone → null, subset → sorted ids", () => {
+    expect(normalizeSharedWith(null, ids)).toBeNull();
+    expect(normalizeSharedWith([...ids].reverse(), ids)).toBeNull();
+    expect(normalizeSharedWith([idOf("PJ"), idOf("Mayee")], ids)).toEqual([idOf("Mayee"), idOf("PJ")]);
+  });
+
+  it("normalizeSharedWith: rejects empty or outside ids", () => {
+    expect(() => normalizeSharedWith([], ids)).toThrow(SettlementError);
+    expect(() => normalizeSharedWith([999], ids)).toThrow(SettlementError);
+  });
+
+  it("poolLabel names who's left out", () => {
+    expect(poolLabel({ memberIds: ids }, members)).toBe("Adv shared (all)");
+    expect(poolLabel({ memberIds: [idOf("Mayee"), idOf("Skyler"), idOf("Ate Toni")] }, members)).toBe(
+      "Adv shared (w/o PJ, PA)",
+    );
   });
 });
 
 describe("splitOrder", () => {
   it("puts the collector first so they absorb leftover centavos", () => {
-    expect(splitOrder(members).map((id) => members.find((m) => m.id === id)!.name)).toEqual([
+    expect(order.map((id) => members.find((m) => m.id === id)!.name)).toEqual([
       "PA",
       "Ate Toni",
       "Mayee",
       "Skyler",
       "PJ",
     ]);
-    // Meralco ₱15,463.59: PA and three others pay 3,092.72; PJ pays 3,092.71.
-    const shares = splitEqually(toCentavos("15463.59"), splitOrder(members));
-    expect(shares.get(idOf("PA"))).toBe(309272);
-    expect(shares.get(idOf("PJ"))).toBe(309271);
-  });
-});
-
-describe("resplitBill", () => {
-  it("keeps overrides and splits the remainder among the rest", () => {
-    const shares = resplitBill(toCentavos("6400.00"), memberIds, new Map([[idOf("PA"), 0]]));
-    expect(shares.get(idOf("PA"))).toBe(0);
-    expect([...shares.values()].filter((_, i) => memberIds[i] !== idOf("PA"))).toEqual([160000, 160000, 160000, 160000]);
-    expect(sumCentavos(shares.values())).toBe(640000);
-  });
-
-  it("rejects overrides larger than the total", () => {
-    expect(() => resplitBill(1000, memberIds, new Map([[idOf("PA"), 2000]]))).toThrow(SettlementError);
   });
 });
