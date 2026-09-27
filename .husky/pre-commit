@@ -1,0 +1,1 @@
+npx eslint app components lib db scripts
