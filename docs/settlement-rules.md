@@ -30,7 +30,7 @@ months never change when someone moves in or out.
 For each member, every month:
 
 ```
-Total       = bill shares + shared-advance pool shares + custom-split shares
+Total       = bill shares + shared-column shares
 Own Adv (−) = advances they paid + bills they paid to the provider
 Month Final = Total − Own Adv
 ```
@@ -39,9 +39,9 @@ Month Final = Total − Own Adv
 - **Negative** → the member is **owed / reimbursed** that amount.
 - **Zero** → **settled**.
 
-**Everyone's Month Final always adds up to exactly ₱0.00** — what some owe is exactly what
-others are owed. The Split Table shows this sum as an integrity check (the sheet has the
-same ₱0.00 under Month Final).
+**Everyone's Month Final adds up to ₱0.00** — what some owe is exactly what others are owed —
+as long as every Manual shared column's typed amounts add up to its total. Any difference is
+shown on that column ("₱0.02 over") and in the Month Final total, like the sheet's check.
 
 > **Never log a bill as an advance.** Bills paid by someone are credited through
 > `bill_items.paid_by_id`. The Advances Log *shows* them as read-only "Direct Bill Pay" rows,
@@ -58,15 +58,16 @@ Helper ₱6,400.00 = **₱26,736.22**. Shared advances: **₱70,657.90**.
 | Water | 434.73 | 434.73 | 434.72 | 434.72 | 434.73 |
 | PLDT Wifi | 539.80 | 539.80 | 539.80 | 539.80 | 539.80 |
 | Helper | 1,280.00 | 1,280.00 | 1,280.00 | 1,280.00 | 1,280.00 |
-| Adv shared (all) | 5,441.70 | 5,441.70 | 5,441.70 | 5,441.70 | 5,441.70 |
-| Adv shared (w/o PA) | 9,922.10 | 9,922.10 | 9,922.10 | 9,922.10 | — |
-| Ice Maker Adj. | 1,880.50 | 470.13 | 470.12 | 470.12 | 470.13 |
-| **Total** | 24,156.54 | 20,883.09 | 20,883.06 | 19,951.52 | 11,519.91 |
+| Advances Shared | 5,441.70 | 5,441.70 | 5,441.70 | 5,441.70 | 5,441.70 |
+| Advances Shared w/o PA | 9,922.10 | 9,922.10 | 9,922.10 | 9,922.10 | — |
+| Ice Maker Adj. (Manual) | 1,880.50 | 470.13 | 470.13 | 470.13 | 470.13 |
+| **Total** | 24,156.54 | 20,883.09 | 20,883.07 | 19,951.53 | 11,519.91 |
 | Own Adv (−) | 5,732.00 | 8,785.00 | 37,851.00 | 13,636.40 | 31,389.72 |
-| **Month Final** | **18,424.54** | **12,098.09** | **−16,967.94** | **6,315.12** | **−19,869.81** |
+| **Month Final** | **18,424.54** | **12,098.09** | **−16,967.93** | **6,315.13** | **−19,869.81** |
 
-Sum: **₱0.00**. The sheet's own numbers differ by at most ₱0.02 because it rounds each share
-on its own (its Meralco and Water shares don't add up to the bills); the app's always do.
+Sum: **₱0.02** — the Ice Maker's typed amounts add up to ₱3,761.02, ₱0.02 over, exactly as
+in the sheet (the app flags it). Each Month Final is within ₱0.01 of the sheet, which rounds
+each bill share on its own; the app's bill shares always add up to the bill.
 
 ## Rounding: everything in centavos
 
@@ -79,25 +80,23 @@ Money is stored as `numeric(12,2)` and all arithmetic is done in whole centavos
 - **Points / weighted splits:** largest-remainder method — leftovers go to the largest
   fractional parts, ties broken in `splitOrder`. Shares always add up to the total.
 
-## Bill split modes
+## Bill columns (fixed split)
 
-Each bill column has a mode (`bill_items.split_mode`); switch it from the pill under the
-bill's name. Shares are computed in one place: `computeBillShares` in `lib/settlement.ts`.
+Each bill column's split is **fixed** — there's no switch in the table:
 
-| Mode | Shares | You edit |
-|---|---|---|
-| **Equal** | total ÷ the month's members | the bill total |
-| **Points** | total × member's points ÷ total points | the bill total and each person's points |
-| **Manual** | typed per person | each person's amount — **the bill total becomes their sum** |
+| Bill | Split |
+|---|---|
+| **Meralco** | **Points** — share = total × member's points ÷ total points |
+| Water, PLDT Wifi, Helper | **Auto equal** — total ÷ the month's members |
+| A new bill column | **Auto equal** or **Manual**, chosen when it's added (Manual: type each person's amount; the bill's total is their sum) |
 
-- Switching to **Points** starts from last month's points for the same bill name, or 1 each.
-- Switching to **Manual** keeps the current amounts (the total doesn't change).
-- Switching from Manual to Equal/Points re-splits the current total.
+Shares are computed in one place: `computeBillShares` in `lib/settlement.ts`.
 
 ### Meralco point system
 
 Meralco is split by points (`bill_item_shares.points`) because aircon and PCs use more
-electricity. Allocation as of **April 2026** — **8.3 points**:
+electricity. Allocation as of **April 2026** — **8.3 points**, edited in *Manage Columns &
+People → Meralco Points*:
 
 | Ate Toni | PA | Skyler | Mayee | PJ |
 |---:|---:|---:|---:|---:|
@@ -108,25 +107,30 @@ Items the points are built from: General electricity 1 · Aircon 1 · PA's PC 0.
 
 **Cost per point = bill ÷ total points.** August: ₱15,463.59 ÷ 8.3 ≈ ₱1,863.08 per point.
 
-## Shared advances
+## Shared columns (advances)
 
 An advance is a household purchase someone paid for themselves (grocery, food, service,
-misc). The payer's amount counts in their Own Adv; the cost is shared as follows.
+misc). The payer's amount counts in their Own Adv. Every advance is logged into a **shared
+column** (`shared_columns`; `advances.column_id`), and a column's total is the sum of its
+advances. Each column is either:
 
-**Pools (equal split).** By default an advance is shared by everyone in the month. It can
-instead be shared by **everyone except some members** (`advances.shared_with` = the sorted
-ids of who shares it; null = everyone). Advances with the same participants form a **pool**
-that is split once:
+- **Auto equal** — split equally among the members ticked as sharing it
+  (`shared_column_members.included`), leftover centavos collector-first; or
+- **Manual** — each person's amount is typed (`shared_column_members.amount`). If the
+  amounts don't add up to the column total, the difference is shown ("₱0.02 over") but
+  nothing is blocked.
 
-> August: PA was away from Aug 8, so later purchases were shared by the other four.
-> "Adv shared (all)" ₱27,208.50 → ₱5,441.70 × 5; "Adv shared (w/o PA)" ₱39,688.40 →
-> ₱9,922.10 × 4.
+Switching Auto equal → Manual pre-fills the current equal amounts; Manual → Auto equal shares
+it among everyone who had an amount.
 
-**Custom split.** An advance can have its own per-person amounts (`advance_shares`, adding
-up exactly to the advance), shown as its own "Adj." column.
+Every month has **Advances Shared** (`is_default`, everyone, Auto equal), the usual column.
+Situational columns are added when needed:
 
-> **Ice Maker** ₱3,761.00, paid by PA: Ate Toni carries half (₱1,880.50) and the other four
-> split the other half (12.5% each). Weights Ate Toni 4 : others 1.
+> August: PA was away from Aug 8, so later purchases went into **Advances Shared w/o PA**
+> (₱39,688.40 → ₱9,922.10 × 4). **Ice Maker Adj.** (₱3,761.00, paid by PA) is Manual: Ate
+> Toni ₱1,880.50, the others ₱470.13 each.
+
+A column with advances can't be deleted, and Advances Shared always stays.
 
 ## Months and carry-over
 
@@ -140,20 +144,26 @@ computed on the fly back to the first month (or to the last closed month, whose 
 automatically, like the sheet's "Prev Month Unsettled".
 
 **Starting a month** ("Start next month" on the latest month) creates the next month with
-everyone currently active, and copies the bill columns — name, split mode, points and payer
-— at **₱0.00** (`bill_items.total_amount >= 0`), ready for the new bills. Advances and dates
-aren't copied. December is followed by January of the next year.
+everyone currently active and carries over:
+
+- the bill columns — name, split, Meralco's points and payer — at **₱0.00**
+  (`bill_items.total_amount >= 0`), ready for the new bills;
+- an empty **Advances Shared** column;
+- each person's Final as **Prev Month Unsettled** (computed live).
+
+Situational shared columns, advances and dates aren't copied. December is followed by
+January of the next year.
 
 **Closing / reopening** a month (locking it and saving closing balances) comes in the next
 round; edits to a closed month are already rejected.
 
 ## Adding and removing members
 
-- **Adding** someone adds them to every open month. Equal bills re-split; points bills give
-  them 0 points until set; manual bills give them ₱0; "everyone" pools include them.
-  Re-adding a former member's name reactivates them.
+- **Adding** someone adds them to every open month. Equal bills re-split; Meralco gives them
+  0 points until set; manual bills and columns give them ₱0; they join Advances Shared but
+  not situational Auto-equal columns. Re-adding a former member's name reactivates them.
 - **Removing** someone deactivates them (left out of future months). In open months where
-  they have no advances, payments, bills paid or custom-split shares, they're removed and
+  they have no advances, payments, bills paid or Manual column amounts, they're removed and
   the bills re-split; where they do, they stay so that month's numbers don't change. The
   collector can't be removed.
 
