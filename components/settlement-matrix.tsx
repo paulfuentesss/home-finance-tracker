@@ -2,9 +2,6 @@
 
 import { useActionState } from "react";
 import { updateBillTotal, type ActionState } from "@/app/periods/[year]/[month]/actions";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatPHP, fromCentavos, sumCentavos } from "@/lib/money";
 import type { PeriodView } from "@/lib/periods";
 import { cn } from "@/lib/utils";
@@ -13,6 +10,7 @@ interface Props {
   view: PeriodView;
 }
 
+// Styling follows the App.jsx prototype (slate table, amber inputs, rose/emerald finals).
 export function SettlementMatrix({ view }: Props) {
   const { bills, rows, members } = view;
   const editable = view.period.status === "open";
@@ -21,87 +19,77 @@ export function SettlementMatrix({ view }: Props) {
   const showCredit = rows.some((r) => r.billPayerCredit !== 0);
 
   return (
-    <div className="overflow-x-auto rounded-xl border">
-      <Table className="font-mono tabular-nums">
-        <TableHeader>
-          <TableRow className="bg-muted/40 hover:bg-muted/40">
-            <TableHead className="sticky left-0 z-10 bg-muted font-sans">Member</TableHead>
+    <div className="overflow-x-auto">
+      <table className="w-full border-collapse text-left text-sm">
+        <thead>
+          <tr className="border-b border-slate-700/60 bg-slate-900/80 text-slate-300">
+            <th className="sticky left-0 z-10 bg-slate-900 p-3 font-semibold">Housemate</th>
             {bills.map((bill) => (
-              <TableHead key={bill.id} className="min-w-36 py-2 text-right align-top font-sans">
-                <div className="font-medium text-foreground">{bill.name}</div>
-                {bill.paidById !== collectorId && (
-                  <Badge variant="outline" className="mt-1">
-                    paid by {nameOf.get(bill.paidById)}
-                  </Badge>
-                )}
-                {bill.status === "pending" && (
-                  <Badge variant="secondary" className="mt-1">
-                    pending review
-                  </Badge>
-                )}
+              <th key={bill.id} className="min-w-[130px] p-3 text-center align-top font-semibold">
+                <div>{bill.name}</div>
                 {editable ? (
                   <BillTotalInput billId={bill.id} name={bill.name} total={bill.total} />
                 ) : (
-                  <div className="mt-1 font-mono text-xs text-muted-foreground">{formatPHP(bill.total)}</div>
+                  <div className="mt-1 font-mono text-xs text-amber-300">{formatPHP(bill.total)}</div>
                 )}
-              </TableHead>
+                {bill.paidById !== collectorId && (
+                  <div className="mt-1 text-[11px] font-normal text-slate-400">paid by {nameOf.get(bill.paidById)}</div>
+                )}
+                {bill.status === "pending" && (
+                  <div className="mt-1 text-[11px] font-normal text-amber-400">pending review</div>
+                )}
+              </th>
             ))}
-            <TableHead className="text-right font-sans">Adv. shared</TableHead>
-            <TableHead className="text-right font-sans">Own adv. (−)</TableHead>
-            {showCredit && <TableHead className="text-right font-sans">Paid a bill (−)</TableHead>}
-            <TableHead className="text-right font-sans">Month final</TableHead>
-          </TableRow>
-        </TableHeader>
+            <th className="p-3 text-right font-semibold">Adv. Shared</th>
+            <th className="p-3 text-right font-semibold">Own Adv (-)</th>
+            {showCredit && <th className="p-3 text-right font-semibold">Paid a Bill (-)</th>}
+            <th className="p-3 text-right font-semibold text-emerald-400">Month Final</th>
+          </tr>
+        </thead>
 
-        <TableBody>
+        <tbody className="divide-y divide-slate-700/40 font-mono">
           {rows.map((row) => (
-            <TableRow key={row.memberId}>
-              <TableCell className="sticky left-0 z-10 bg-background font-sans font-medium">
+            <tr key={row.memberId} className="group transition-colors hover:bg-slate-800/40">
+              <td className="sticky left-0 z-10 bg-[#182234] p-3 font-sans font-semibold text-slate-200">
                 {row.name}
                 {row.isCollector && (
-                  <Badge variant="secondary" className="ml-2">
+                  <span className="ml-2 rounded-full border border-emerald-500/30 bg-emerald-950/50 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
                     collector
-                  </Badge>
+                  </span>
                 )}
-              </TableCell>
+              </td>
               {bills.map((bill) => (
-                <TableCell key={bill.id} className="text-right text-muted-foreground">
+                <td key={bill.id} className="p-3 text-center text-slate-300">
                   {formatPHP(row.billShares[String(bill.id)] ?? 0)}
-                </TableCell>
+                </td>
               ))}
-              <TableCell className="text-right text-muted-foreground">{formatPHP(row.advanceShare)}</TableCell>
-              <TableCell className="text-right text-amber-600 dark:text-amber-400">
-                {formatPHP(row.ownAdvances)}
-              </TableCell>
-              {showCredit && (
-                <TableCell className="text-right text-muted-foreground">{formatPHP(row.billPayerCredit)}</TableCell>
-              )}
-              <TableCell className="text-right">
+              <td className="p-3 text-right text-slate-300">{formatPHP(row.advanceShare)}</td>
+              <td className="p-3 text-right text-amber-400">{formatPHP(row.ownAdvances)}</td>
+              {showCredit && <td className="p-3 text-right text-amber-400">{formatPHP(row.billPayerCredit)}</td>}
+              <td className="p-3 text-right">
                 <MonthFinal amount={row.monthFinal} isCollector={row.isCollector} />
-              </TableCell>
-            </TableRow>
+              </td>
+            </tr>
           ))}
-        </TableBody>
+        </tbody>
 
-        <TableFooter>
-          <TableRow>
-            <TableCell className="sticky left-0 z-10 bg-muted font-sans">Total</TableCell>
+        <tfoot className="font-mono">
+          <tr className="border-t border-slate-700/60 bg-slate-900/60 font-semibold text-slate-300">
+            <td className="sticky left-0 z-10 bg-slate-900 p-3 font-sans">Total</td>
             {bills.map((bill) => (
-              <TableCell key={bill.id} className="text-right">
+              <td key={bill.id} className="p-3 text-center">
                 {formatPHP(bill.status === "confirmed" ? bill.total : 0)}
-              </TableCell>
+              </td>
             ))}
-            <TableCell className="text-right">{formatPHP(sumCentavos(rows.map((r) => r.advanceShare)))}</TableCell>
-            <TableCell className="text-right">{formatPHP(sumCentavos(rows.map((r) => r.ownAdvances)))}</TableCell>
+            <td className="p-3 text-right">{formatPHP(sumCentavos(rows.map((r) => r.advanceShare)))}</td>
+            <td className="p-3 text-right">{formatPHP(sumCentavos(rows.map((r) => r.ownAdvances)))}</td>
             {showCredit && (
-              <TableCell className="text-right">{formatPHP(sumCentavos(rows.map((r) => r.billPayerCredit)))}</TableCell>
+              <td className="p-3 text-right">{formatPHP(sumCentavos(rows.map((r) => r.billPayerCredit)))}</td>
             )}
-            <TableCell className="text-right font-semibold">
-              {formatPHP(sumCentavos(rows.map((r) => r.monthFinal)))}
-            </TableCell>
-          </TableRow>
-        </TableFooter>
-      </Table>
+            <td className="p-3 text-right text-white">{formatPHP(sumCentavos(rows.map((r) => r.monthFinal)))}</td>
+          </tr>
+        </tfoot>
+      </table>
     </div>
   );
 }
@@ -109,16 +97,17 @@ export function SettlementMatrix({ view }: Props) {
 function MonthFinal({ amount, isCollector }: { amount: number; isCollector: boolean }) {
   if (isCollector) {
     return (
-      <span className="text-muted-foreground" title="The collector's own share, already paid by fronting the bills">
-        {formatPHP(amount)} <span className="font-sans text-xs">own share</span>
+      <span className="font-bold text-slate-400" title="The collector's own share, already paid by fronting the bills">
+        {formatPHP(amount)}
+        <span className="ml-1 font-sans text-[11px] font-normal">own share</span>
       </span>
     );
   }
   const owes = amount > 0;
   return (
-    <span className={cn("font-semibold", owes ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400")}>
-      {formatPHP(Math.abs(amount))}{" "}
-      <span className="font-sans text-xs font-normal">{owes ? "owes" : amount < 0 ? "is owed" : "settled"}</span>
+    <span className={cn("font-bold", owes ? "text-rose-400" : "text-emerald-400")}>
+      {formatPHP(Math.abs(amount))}
+      <span className="ml-1 font-sans text-[11px] font-normal">{owes ? "owes" : amount < 0 ? "is owed" : "settled"}</span>
     </span>
   );
 }
@@ -134,21 +123,24 @@ function BillTotalInput({ billId, name, total }: { billId: number; name: string;
   return (
     <form action={formAction} className="mt-1">
       <input type="hidden" name="billId" value={billId} />
-      <Input
+      <input
         // Remount when the saved total changes so the field shows the server's value.
         key={current}
         name="total"
         defaultValue={current}
         inputMode="decimal"
+        placeholder="Total ₱"
         aria-label={`${name} total`}
         aria-invalid={state?.ok === false || undefined}
         disabled={pending}
-        className="h-7 text-right font-mono text-xs"
+        className="w-28 rounded border border-slate-600 bg-slate-800 px-2 py-1 text-center font-mono text-xs text-amber-300 focus:border-amber-400 focus:outline-none disabled:opacity-50 aria-invalid:border-rose-400"
         onBlur={(e) => {
           if (e.currentTarget.value.trim() !== current) e.currentTarget.form?.requestSubmit();
         }}
       />
-      {state?.ok === false && <p className="mt-1 text-xs font-normal whitespace-normal text-destructive">{state.error}</p>}
+      {state?.ok === false && (
+        <p className="mx-auto mt-1 max-w-32 text-[11px] font-normal whitespace-normal text-rose-400">{state.error}</p>
+      )}
     </form>
   );
 }

@@ -1,6 +1,4 @@
-import { House } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -25,16 +23,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col bg-background text-foreground">
-        <header className="border-b">
-          <div className="mx-auto flex h-14 w-full max-w-7xl items-center px-4">
-            <Link href="/" className="flex items-center gap-2 font-semibold">
-              <House className="size-5 text-emerald-500" />
-              MyHouse
-            </Link>
-          </div>
-        </header>
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8">{children}</main>
+      <body className="min-h-full bg-slate-900 font-sans text-slate-100">
+        <main className="mx-auto w-full max-w-7xl p-4 md:p-8">{children}</main>
       </body>
     </html>
   );

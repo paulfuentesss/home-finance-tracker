@@ -1,12 +1,11 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, DollarSign, FileText, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AdvancesLog } from "@/components/advances-log";
-import { AddAdvanceDialog, AddBillDialog } from "@/components/entry-dialogs";
+import { AddBillDialog } from "@/components/entry-dialogs";
+import { Panel, PanelBar, PanelHeading } from "@/components/panel";
 import { SettlementMatrix } from "@/components/settlement-matrix";
-import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
 import { monthLabel } from "@/lib/format";
 import { getPeriodView, type PeriodSummary } from "@/lib/periods";
 import { cn } from "@/lib/utils";
@@ -34,61 +33,79 @@ export default async function PeriodPage({ params }: Props) {
   const open = view.period.status === "open";
 
   return (
-    <div className="space-y-10">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <PeriodLink period={view.prev} direction="prev" />
-          <h1 className="text-2xl font-semibold tracking-tight">{monthLabel(year, month)}</h1>
-          <PeriodLink period={view.next} direction="next" />
-          <Badge variant={open ? "secondary" : "outline"}>{open ? "Open" : "Closed"}</Badge>
+    <div className="space-y-8">
+      {/* Header */}
+      <header className="flex flex-col justify-between gap-4 border-b border-slate-800 pb-6 md:flex-row md:items-center">
+        <div>
+          <h1 className="flex items-center gap-3 text-3xl font-bold tracking-tight text-white">
+            <DollarSign className="size-10 rounded-xl border border-emerald-500/30 bg-emerald-950/50 p-2 text-emerald-400" />
+            Household Finance Tracker
+          </h1>
+          <p className="mt-1 text-slate-400">{monthLabel(year, month)} Settlement Matrix &amp; Shared Expense Log</p>
         </div>
+
+        <nav aria-label="Months" className="flex items-center gap-2">
+          <PeriodLink period={view.prev} direction="prev" />
+          <span className="min-w-32 text-center text-sm font-semibold text-slate-200">{monthLabel(year, month)}</span>
+          <PeriodLink period={view.next} direction="next" />
+          <span
+            className={cn(
+              "ml-1 rounded-full border px-2 py-0.5 text-xs",
+              open
+                ? "border-emerald-500/30 bg-emerald-950/50 text-emerald-400"
+                : "border-slate-600 bg-slate-700 text-slate-300",
+            )}
+          >
+            {open ? "Open" : "Closed"}
+          </span>
+        </nav>
       </header>
 
-      <section className="space-y-4" aria-labelledby="settlement-heading">
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <div>
-            <h2 id="settlement-heading" className="text-lg font-semibold">
-              Settlement
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Bill shares + shared advances − what each person advanced. Edit a bill total and press Enter to re-split it.
-            </p>
-          </div>
+      {/* Matrix */}
+      <Panel>
+        <PanelBar>
+          <PanelHeading title="Monthly Settlement Breakdown" icon={<Users className="size-5 text-amber-400" />} />
           {open && <AddBillDialog view={view} />}
-        </div>
+        </PanelBar>
         <SettlementMatrix view={view} />
-      </section>
+      </Panel>
 
-      <section className="space-y-4" aria-labelledby="advances-heading">
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <div>
-            <h2 id="advances-heading" className="text-lg font-semibold">
-              Shared advances
-            </h2>
-            <p className="text-sm text-muted-foreground">Household purchases members paid for themselves.</p>
-          </div>
-          {open && <AddAdvanceDialog view={view} />}
-        </div>
-        <AdvancesLog view={view} />
-      </section>
+      {/* Advances log */}
+      <Panel padded>
+        <AdvancesLog
+          view={view}
+          heading={
+            <PanelHeading
+              title="Shared Advances Log"
+              description="Logged expenses paid by individual members for the household"
+              icon={<FileText className="size-5 text-indigo-400" />}
+              size="lg"
+            />
+          }
+        />
+      </Panel>
     </div>
   );
 }
 
 function PeriodLink({ period, direction }: { period: PeriodSummary | null; direction: "prev" | "next" }) {
   const Icon = direction === "prev" ? ChevronLeft : ChevronRight;
-  const label = direction === "prev" ? "Previous month" : "Next month";
-  const className = cn(buttonVariants({ variant: "ghost", size: "icon" }));
+  const className =
+    "inline-flex size-8 items-center justify-center rounded-lg border border-slate-700 bg-slate-800 text-slate-300 transition-colors hover:bg-slate-700";
   if (!period) {
     return (
       <span className={cn(className, "pointer-events-none opacity-30")} aria-hidden>
-        <Icon />
+        <Icon className="size-4" />
       </span>
     );
   }
   return (
-    <Link href={`/periods/${period.year}/${period.month}`} className={className} aria-label={label}>
-      <Icon />
+    <Link
+      href={`/periods/${period.year}/${period.month}`}
+      className={className}
+      aria-label={`${direction === "prev" ? "Previous" : "Next"} month: ${monthLabel(period.year, period.month)}`}
+    >
+      <Icon className="size-4" />
     </Link>
   );
 }

@@ -39,7 +39,7 @@ export function AddAdvanceDialog({ view }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button />}>
+      <DialogTrigger render={<Button size="sm" className="h-8 text-xs" />}>
         <Plus />
         Add advance
       </DialogTrigger>
@@ -117,7 +117,7 @@ export function AddBillDialog({ view }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="outline" />}>
+      <DialogTrigger render={<Button variant="secondary" size="sm" className="h-8 text-xs" />}>
         <Plus />
         Add bill
       </DialogTrigger>
