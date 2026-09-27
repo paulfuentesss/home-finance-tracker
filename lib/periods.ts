@@ -84,8 +84,6 @@ export interface ViewColumn {
   difference: Centavos;
   /** Equal: who shares it. */
   includedIds: number[];
-  /** "everyone" or "everyone except PA". */
-  sharedByLabel: string;
   /** Manual: typed amount per member id (as string). */
   amounts: Record<string, Centavos | null>;
 }
@@ -205,7 +203,6 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
   const columns: ViewColumn[] = period.sharedColumns.map((c) => {
     const computed = result?.columns.find((r) => r.id === c.id);
     const includedIds = members.filter((m) => c.members.some((x) => x.memberId === m.id && x.included)).map((m) => m.id);
-    const excluded = members.filter((m) => !includedIds.includes(m.id)).map((m) => m.name);
     return {
       id: c.id,
       name: c.name,
@@ -216,7 +213,6 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
         sumCentavos(period.advances.filter((a) => a.columnId === c.id).map((a) => toCentavos(a.amount))),
       difference: computed?.difference ?? 0,
       includedIds,
-      sharedByLabel: excluded.length === 0 ? "everyone" : `everyone except ${excluded.join(", ")}`,
       amounts: Object.fromEntries(
         c.members.map((m) => [String(m.memberId), m.amount === null ? null : toCentavos(m.amount)]),
       ),

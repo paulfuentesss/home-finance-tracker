@@ -103,15 +103,22 @@ export default async function HowItWorksPage() {
             bills you paid).
           </p>
           <ul className="list-disc space-y-1 pl-5">
+            <li>Positive (e.g. ₱6,315.13): you still need to pay this amount.</li>
+            <li>Negative (e.g. −₱16,967.93): you paid more than your share and get this back.</li>
+          </ul>
+          <p>
+            <strong>Final</strong> adds last month&apos;s unsettled balance, takes off any payments already made, and
+            spells out what&apos;s left:
+          </p>
+          <ul className="list-disc space-y-1 pl-5">
             <li>
-              <span className="font-medium text-rose-600">Owes</span> — positive: you still need to pay this amount.
+              <span className="font-medium text-rose-600">To pay</span> — pay this amount to PA.
             </li>
             <li>
-              <span className="font-medium text-emerald-600">Owed / Reimburse</span> — negative: you paid more than your
-              share and get this back.
+              <span className="font-medium text-emerald-600">To receive</span> — PA pays this amount back to you.
             </li>
             <li>
-              <span className="font-medium text-zinc-600">Settled</span> — ₱0.00.
+              <span className="font-medium text-zinc-600">Settled</span> — ₱0.00, nothing to do.
             </li>
           </ul>
           <p>
@@ -237,7 +244,7 @@ export default async function HowItWorksPage() {
         </section>
 
         <section className="rounded-xl border bg-white px-5 py-2 shadow-xs">
-          <Accordion multiple defaultValue={faqs.map((f) => f.id)}>
+          <Accordion multiple>
             {faqs.map((faq) => (
               <AccordionItem key={faq.id} value={faq.id} id={faq.id} className="scroll-mt-6">
                 <AccordionTrigger className="text-base">{faq.q}</AccordionTrigger>

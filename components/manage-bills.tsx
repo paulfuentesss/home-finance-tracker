@@ -53,11 +53,11 @@ function BillRow({ bill, editable }: { bill: ViewBill; editable: boolean }) {
                 name="name"
                 defaultValue={bill.name}
                 aria-label="Bill name"
-                disabled={pending}
+                readOnly={pending}
                 maxLength={60}
                 className="w-full rounded-md border border-transparent bg-transparent px-1 font-semibold hover:border-input focus:border-amber-500 focus:bg-white focus:outline-none"
                 onBlur={(e) => {
-                  if (e.currentTarget.value.trim() && e.currentTarget.value.trim() !== bill.name) {
+                  if (!pending && e.currentTarget.value.trim() && e.currentTarget.value.trim() !== bill.name) {
                     e.currentTarget.form?.requestSubmit();
                   }
                 }}

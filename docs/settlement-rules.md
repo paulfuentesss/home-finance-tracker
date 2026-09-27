@@ -143,7 +143,7 @@ computed on the fly back to the first month (or to the last closed month, whose 
 `period_balances.opening_balance` is used). Unpaid amounts therefore carry over
 automatically, like the sheet's "Prev Month Unsettled".
 
-**Starting a month** ("Start next month" on the latest month) creates the next month with
+**Starting a month** ("Start <next month>" at the bottom of the month picker, on the latest month) creates the next month with
 everyone currently active and carries over:
 
 - the bill columns — name, split, Meralco's points and payer — at **₱0.00**

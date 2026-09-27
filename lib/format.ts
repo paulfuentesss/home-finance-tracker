@@ -1,7 +1,8 @@
 // Display helpers shared by Server and Client Components.
 
 const monthFormatter = new Intl.DateTimeFormat("en-PH", { month: "long", year: "numeric", timeZone: "UTC" });
-const dayFormatter = new Intl.DateTimeFormat("en-PH", { month: "short", day: "numeric", timeZone: "UTC" });
+// Household style: abbreviated with a period, except the short months ("Sept. 6", "March 4").
+const DAY_MONTHS = ["Jan.", "Feb.", "March", "April", "May", "June", "July", "Aug.", "Sept.", "Oct.", "Nov.", "Dec."];
 
 /** (2026, 8) → "August 2026" */
 export function monthLabel(year: number, month: number): string {
@@ -9,12 +10,12 @@ export function monthLabel(year: number, month: number): string {
 }
 
 /**
- * "2026-08-19" → "Aug 19". Date-only strings are formatted in UTC on purpose: they're
- * calendar dates, not moments in time, so no timezone should shift them.
+ * "2026-09-06" → "Sept. 6". Read straight from the string, not through a Date, because
+ * these are calendar dates, not moments in time, so no timezone should shift them.
  */
 export function dayLabel(isoDate: string): string {
-  const [y, m, d] = isoDate.split("-").map(Number);
-  return dayFormatter.format(Date.UTC(y, m - 1, d));
+  const [, m, d] = isoDate.split("-").map(Number);
+  return `${DAY_MONTHS[m - 1]} ${d}`;
 }
 
 /** Today's date in Manila as "YYYY-MM-DD" (for date inputs). */

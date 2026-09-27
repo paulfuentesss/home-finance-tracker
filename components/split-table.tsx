@@ -2,34 +2,24 @@
 
 import { Calculator, Scale, SlidersHorizontal, Zap } from "lucide-react";
 import Link from "next/link";
-import { useActionState, useState, useTransition } from "react";
+import { useActionState } from "react";
 import {
-  setSharedColumnMode,
   updateBillDates,
   updateBillShare,
   updateBillTotal,
   updateSharedColumnAmount,
   type ActionState,
 } from "@/app/periods/[year]/[month]/actions";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
-import { monthLabel } from "@/lib/format";
+import { useDragScroll } from "@/hooks/use-drag-scroll";
+import { dayLabel, monthLabel } from "@/lib/format";
 import { formatPHP, fromCentavos, sumCentavos } from "@/lib/money";
 import type { PeriodView, ViewBill, ViewColumn, ViewRow } from "@/lib/periods";
-import type { SplitMode } from "@/lib/settlement";
 import { cn } from "@/lib/utils";
 
-// Solid pills on the bright header, like the household sheet.
-const PILLS: Record<SplitMode, { label: string; className: string }> = {
-  equal: { label: "Auto equal", className: "bg-emerald-800 text-white" },
-  points: { label: "Points", className: "bg-sky-800 text-white" },
-  manual: { label: "Manual", className: "bg-amber-900 text-white" },
-};
-const pillBase = "mt-1 inline-flex h-6 items-center gap-1 rounded-full px-2.5 text-[11px] font-medium";
-
 const cellBase = "px-3 py-2.5 whitespace-nowrap";
+// Extra room under the Total row: macOS draws the horizontal scrollbar over the content.
+const footCell = cn(cellBase, "pb-5");
 const headBright = "bg-amber-300 text-zinc-900";
-const headSummary = "bg-yellow-200 text-zinc-900";
-const summaryTint = "bg-yellow-50";
 
 export function SplitTable({ view }: { view: PeriodView }) {
   const editable = view.period.status === "open";
@@ -38,22 +28,14 @@ export function SplitTable({ view }: { view: PeriodView }) {
   const sum = (pick: (r: ViewRow) => number) => sumCentavos(view.rows.map(pick));
   const finalsTotal = sum((r) => r.monthFinal);
   const mismatched = columns.filter((c) => c.difference !== 0);
+  const dragScroll = useDragScroll<HTMLDivElement>();
 
   return (
     <div className="space-y-6">
-      <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-white p-5 shadow-xs">
-        <div>
-          <h2 className="text-lg font-semibold">
-            Household Summary Matrix{" "}
-            <span className="text-sm font-normal text-muted-foreground">({members.length} members)</span>
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Type each bill&apos;s total to split it. Add or change columns and people in Manage Columns &amp; People.
-          </p>
-        </div>
-      </section>
-
-      <div className="overflow-x-auto rounded-xl border bg-white shadow-xs">
+      <div
+        {...dragScroll}
+        className="overflow-x-auto rounded-xl border bg-white shadow-xs data-dragging:cursor-grabbing data-dragging:select-none data-scrollable:cursor-grab"
+      >
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="border-b border-amber-400">
@@ -62,21 +44,16 @@ export function SplitTable({ view }: { view: PeriodView }) {
               </th>
               {bills.map((bill) => (
                 <th key={bill.id} className={cn(cellBase, headBright, "min-w-36 text-center font-bold")}>
-                  <div>{bill.name}</div>
-                  <span className={cn(pillBase, PILLS[bill.splitMode].className)}>
-                    {bill.splitMode === "points" ? `Points · ${bill.totalPoints}` : PILLS[bill.splitMode].label}
-                  </span>
+                  {bill.name}
                 </th>
               ))}
               {columns.map((column) => (
                 <th key={column.id} className={cn(cellBase, headBright, "min-w-36 text-center font-bold")}>
-                  <div>{column.name}</div>
-                  <ColumnModePill column={column} editable={editable} />
-                  <div className="mt-0.5 text-[11px] font-normal text-zinc-700">{column.sharedByLabel}</div>
+                  {column.name}
                 </th>
               ))}
               {["Total", "Own Advance (−)", "Month Final", "Prev Month Unsettled", "Final"].map((label) => (
-                <th key={label} className={cn(cellBase, headSummary, "text-right font-bold")}>
+                <th key={label} className={cn(cellBase, headBright, "text-center font-bold")}>
                   {label}
                 </th>
               ))}
@@ -85,8 +62,8 @@ export function SplitTable({ view }: { view: PeriodView }) {
 
           <tbody className="divide-y font-mono tabular-nums">
             {/* "Bill" row: each column's total, like the sheet */}
-            <tr className="bg-amber-50">
-              <th scope="row" className={cn(cellBase, "sticky left-0 z-10 bg-amber-50 text-left font-sans font-medium italic")}>
+            <tr className="bg-zinc-50">
+              <th scope="row" className={cn(cellBase, "sticky left-0 z-10 bg-zinc-50 text-left font-sans font-medium italic")}>
                 Bill
               </th>
               {bills.map((bill) => (
@@ -102,11 +79,6 @@ export function SplitTable({ view }: { view: PeriodView }) {
                   ) : (
                     <span className="font-semibold">{formatPHP(bill.total)}</span>
                   )}
-                  {bill.perUnit && bill.total > 0 && (
-                    <div className="mt-1 text-[11px] text-emerald-700">
-                      ({formatPHP(bill.perUnit.amount)} / {bill.perUnit.unit})
-                    </div>
-                  )}
                   {bill.splitMode === "manual" && <div className="mt-1 text-[11px] text-muted-foreground">sum of shares</div>}
                 </td>
               ))}
@@ -120,14 +92,14 @@ export function SplitTable({ view }: { view: PeriodView }) {
                   )}
                 </td>
               ))}
-              <td colSpan={5} className={summaryTint} />
+              <td colSpan={5} />
             </tr>
 
             {members.map((member) => {
               const row = rowOf.get(member.id);
               return (
-                <tr key={member.id} className="hover:bg-zinc-50/60">
-                  <th scope="row" className={cn(cellBase, "sticky left-0 z-10 bg-white text-left font-sans font-medium")}>
+                <tr key={member.id} className="group hover:bg-zinc-50">
+                  <th scope="row" className={cn(cellBase, "sticky left-0 z-10 bg-white group-hover:bg-zinc-50 text-left font-sans font-medium")}>
                     <span className="flex items-center gap-2">
                       <span className={cn("size-2.5 rounded-full", member.dotClass)} aria-hidden />
                       {member.name}
@@ -146,22 +118,22 @@ export function SplitTable({ view }: { view: PeriodView }) {
                       <ColumnShareCell column={column} memberId={member.id} row={row} editable={editable} />
                     </td>
                   ))}
-                  <td className={cn(cellBase, summaryTint, "text-right font-semibold")}>{row ? formatPHP(row.total) : "—"}</td>
-                  <td className={cn(cellBase, summaryTint, "text-right text-emerald-700")}>
+                  <td className={cn(cellBase, "text-center font-semibold")}>{row ? formatPHP(row.total) : "—"}</td>
+                  <td className={cn(cellBase, "text-center text-zinc-700")}>
                     {row ? formatPHP(row.ownAdvances + row.billsPaid) : "—"}
                   </td>
-                  <td className={cn(cellBase, summaryTint, "text-right")}>{row ? <Balance amount={row.monthFinal} /> : "—"}</td>
-                  <td className={cn(cellBase, summaryTint, "text-right text-zinc-600")}>
-                    {row && row.opening !== 0 ? formatPHP(row.opening) : "—"}
+                  <td className={cn(cellBase, "text-center text-zinc-700")}>{row ? formatPHP(row.monthFinal) : "—"}</td>
+                  <td className={cn(cellBase, "text-center", row?.opening ? "text-zinc-700" : "text-zinc-400")}>
+                    {row ? formatPHP(row.opening) : "—"}
                   </td>
-                  <td className={cn(cellBase, summaryTint, "text-right")}>{row ? <Balance amount={row.balance} /> : "—"}</td>
+                  <td className={cn(cellBase, "text-center")}>{row ? <Balance amount={row.balance} /> : "—"}</td>
                 </tr>
               );
             })}
 
             {(["dueDate", "paidOn"] as const).map((field) => (
-              <tr key={field} className="bg-amber-50/60 font-sans">
-                <th scope="row" className={cn(cellBase, "sticky left-0 z-10 bg-amber-50 text-left font-medium text-zinc-600")}>
+              <tr key={field} className="bg-zinc-50 font-sans">
+                <th scope="row" className={cn(cellBase, "sticky left-0 z-10 bg-zinc-50 text-left font-medium text-zinc-600")}>
                   {field === "dueDate" ? "Due date" : "Date paid"}
                 </th>
                 {bills.map((bill) => (
@@ -170,21 +142,21 @@ export function SplitTable({ view }: { view: PeriodView }) {
                   </td>
                 ))}
                 <td colSpan={columns.length} />
-                <td colSpan={5} className={summaryTint} />
+                <td colSpan={5} />
               </tr>
             ))}
           </tbody>
 
           <tfoot className="font-mono tabular-nums">
-            <tr className="border-t bg-yellow-100 font-semibold">
-              <th scope="row" className={cn(cellBase, "sticky left-0 z-10 bg-yellow-100 text-left font-sans")}>
+            <tr className="border-t border-amber-300 bg-amber-50 font-semibold">
+              <th scope="row" className={cn(footCell, "sticky left-0 z-10 bg-amber-50 text-left font-sans")}>
                 Total
               </th>
               <td colSpan={bills.length + columns.length} />
-              <td className={cn(cellBase, "text-right")}>{formatPHP(sum((r) => r.total))}</td>
-              <td className={cn(cellBase, "text-right")}>{formatPHP(sum((r) => r.ownAdvances + r.billsPaid))}</td>
+              <td className={cn(footCell, "text-center")}>{formatPHP(sum((r) => r.total))}</td>
+              <td className={cn(footCell, "text-center")}>{formatPHP(sum((r) => r.ownAdvances + r.billsPaid))}</td>
               <td
-                className={cn(cellBase, "text-right", finalsTotal !== 0 && "text-rose-600")}
+                className={cn(footCell, "text-center", finalsTotal !== 0 && "text-rose-600")}
                 title="Everyone's Month Final adds up to ₱0.00 when every column adds up"
               >
                 {formatPHP(finalsTotal)}
@@ -198,8 +170,8 @@ export function SplitTable({ view }: { view: PeriodView }) {
                   </div>
                 )}
               </td>
-              <td className={cn(cellBase, "text-right")}>{formatPHP(sum((r) => r.opening))}</td>
-              <td className={cn(cellBase, "text-right")}>{formatPHP(sum((r) => r.balance))}</td>
+              <td className={cn(footCell, "text-center")}>{formatPHP(sum((r) => r.opening))}</td>
+              <td className={cn(footCell, "text-center")}>{formatPHP(sum((r) => r.balance))}</td>
             </tr>
           </tfoot>
         </table>
@@ -216,50 +188,8 @@ function Balance({ amount }: { amount: number }) {
   return (
     <span className={cn("font-semibold", owes ? "text-rose-600" : "text-emerald-600")}>
       {formatPHP(Math.abs(amount))}
-      <span className="ml-1 font-sans text-[11px] font-normal">{owes ? "Owes" : "Owed / Reimburse"}</span>
+      <span className="ml-1 font-sans text-[11px] font-normal">{owes ? "To pay" : "To receive"}</span>
     </span>
-  );
-}
-
-/** Shared columns switch between Auto equal and Manual; bill columns have fixed modes. */
-function ColumnModePill({ column, editable }: { column: ViewColumn; editable: boolean }) {
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const pill = PILLS[column.splitMode];
-  if (!editable) return <span className={cn(pillBase, pill.className)}>{pill.label}</span>;
-
-  const items = (["equal", "manual"] as const).map((value) => ({ value, label: PILLS[value].label }));
-  return (
-    <div>
-      <Select
-        items={items}
-        value={column.splitMode}
-        onValueChange={(mode) =>
-          mode &&
-          startTransition(async () => {
-            const result = await setSharedColumnMode(column.id, mode as "equal" | "manual");
-            setError(result?.ok === false ? result.error : null);
-          })
-        }
-      >
-        <SelectTrigger
-          aria-label={`${column.name} split`}
-          size="sm"
-          disabled={pending}
-          className={cn(pillBase, pill.className, "w-auto border-none shadow-none [&_svg]:size-3 [&_svg]:text-white/80")}
-        >
-          <span>{pill.label}</span>
-        </SelectTrigger>
-        <SelectContent>
-          {items.map((item) => (
-            <SelectItem key={item.value} value={item.value}>
-              {item.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      {error && <p className="mt-1 max-w-36 text-[11px] font-normal whitespace-normal text-rose-700">{error}</p>}
-    </div>
   );
 }
 
@@ -276,14 +206,6 @@ function BillShareCell({ bill, memberId, editable }: { bill: ViewBill; memberId:
         value={amount}
         label={`${bill.name} share`}
       />
-    );
-  }
-  if (bill.splitMode === "points") {
-    return (
-      <div className="flex flex-col items-center">
-        <span>{formatPHP(amount)}</span>
-        <span className="font-sans text-[11px] text-sky-700">{share?.points ?? 0} pts</span>
-      </div>
     );
   }
   return <span>{formatPHP(amount)}</span>;
@@ -324,6 +246,9 @@ type FormAction = (prev: ActionState, formData: FormData) => Promise<ActionState
 /**
  * An amount field that saves on Enter or when it loses focus (only if changed). The server
  * re-splits and the page refreshes with the new numbers.
+ *
+ * While saving, the field is readOnly rather than disabled: disabling a focused input blurs
+ * it, and the blur would re-submit a form whose disabled field is left out of the FormData.
  */
 function MoneyInput({
   action,
@@ -354,10 +279,10 @@ function MoneyInput({
           inputMode="decimal"
           aria-label={label}
           aria-invalid={state?.ok === false || undefined}
-          disabled={pending}
-          className="h-8 w-28 rounded-md border border-input bg-white pr-2 pl-5 text-right font-mono text-sm focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none disabled:opacity-50 aria-invalid:border-rose-500"
+          readOnly={pending}
+          className="h-8 w-28 rounded-md border border-input bg-white pr-2 pl-5 text-right font-mono text-sm focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none read-only:opacity-50 aria-invalid:border-rose-500"
           onBlur={(e) => {
-            if (e.currentTarget.value.trim() !== current) e.currentTarget.form?.requestSubmit();
+            if (!pending && e.currentTarget.value.trim() !== current) e.currentTarget.form?.requestSubmit();
           }}
         />
       </label>
@@ -368,26 +293,41 @@ function MoneyInput({
   );
 }
 
+/**
+ * Shows the date as "Sept. 6". A transparent native date input sits on top, so clicking the
+ * label opens the browser's date picker and choosing a date saves it.
+ */
 function DateCell({ bill, field, editable }: { bill: ViewBill; field: "dueDate" | "paidOn"; editable: boolean }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(updateBillDates, null);
   const value = bill[field] ?? "";
+  const label = value ? dayLabel(value) : "—";
   if (!editable) {
-    return <span className="text-zinc-600">{value ? value.slice(5).replace("-", "/") : "—"}</span>;
+    return <span className="text-zinc-600">{label}</span>;
   }
   return (
     <form action={formAction}>
       <input type="hidden" name="billId" value={bill.id} />
       <input type="hidden" name="field" value={field} />
-      <input
-        key={value}
-        type="date"
-        name="value"
-        defaultValue={value}
-        aria-label={`${bill.name} ${field === "dueDate" ? "due date" : "date paid"}`}
-        disabled={pending}
-        className="h-7 w-32 rounded-md border border-transparent bg-transparent px-1 text-center text-xs text-zinc-600 hover:border-input focus:border-amber-500 focus:outline-none"
-        onChange={(e) => e.currentTarget.form?.requestSubmit()}
-      />
+      <label className="relative inline-flex h-7 w-24 items-center justify-center rounded-md border border-transparent text-xs text-zinc-600 focus-within:border-amber-500 hover:border-input">
+        <span className={cn(!value && "text-muted-foreground")}>{label}</span>
+        <input
+          key={value}
+          type="date"
+          name="value"
+          defaultValue={value}
+          aria-label={`${bill.name} ${field === "dueDate" ? "due date" : "date paid"}`}
+          disabled={pending}
+          className="absolute inset-0 cursor-pointer opacity-0"
+          onClick={(e) => {
+            try {
+              e.currentTarget.showPicker();
+            } catch {
+              // Older browsers: clicking the input itself still opens their picker.
+            }
+          }}
+          onChange={(e) => e.currentTarget.form?.requestSubmit()}
+        />
+      </label>
       {state?.ok === false && <p className="text-[11px] text-destructive">{state.error}</p>}
     </form>
   );

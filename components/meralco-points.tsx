@@ -76,10 +76,10 @@ function PointsRow({
               inputMode="decimal"
               aria-label={`${name} points`}
               aria-invalid={state?.ok === false || undefined}
-              disabled={pending}
+              readOnly={pending}
               className="h-8 w-16 rounded-md border border-input px-2 text-right font-mono focus:border-amber-500 focus:outline-none aria-invalid:border-rose-500"
               onBlur={(e) => {
-                if (e.currentTarget.value.trim() !== current) e.currentTarget.form?.requestSubmit();
+                if (!pending && e.currentTarget.value.trim() !== current) e.currentTarget.form?.requestSubmit();
               }}
             />
             <span className="text-muted-foreground">pts</span>
