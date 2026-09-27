@@ -7,12 +7,14 @@ import {
   SettlementError,
   type MonthInput,
   type SettlementMember,
+  splitOrder,
   type SettlementShare,
 } from "@/lib/settlement";
 
 const members: SettlementMember[] = HOUSEHOLD_MEMBERS.map((m, i) => ({ id: i + 1, ...m }));
 const idOf = (name: MemberName) => members.find((m) => m.name === name)!.id;
 const memberIds = members.map((m) => m.id);
+const leftoverOrder = splitOrder(members);
 
 /** Build the August 2026 month the same way the app will: materialized equal bill shares. */
 function augustInput({ customIceMaker }: { customIceMaker: boolean }): MonthInput {
@@ -26,7 +28,7 @@ function augustInput({ customIceMaker }: { customIceMaker: boolean }): MonthInpu
   const billShares = new Map<number, SettlementShare[]>(
     bills.map((b) => [
       b.id,
-      [...splitEqually(toCentavos(b.totalAmount), memberIds)].map(([memberId, c]) => ({
+      [...splitEqually(toCentavos(b.totalAmount), leftoverOrder)].map(([memberId, c]) => ({
         memberId,
         amount: fromCentavos(c),
       })),
@@ -176,6 +178,22 @@ describe("computeMonth — rules", () => {
     const input = helperOnly(collector);
     input.members = members.map((m) => ({ ...m, isCollector: false }));
     expect(() => computeMonth(input)).toThrow(SettlementError);
+  });
+});
+
+describe("splitOrder", () => {
+  it("puts the collector first so they absorb leftover centavos", () => {
+    expect(splitOrder(members).map((id) => members.find((m) => m.id === id)!.name)).toEqual([
+      "PA",
+      "Ate Tonette",
+      "Mayee",
+      "KP",
+      "PJ",
+    ]);
+    // Meralco ₱15,463.59: PA and three others pay 3,092.72; PJ pays 3,092.71.
+    const shares = splitEqually(toCentavos("15463.59"), splitOrder(members));
+    expect(shares.get(idOf("PA"))).toBe(309272);
+    expect(shares.get(idOf("PJ"))).toBe(309271);
   });
 });
 

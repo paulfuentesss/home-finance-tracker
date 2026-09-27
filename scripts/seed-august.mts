@@ -15,6 +15,7 @@ import {
 } from "../db/schema";
 import { AUGUST_2026, type MemberName } from "../lib/__fixtures__/august-2026";
 import { fromCentavos, splitByWeights, splitEqually, toCentavos } from "../lib/money";
+import { splitOrder } from "../lib/settlement";
 
 const url = process.env.DIRECT_URL;
 if (!url) throw new Error("DIRECT_URL is not set — fill in .env.local first.");
@@ -40,6 +41,7 @@ try {
         return member.id;
       };
       const memberIds = allMembers.map((m) => m.id);
+      const leftoverOrder = splitOrder(allMembers);
 
       const [period] = await tx
         .insert(billingPeriods)
@@ -54,7 +56,7 @@ try {
           .insert(billItems)
           .values({ periodId: period.id, name: bill.name, totalAmount: bill.totalAmount, paidById: idOf(bill.paidBy) })
           .returning();
-        const shares = splitEqually(toCentavos(bill.totalAmount), memberIds);
+        const shares = splitEqually(toCentavos(bill.totalAmount), leftoverOrder);
         await tx
           .insert(billItemShares)
           .values([...shares].map(([memberId, c]) => ({ billItemId: row.id, memberId, amount: fromCentavos(c) })));

@@ -73,6 +73,17 @@ export interface MemberMonth {
 
 export class SettlementError extends Error {}
 
+/**
+ * The order to hand out leftover centavos when splitting: the collector first, then
+ * everyone else by sort order. The collector absorbs the rounding so it never lands on
+ * the other members.
+ */
+export function splitOrder(members: readonly SettlementMember[]): MemberId[] {
+  return [...members]
+    .sort((a, b) => Number(b.isCollector) - Number(a.isCollector) || a.sortOrder - b.sortOrder || a.id - b.id)
+    .map((m) => m.id);
+}
+
 export function computeMonth(input: MonthInput): MemberMonth[] {
   const members = [...input.members].sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
   const memberIds = members.map((m) => m.id);
@@ -144,7 +155,7 @@ export function computeMonth(input: MonthInput): MemberMonth[] {
     }
   }
   if (pooled > 0) {
-    for (const [id, share] of splitEqually(pooled, memberIds)) row(id).advanceShare += share;
+    for (const [id, share] of splitEqually(pooled, splitOrder(members))) row(id).advanceShare += share;
   }
 
   // --- Payments ---

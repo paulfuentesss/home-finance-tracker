@@ -33,7 +33,8 @@ export function formatPHP(centavos: Centavos): string {
 
 /**
  * Split a total equally. Leftover centavos (at most ids.length − 1) go one each to the
- * first ids in the given order — pass ids sorted by members.sort_order.
+ * first ids in the given order — pass ids from splitOrder() in lib/settlement.ts so the
+ * collector absorbs them.
  * The result always sums exactly to the total.
  *
  * splitEqually(1546359, [a, b, c, d, e]) → a..d get 309272, e gets 309271.
