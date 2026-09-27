@@ -31,7 +31,7 @@ describe("toCentavos / fromCentavos", () => {
 });
 
 describe("splitEqually", () => {
-  const five = ["Ate Tonette", "Mayee", "KP", "PJ", "PA"];
+  const five = ["Ate Toni", "Mayee", "Skyler", "PJ", "PA"];
 
   it("gives leftover centavos to the first members in order", () => {
     // ₱15,463.59 / 5 = 3,092.718 → four get 3,092.72, one gets 3,092.71.
@@ -54,16 +54,16 @@ describe("splitByWeights", () => {
   it("splits the Ice Maker 50% / 12.5% × 4 and sums exactly", () => {
     const shares = splitByWeights(toCentavos("3761.00"), [
       ["PA", 4],
-      ["Ate Tonette", 1],
+      ["Ate Toni", 1],
       ["Mayee", 1],
-      ["KP", 1],
+      ["Skyler", 1],
       ["PJ", 1],
     ]);
     expect(Object.fromEntries(shares)).toEqual({
       PA: 188050,
-      "Ate Tonette": 47013,
+      "Ate Toni": 47013,
       Mayee: 47013,
-      KP: 47012,
+      Skyler: 47012,
       PJ: 47012,
     });
     expect(sumCentavos(shares.values())).toBe(376100);

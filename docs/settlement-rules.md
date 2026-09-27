@@ -8,7 +8,7 @@ Google Sheet / `App.jsx` prototype), which are also the test fixture in
 
 ## Members and the collector
 
-The household has five members: **Ate Tonette, Mayee, KP, PJ and PA**.
+The household has five members: **Ate Toni, Mayee, Skyler, PJ and PA**.
 
 **PA (Paul) is the collector.** Paul pays the core bills to the providers upfront
 (Meralco, Water, PLDT Wifi and usually the Helper), and everyone settles up with him.
@@ -51,9 +51,9 @@ Helper ₱6,400.00 = **₱26,736.22**
 
 | Member | Bill shares | Advance share | Own advances | **Month Final** |
 |---|---:|---:|---:|---:|
-| Ate Tonette | ₱5,347.25 | ₱12,792.51 | ₱5,732.00 | **₱12,407.76** owes |
+| Ate Toni | ₱5,347.25 | ₱12,792.51 | ₱5,732.00 | **₱12,407.76** owes |
 | Mayee | ₱5,347.25 | ₱12,792.51 | ₱3,500.00 | **₱14,639.76** owes |
-| KP | ₱5,347.24 | ₱12,792.50 | ₱37,851.00 | **−₱19,711.26** is owed |
+| Skyler | ₱5,347.24 | ₱12,792.50 | ₱37,851.00 | **−₱19,711.26** is owed |
 | PJ | ₱5,347.23 | ₱12,792.50 | ₱13,636.40 | **₱4,503.33** owes |
 | PA | ₱5,347.25 | ₱14,202.88 | ₱4,653.50 | ₱14,896.63 (own share) |
 
@@ -69,7 +69,7 @@ Money is stored as `numeric(12,2)` and all arithmetic is done in whole centavos
 five members) go one each to members in this order: **the collector first**, then by
 `sort_order`. Paul absorbs the rounding, so it never lands on anyone else.
 
-> Meralco ₱15,463.59 ÷ 5 = 3,092.718 → PA, Ate Tonette, Mayee and KP pay ₱3,092.72;
+> Meralco ₱15,463.59 ÷ 5 = 3,092.718 → PA, Ate Toni, Mayee and Skyler pay ₱3,092.72;
 > PJ pays ₱3,092.71. Total: exactly ₱15,463.59.
 >
 > (The prototype rounded each share with `toFixed(2)`: 5 × ₱3,092.72 = ₱15,463.60,
@@ -90,7 +90,7 @@ pool is split once among the month's members (same as the prototype's
 that add up exactly to its amount.
 
 > **Ice Maker** ₱3,761.00, paid by PA: PA carries half (₱1,880.50) and the other four
-> split the other half (Ate Tonette ₱470.13, Mayee ₱470.13, KP ₱470.12, PJ ₱470.12).
+> split the other half (Ate Toni ₱470.13, Mayee ₱470.13, Skyler ₱470.12, PJ ₱470.12).
 > Weights PA 4 : others 1 each.
 
 This replaces the prototype's separate "Ice Maker Adj." column, which was stored but
@@ -101,8 +101,8 @@ never actually counted.
 Sometimes another member pays the Helper. `bill_items.paid_by_id` records who paid.
 The payer is credited the full bill and the collector takes it on instead:
 
-> KP pays the ₱6,400 Helper. KP's share is ₱1,280, so KP's bill-payer credit is
-> −₱6,400 and KP's Month Final goes down by ₱6,400. PA's goes up by ₱6,400.
+> Skyler pays the ₱6,400 Helper. Skyler's share is ₱1,280, so Skyler's bill-payer credit is
+> −₱6,400 and Skyler's Month Final goes down by ₱6,400. PA's goes up by ₱6,400.
 > Everyone else is unchanged.
 
 When Paul pays (the usual case), there's no credit and nothing changes.
@@ -111,7 +111,7 @@ When Paul pays (the usual case), there's no credit and nothing changes.
 
 **Payments** (`payments`) record money actually changing hands: "Mayee paid Paul
 ₱14,639.76 on Sep 3". They can go member → collector, collector → member (paying out
-someone who is owed, like KP above), or member → member.
+someone who is owed, like Skyler above), or member → member.
 
 **Running balance** for each non-collector:
 

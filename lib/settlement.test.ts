@@ -86,7 +86,7 @@ describe("computeMonth — August 2026 fixture", () => {
     // PA: 1,880.50 instead of 752.20.
     expect(delta("PA")).toBe(188050 - 75220);
     // Everyone else: ~470.13 instead of 752.20, so ~282.07 less.
-    for (const name of ["Ate Tonette", "Mayee", "KP", "PJ"] as const) {
+    for (const name of ["Ate Toni", "Mayee", "Skyler", "PJ"] as const) {
       expect(delta(name)).toBeGreaterThanOrEqual(-28209);
       expect(delta(name)).toBeLessThanOrEqual(-28206);
     }
@@ -105,7 +105,7 @@ describe("computeMonth — August 2026 fixture", () => {
 
 describe("computeMonth — rules", () => {
   const collector = idOf("PA");
-  const kp = idOf("KP");
+  const skyler = idOf("Skyler");
   const mayee = idOf("Mayee");
 
   function helperOnly(paidById: number): MonthInput {
@@ -124,12 +124,12 @@ describe("computeMonth — rules", () => {
   }
 
   it("credits a non-collector who paid a bill and debits the collector", () => {
-    const result = computeMonth(helperOnly(kp));
+    const result = computeMonth(helperOnly(skyler));
     const row = (id: number) => result.find((r) => r.member.id === id)!;
-    expect(row(kp).billPayerCredit).toBe(-640000);
+    expect(row(skyler).billPayerCredit).toBe(-640000);
     expect(row(collector).billPayerCredit).toBe(640000);
-    // KP's share is 1,280, but they fronted 6,400 → owed 5,120.
-    expect(row(kp).monthFinal).toBe(128000 - 640000);
+    // Skyler's share is 1,280, but they fronted 6,400 → owed 5,120.
+    expect(row(skyler).monthFinal).toBe(128000 - 640000);
     expect(row(mayee).monthFinal).toBe(128000);
   });
 
@@ -153,12 +153,12 @@ describe("computeMonth — rules", () => {
     ]);
     input.payments = [
       { fromMemberId: mayee, toMemberId: collector, amount: "1000.00" },
-      { fromMemberId: collector, toMemberId: kp, amount: "200.00" },
+      { fromMemberId: collector, toMemberId: skyler, amount: "200.00" },
     ];
     const result = computeMonth(input);
     const row = (id: number) => result.find((r) => r.member.id === id)!;
     expect(row(mayee).balance).toBe(50000 + 128000 - 100000);
-    expect(row(kp).balance).toBe(128000 + 20000);
+    expect(row(skyler).balance).toBe(128000 + 20000);
     expect(row(collector).balance).toBe(0);
   });
 
@@ -185,9 +185,9 @@ describe("splitOrder", () => {
   it("puts the collector first so they absorb leftover centavos", () => {
     expect(splitOrder(members).map((id) => members.find((m) => m.id === id)!.name)).toEqual([
       "PA",
-      "Ate Tonette",
+      "Ate Toni",
       "Mayee",
-      "KP",
+      "Skyler",
       "PJ",
     ]);
     // Meralco ₱15,463.59: PA and three others pay 3,092.72; PJ pays 3,092.71.
