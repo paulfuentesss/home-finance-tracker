@@ -1,154 +1,168 @@
 # Settlement rules
 
 How MyHouse splits household costs each month. This is the source of truth for
-`lib/settlement.ts`, `lib/money.ts` and `db/schema.ts`: change the rules here first,
-then the code. The examples use the real August 2026 numbers (from the original
-Google Sheet / `App.jsx` prototype), which are also the test fixture in
-`lib/__fixtures__/august-2026.ts`.
+`lib/settlement.ts`, `lib/money.ts` and `db/schema.ts`: change the rules here first, then
+the code. The household-facing version is the **How it works** page
+(`app/how-it-works/page.tsx`) — keep the two in sync.
+
+The examples use the real **August 2026** numbers from the household Google Sheet, which
+are also the test fixture (`lib/__fixtures__/august-2026.ts`).
 
 ## Members and the collector
 
-The household has five members: **Ate Toni, Mayee, Skyler, PJ and PA**.
+The household: **Ate Toni, Mayee, Skyler, PJ and PA**.
 
-**PA (Paul) is the collector.** Paul pays the core bills to the providers upfront
-(Meralco, Water, PLDT Wifi and usually the Helper), and everyone settles up with him.
-In the database this is `members.is_collector = true`. Only one member can be the collector.
+**PA (Paul) is the collector**: he usually pays Meralco, Water, PLDT and the Helper upfront
+and everyone settles with him (`members.is_collector`, at most one). Being the collector
+only means two things in the math:
 
-Members are never deleted, only deactivated (`members.active = false`), so past months
-stay intact. Each month has its own member list: the members with a row in
-`period_balances` for that month. Splits always use that list, so if someone moves out,
-old months don't change.
+1. new bills default to PA as the payer, and
+2. PA absorbs leftover centavos when splitting (see Rounding).
 
-## Bills vs. advances: which is which
+Otherwise PA is treated exactly like everyone else.
 
-| | **Bill** (`bill_items`) | **Advance** (`advances`) |
-|---|---|---|
-| What | A recurring utility or service: Meralco, Water, PLDT Wifi, Helper | A one-off household purchase someone paid for: groceries, food, services, misc |
-| Who paid | Usually Paul (`paid_by`), sometimes someone else | Whoever bought it (`payer`) |
-| Split | Materialized per member in `bill_item_shares`; can be overridden | Equal by default; optional custom split in `advance_shares` |
+Members are never deleted, only deactivated (`members.active = false`). Each month has its
+own member list — the rows in `period_balances` — and every split uses that list, so old
+months never change when someone moves in or out.
 
-> **Never log a core bill as an advance.** Paul's bill payments are already covered by
-> the bill shares. Adding them to the advances log would count them twice.
+## The full ledger: Month Final
 
-## The Month Final formula
-
-For each member:
+For each member, every month:
 
 ```
-Month Final = bill shares + advance share − own advances paid + bill-payer credit
+Total       = bill shares + shared-advance pool shares + custom-split shares
+Own Adv (−) = advances they paid + bills they paid to the provider
+Month Final = Total − Own Adv
 ```
 
-- **Positive** = the member owes that amount (to the collector).
-- **Negative** = the member is owed that amount.
+- **Positive** → the member **owes** that amount.
+- **Negative** → the member is **owed / reimbursed** that amount.
+- **Zero** → **settled**.
 
-This is the same formula as the Google Sheet. The only differences are the centavo
-rounding fix and the custom splits described below.
+**Everyone's Month Final always adds up to exactly ₱0.00** — what some owe is exactly what
+others are owed. The Split Table shows this sum as an integrity check (the sheet has the
+same ₱0.00 under Month Final).
 
-### August 2026 worked example
+> **Never log a bill as an advance.** Bills paid by someone are credited through
+> `bill_items.paid_by_id`. The Advances Log *shows* them as read-only "Direct Bill Pay" rows,
+> but they are not stored as advances, so nothing is counted twice.
+
+### August 2026
 
 Bills (all paid by PA): Meralco ₱15,463.59 · Water ₱2,173.63 · PLDT ₱2,699.00 ·
-Helper ₱6,400.00 = **₱26,736.22**
+Helper ₱6,400.00 = **₱26,736.22**. Shared advances: **₱70,657.90**.
 
-| Member | Bill shares | Advance share | Own advances | **Month Final** |
-|---|---:|---:|---:|---:|
-| Ate Toni | ₱5,347.25 | ₱12,792.51 | ₱5,732.00 | **₱12,407.76** owes |
-| Mayee | ₱5,347.25 | ₱12,792.51 | ₱3,500.00 | **₱14,639.76** owes |
-| Skyler | ₱5,347.24 | ₱12,792.50 | ₱37,851.00 | **−₱19,711.26** is owed |
-| PJ | ₱5,347.23 | ₱12,792.50 | ₱13,636.40 | **₱4,503.33** owes |
-| PA | ₱5,347.25 | ₱14,202.88 | ₱4,653.50 | ₱14,896.63 (own share) |
+| | Ate Toni | Mayee | Skyler | PJ | PA |
+|---|---:|---:|---:|---:|---:|
+| Meralco (points) | 4,657.71 | 2,794.63 | 2,794.62 | 1,863.08 | 3,353.55 |
+| Water | 434.73 | 434.73 | 434.72 | 434.72 | 434.73 |
+| PLDT Wifi | 539.80 | 539.80 | 539.80 | 539.80 | 539.80 |
+| Helper | 1,280.00 | 1,280.00 | 1,280.00 | 1,280.00 | 1,280.00 |
+| Adv shared (all) | 5,441.70 | 5,441.70 | 5,441.70 | 5,441.70 | 5,441.70 |
+| Adv shared (w/o PA) | 9,922.10 | 9,922.10 | 9,922.10 | 9,922.10 | — |
+| Ice Maker Adj. | 1,880.50 | 470.13 | 470.12 | 470.12 | 470.13 |
+| **Total** | 24,156.54 | 20,883.09 | 20,883.06 | 19,951.52 | 11,519.91 |
+| Own Adv (−) | 5,732.00 | 8,785.00 | 37,851.00 | 13,636.40 | 31,389.72 |
+| **Month Final** | **18,424.54** | **12,098.09** | **−16,967.94** | **6,315.12** | **−19,869.81** |
 
-Check: all Month Finals add up to **₱26,736.22**, exactly the bills PA fronted.
-That always holds, and it's tested.
+Sum: **₱0.00**. The sheet's own numbers differ by at most ₱0.02 because it rounds each share
+on its own (its Meralco and Water shares don't add up to the bills); the app's always do.
 
 ## Rounding: everything in centavos
 
 Money is stored as `numeric(12,2)` and all arithmetic is done in whole centavos
 (`lib/money.ts`), never with floating-point numbers.
 
-**Equal split.** Divide the total in centavos; the leftover centavos (at most 4 with
-five members) go one each to members in this order: **the collector first**, then by
-`sort_order`. Paul absorbs the rounding, so it never lands on anyone else.
+- **Equal splits:** leftover centavos go one each in **`splitOrder`**: the collector first,
+  then by `sort_order`. Water ₱2,173.63 ÷ 5 = 434.726 → PA, Ate Toni and Mayee pay ₱434.73;
+  Skyler and PJ pay ₱434.72.
+- **Points / weighted splits:** largest-remainder method — leftovers go to the largest
+  fractional parts, ties broken in `splitOrder`. Shares always add up to the total.
 
-> Meralco ₱15,463.59 ÷ 5 = 3,092.718 → PA, Ate Toni, Mayee and Skyler pay ₱3,092.72;
-> PJ pays ₱3,092.71. Total: exactly ₱15,463.59.
->
-> (The prototype rounded each share with `toFixed(2)`: 5 × ₱3,092.72 = ₱15,463.60,
-> one centavo more than the actual bill.)
+## Bill split modes
 
-**Overrides.** Any member's bill share can be set manually (`is_override = true`),
-including to ₱0. If the bill total changes later, overridden shares stay as they are
-and the remainder is re-split equally among the rest (`resplitBill`). Shares must
-always add up exactly to the bill total, or the settlement refuses to compute.
+Each bill column has a mode (`bill_items.split_mode`); switch it from the pill under the
+bill's name. Shares are computed in one place: `computeBillShares` in `lib/settlement.ts`.
 
-## Advances
+| Mode | Shares | You edit |
+|---|---|---|
+| **Equal** | total ÷ the month's members | the bill total |
+| **Points** | total × member's points ÷ total points | the bill total and each person's points |
+| **Manual** | typed per person | each person's amount — **the bill total becomes their sum** |
 
-**Default: equal split.** All equal-split advances for the month are pooled and the
-pool is split once among the month's members (same as the prototype's
-`totalSharedAdvances / 5`).
+- Switching to **Points** starts from last month's points for the same bill name, or 1 each.
+- Switching to **Manual** keeps the current amounts (the total doesn't change).
+- Switching from Manual to Equal/Points re-splits the current total.
 
-**Custom split.** An advance that isn't shared equally gets rows in `advance_shares`
-that add up exactly to its amount.
+### Meralco point system
 
-> **Ice Maker** ₱3,761.00, paid by PA: PA carries half (₱1,880.50) and the other four
-> split the other half (Ate Toni ₱470.13, Mayee ₱470.13, Skyler ₱470.12, PJ ₱470.12).
-> Weights PA 4 : others 1 each.
+Meralco is split by points (`bill_item_shares.points`) because aircon and PCs use more
+electricity. Allocation as of **April 2026** — **8.3 points**:
 
-This replaces the prototype's separate "Ice Maker Adj." column, which was stored but
-never actually counted.
+| Ate Toni | PA | Skyler | Mayee | PJ |
+|---:|---:|---:|---:|---:|
+| 2.5 | 1.8 | 1.5 | 1.5 | 1 |
 
-## When someone other than Paul pays a bill
+Items the points are built from: General electricity 1 · Aircon 1 · PA's PC 0.3
+(`lib/household-config.ts`).
 
-Sometimes another member pays the Helper. `bill_items.paid_by_id` records who paid.
-The payer is credited the full bill and the collector takes it on instead:
+**Cost per point = bill ÷ total points.** August: ₱15,463.59 ÷ 8.3 ≈ ₱1,863.08 per point.
 
-> Skyler pays the ₱6,400 Helper. Skyler's share is ₱1,280, so Skyler's bill-payer credit is
-> −₱6,400 and Skyler's Month Final goes down by ₱6,400. PA's goes up by ₱6,400.
-> Everyone else is unchanged.
+## Shared advances
 
-When Paul pays (the usual case), there's no credit and nothing changes.
+An advance is a household purchase someone paid for themselves (grocery, food, service,
+misc). The payer's amount counts in their Own Adv; the cost is shared as follows.
 
-## Payments, carry-over and closing a month
+**Pools (equal split).** By default an advance is shared by everyone in the month. It can
+instead be shared by **everyone except some members** (`advances.shared_with` = the sorted
+ids of who shares it; null = everyone). Advances with the same participants form a **pool**
+that is split once:
 
-**Payments** (`payments`) record money actually changing hands: "Mayee paid Paul
-₱14,639.76 on Sep 3". They can go member → collector, collector → member (paying out
-someone who is owed, like Skyler above), or member → member.
+> August: PA was away from Aug 8, so later purchases were shared by the other four.
+> "Adv shared (all)" ₱27,208.50 → ₱5,441.70 × 5; "Adv shared (w/o PA)" ₱39,688.40 →
+> ₱9,922.10 × 4.
 
-**Running balance** for each non-collector:
+**Custom split.** An advance can have its own per-person amounts (`advance_shares`, adding
+up exactly to the advance), shown as its own "Adj." column.
 
-```
-balance = opening balance + Month Final − paid out + received
-```
+> **Ice Maker** ₱3,761.00, paid by PA: Ate Toni carries half (₱1,880.50) and the other four
+> split the other half (12.5% each). Weights Ate Toni 4 : others 1.
 
-The **collector's balance is always 0**: Paul's Month Final is his own fair share,
-which he has already paid by fronting the bills.
+## Months and carry-over
 
-**Closing a month** (`billing_periods.status = 'closed'`) locks it:
+**Final** = Prev Month Unsettled (opening) + Month Final − paid out + received — the same
+formula for everyone, the collector included. Payments (`payments`) record money actually
+changing hands; they come with the settle-up screens (next round).
 
-1. Each member's balance is saved as `period_balances.closing_balance`.
-2. Next month's `opening_balance` = that closing balance, so **unpaid amounts carry
-   over automatically**, just like the sheet.
-3. A closed month can't be edited.
+**Carry-over is live:** an open month's opening balance is the previous month's Final,
+computed on the fly back to the first month (or to the last closed month, whose stored
+`period_balances.opening_balance` is used). Unpaid amounts therefore carry over
+automatically, like the sheet's "Prev Month Unsettled".
 
-Rules:
+**Starting a month** ("Start next month" on the latest month) creates the next month with
+everyone currently active, and copies the bill columns — name, split mode, points and payer
+— at **₱0.00** (`bill_items.total_amount >= 0`), ready for the new bills. Advances and dates
+aren't copied. December is followed by January of the next year.
 
-- A month can only be closed if the previous month is already closed.
-- A closed month can be **reopened** to fix a mistake, but only while the next month
-  is still open. Reopening clears the saved closing balances, and the next month's
-  opening balance is computed live again.
-- While the previous month is still open, the current month's opening balance is
-  computed live from it.
+**Closing / reopening** a month (locking it and saving closing balances) comes in the next
+round; edits to a closed month are already rejected.
 
-"Closed" doesn't mean everyone has paid. It means the month's numbers are final and
-anything unpaid has moved to the next month.
+## Adding and removing members
+
+- **Adding** someone adds them to every open month. Equal bills re-split; points bills give
+  them 0 points until set; manual bills give them ₱0; "everyone" pools include them.
+  Re-adding a former member's name reactivates them.
+- **Removing** someone deactivates them (left out of future months). In open months where
+  they have no advances, payments, bills paid or custom-split shares, they're removed and
+  the bills re-split; where they do, they stay so that month's numbers don't change. The
+  collector can't be removed.
 
 ## Email-imported bills
 
-Bills parsed from emails (a future feature) arrive with `source = 'email'` and
-`status = 'pending'`. **Pending bills are ignored by the settlement** until someone
-reviews and confirms them, so a misread amount never silently changes anyone's balance.
+Bills parsed from emails (future feature) arrive with `status = 'pending'` and are ignored
+by the settlement until someone confirms them.
 
 ## Receipts
 
-`receipt_path` on bills and advances holds the path of a screenshot (MariBank, Bayad,
-Maya) in a private Supabase Storage bucket (a future feature). A table for multiple
-receipts per item may replace it later.
+`receipt_path` on bills and advances will hold a screenshot (MariBank, Bayad, Maya, GCash)
+in a private Supabase Storage bucket — the Receipts tab is laid out and uploads come next.

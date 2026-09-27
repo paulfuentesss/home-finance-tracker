@@ -31,8 +31,7 @@ Drizzle ORM · PostgreSQL on Supabase · Vitest
    npm run db:migrate
    npm run db:seed
    ```
-   Optional: load the August 2026 prototype data as the first real month with
-   `npm run db:seed:august`.
+   Then load the August 2026 test data with `npm run db:seed:august`.
 5. **Start the app**
    ```bash
    npm run dev
@@ -66,7 +65,8 @@ Drizzle ORM · PostgreSQL on Supabase · Vitest
 | `npm run db:migrate` | Applies pending migrations to the Supabase database | After `db:generate`, and during first-time setup |
 | `npm run db:studio` | Opens Drizzle Studio, a browser UI for viewing and editing the data | To inspect or fix data by hand |
 | `npm run db:seed` | Adds the five household members (safe to run repeatedly) | First-time setup |
-| `npm run db:seed:august` | Loads the August 2026 prototype bills and advances as a real month (optional, runs only once) | Only if August 2026 should be the first month |
+| `npm run db:seed:august` | Loads August 2026 from the household sheet (bills, points, advances) as test data | First-time setup |
+| `npm run db:seed:august -- --replace` | Deletes August 2026 and loads it fresh (only touches that month) | To reset the test data after experimenting |
 | `npm run db:backup` | Dumps the database to `backups/myhouse-YYYY-MM-DD.sql` | After closing each month |
 
 ## Changing the database schema
@@ -106,10 +106,16 @@ Commits must follow [Conventional Commits](https://www.conventionalcommits.org/)
 (`feat:`, `fix:`, `chore:`, `docs:` …). This is enforced by a commitlint hook. A
 pre-commit hook runs ESLint, so lint errors block the commit.
 
+## Troubleshooting
+
+- **`db:migrate` hangs, then fails with no message** — something is holding a database
+  lock, usually a stale connection from `npm run dev` or `db:studio`. Stop both and run it
+  again. (Idle connections now close after 20 seconds, so this should be rare.)
+
 ## Project layout
 
 ```
-app/            Next.js routes (App Router)
+app/            Next.js routes: /periods/[year]/[month] (4 tabs) and /how-it-works
 components/ui/  shadcn/ui components
 db/             Drizzle schema (schema.ts) and database clients
 drizzle/        Generated SQL migrations (committed)
