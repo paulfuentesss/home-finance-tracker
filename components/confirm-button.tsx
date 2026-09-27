@@ -15,7 +15,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-/** A trash button that asks for confirmation, then runs a Server Action and shows its error. */
+/**
+ * A trash button that asks for confirmation, then runs a Server Action and shows its error.
+ * Without `onConfirm` it only explains why the thing can't be deleted yet.
+ */
 export function ConfirmDeleteButton({
   label,
   title,
@@ -27,7 +30,7 @@ export function ConfirmDeleteButton({
   title: string;
   description: React.ReactNode;
   confirmLabel?: string;
-  onConfirm: () => Promise<ActionState>;
+  onConfirm?: () => Promise<ActionState>;
 }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,20 +58,22 @@ export function ConfirmDeleteButton({
         </DialogHeader>
         {error && <p className="text-sm text-destructive">{error}</p>}
         <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-          <Button
-            variant="destructive"
-            disabled={pending}
-            onClick={() =>
-              startTransition(async () => {
-                const result = await onConfirm();
-                if (result?.ok) setOpen(false);
-                else if (result) setError(result.error);
-              })
-            }
-          >
-            {pending ? "Working…" : confirmLabel}
-          </Button>
+          <DialogClose render={<Button variant="outline" />}>{onConfirm ? "Cancel" : "OK"}</DialogClose>
+          {onConfirm && (
+            <Button
+              variant="destructive"
+              disabled={pending}
+              onClick={() =>
+                startTransition(async () => {
+                  const result = await onConfirm();
+                  if (result?.ok) setOpen(false);
+                  else if (result) setError(result.error);
+                })
+              }
+            >
+              {pending ? "Working…" : confirmLabel}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

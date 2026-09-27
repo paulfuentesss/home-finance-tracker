@@ -68,7 +68,6 @@ export interface ViewAdvance {
   amount: Centavos;
   spentOn: string | null;
   columnId: number;
-  /** "w/o PA" style tag when not shared by everyone. */
   /** The column's name when it isn't the month's default column. */
   columnTag: string | null;
 }
@@ -218,7 +217,7 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
       ),
     };
   });
-  const columnName = new Map(columns.map((c) => [c.id, c]));
+  const columnById = new Map(columns.map((c) => [c.id, c]));
 
   return {
     period: { id: period.id, year: period.year, month: period.month, status: period.status },
@@ -244,7 +243,7 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
       amount: toCentavos(a.amount),
       spentOn: a.spentOn,
       columnId: a.columnId,
-      columnTag: columnName.get(a.columnId)?.isDefault === false ? columnName.get(a.columnId)!.name : null,
+      columnTag: columnById.get(a.columnId)?.isDefault === false ? columnById.get(a.columnId)!.name : null,
     })),
     stats: {
       coreBills: sumCentavos(bills.filter((b) => b.status === "confirmed").map((b) => b.total)),

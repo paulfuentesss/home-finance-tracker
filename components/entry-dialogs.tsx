@@ -1,12 +1,13 @@
 "use client";
 
 import { Columns3, Plus, UserPlus } from "lucide-react";
-import { useActionState, useState } from "react";
+import { startTransition, useActionState, useRef, useState } from "react";
 import {
   addAdvance,
   addBill,
   addMember,
   addSharedColumn,
+  updateAdvance,
   type ActionState,
 } from "@/app/periods/[year]/[month]/actions";
 import { Button } from "@/components/ui/button";
@@ -24,25 +25,84 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CATEGORY_LABELS, todayInManila } from "@/lib/format";
-import type { PeriodView } from "@/lib/periods";
+import { formatPHP, fromCentavos, parseMoneyInput } from "@/lib/money";
+import type { PeriodView, ViewAdvance } from "@/lib/periods";
 
 interface Props {
   view: PeriodView;
 }
 
-/** useActionState that closes the dialog on success (no effect needed). */
-function useDialogAction(action: (prev: ActionState, formData: FormData) => Promise<ActionState>) {
-  const [open, setOpen] = useState(false);
-  const [state, formAction, pending] = useActionState<ActionState, FormData>(async (prev, formData) => {
+type Action = (prev: ActionState, formData: FormData) => Promise<ActionState>;
+
+/**
+ * Runs a dialog form's Server Action. The forms live inside DialogContent, which unmounts on
+ * close, so every open starts without an old error.
+ *
+ * Submits through onSubmit instead of <form action>: React resets a form after every
+ * `action` — even one that returned an error — which would wipe everything typed so far
+ * because of one mistyped amount.
+ */
+function useDialogForm(action: Action, onSuccess: (formData: FormData) => void) {
+  const [state, dispatch, pending] = useActionState<ActionState, FormData>(async (prev, formData) => {
     const result = await action(prev, formData);
-    if (result?.ok) setOpen(false);
+    if (result?.ok) onSuccess(formData);
     return result;
   }, null);
-  return { open, setOpen, state, formAction, pending };
+  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter);
+    startTransition(() => dispatch(formData));
+  };
+  return { state, pending, onSubmit };
 }
 
 export function AddAdvanceDialog({ view }: Props) {
-  const { open, setOpen, state, formAction, pending } = useDialogAction(addAdvance);
+  const [open, setOpen] = useState(false);
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={<Button />}>
+        <Plus />
+        Log new advance
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <AdvanceForm view={view} onDone={() => setOpen(false)} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Edits an existing advance (open while `advance` is set). Changing the column moves it. */
+export function EditAdvanceDialog({
+  view,
+  advance,
+  onClose,
+}: Props & { advance: ViewAdvance | null; onClose: () => void }) {
+  return (
+    <Dialog open={advance !== null} onOpenChange={(next) => !next && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        {advance && <AdvanceForm key={advance.id} view={view} advance={advance} onDone={onClose} />}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * Log a new advance, or edit one when `advance` is given. When adding, "Save & add another"
+ * keeps the dialog open with the same payer, category, date and column, ready for the next
+ * receipt.
+ */
+function AdvanceForm({ view, advance, onDone }: Props & { advance?: ViewAdvance; onDone: () => void }) {
+  const descriptionRef = useRef<HTMLInputElement>(null);
+  const amountRef = useRef<HTMLInputElement>(null);
+  const [logged, setLogged] = useState<string | null>(null);
+  const { state, pending, onSubmit } = useDialogForm(advance ? updateAdvance : addAdvance, (formData) => {
+    if (formData.get("intent") !== "another") return onDone();
+    const amount = parseMoneyInput(String(formData.get("amount")));
+    setLogged(`Logged ${formData.get("description")}${amount === null ? "" : ` · ${formatPHP(amount)}`}`);
+    descriptionRef.current!.value = "";
+    amountRef.current!.value = "";
+    descriptionRef.current!.focus();
+  });
 
   const memberItems = view.members.map((m) => ({ value: String(m.id), label: m.name }));
   const categoryItems = Object.entries(CATEGORY_LABELS).map(([value, label]) => ({ value, label }));
@@ -55,95 +115,93 @@ export function AddAdvanceDialog({ view }: Props) {
   ];
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button />}>
-        <Plus />
-        Log new advance
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Log new advance</DialogTitle>
-          <DialogDescription>A household purchase someone paid for themselves.</DialogDescription>
-        </DialogHeader>
-        <form action={formAction} className="grid gap-4">
+    <>
+      <DialogHeader>
+        <DialogTitle>{advance ? "Edit advance" : "Log new advance"}</DialogTitle>
+        <DialogDescription>
+          {advance
+            ? "Fix a detail, or pick another column to move it. Everyone's shares are recalculated."
+            : "A household purchase someone paid for themselves."}
+        </DialogDescription>
+      </DialogHeader>
+      <form onSubmit={onSubmit} className="grid gap-4">
+        {advance ? (
+          <input type="hidden" name="advanceId" value={advance.id} />
+        ) : (
           <input type="hidden" name="periodId" value={view.period.id} />
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Paid by" htmlFor="payerId">
-              <Select name="payerId" items={memberItems} defaultValue={collectorId}>
-                <SelectTrigger id="payerId" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {memberItems.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label="Category" htmlFor="category">
-              <Select name="category" items={categoryItems} defaultValue="grocery">
-                <SelectTrigger id="category" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {categoryItems.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-          </div>
-          <Field label="Description" htmlFor="description">
-            <Input id="description" name="description" placeholder="SM Cherry groceries" required maxLength={120} />
+        )}
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Paid by" htmlFor="payerId">
+            <SelectField id="payerId" items={memberItems} defaultValue={advance ? String(advance.payerId) : collectorId} />
           </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Amount (₱)" htmlFor="amount">
-              <Input id="amount" name="amount" inputMode="decimal" placeholder="1,500.00" required />
-            </Field>
-            <Field label="Date (optional)" htmlFor="spentOn">
-              <Input id="spentOn" name="spentOn" type="date" defaultValue={todayInManila()} />
-            </Field>
-          </div>
-          <Field label="Column" htmlFor="columnId">
-            <Select name="columnId" items={columnItems} defaultValue={String(defaultColumn?.id ?? 0)}>
-              <SelectTrigger id="columnId" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {columnItems.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Which shared column this goes into. Need a new one (e.g. someone away)? Add a shared column first.
-            </p>
+          <Field label="Category" htmlFor="category">
+            <SelectField id="category" items={categoryItems} defaultValue={advance?.category ?? "grocery"} />
           </Field>
-          {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
-            <Button type="submit" disabled={pending}>
-              {pending ? "Saving…" : "Log advance"}
+        </div>
+        <Field label="Description" htmlFor="description">
+          <Input
+            ref={descriptionRef}
+            id="description"
+            name="description"
+            placeholder="SM Cherry groceries"
+            defaultValue={advance?.description}
+            required
+            maxLength={120}
+          />
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Amount (₱)" htmlFor="amount">
+            <Input
+              ref={amountRef}
+              id="amount"
+              name="amount"
+              inputMode="decimal"
+              placeholder="1,500.00"
+              defaultValue={advance ? fromCentavos(advance.amount) : undefined}
+              required
+            />
+          </Field>
+          <Field label="Date (optional)" htmlFor="spentOn">
+            <Input
+              id="spentOn"
+              name="spentOn"
+              type="date"
+              defaultValue={advance ? (advance.spentOn ?? "") : todayInManila()}
+            />
+          </Field>
+        </div>
+        <Field label="Column" htmlFor="columnId">
+          <SelectField
+            id="columnId"
+            items={columnItems}
+            defaultValue={String(advance?.columnId ?? defaultColumn?.id ?? 0)}
+          />
+          <p className="text-xs text-muted-foreground">
+            Which shared column this goes into. Need a new one (e.g. someone away)? Add a shared column in Manage
+            first.
+          </p>
+        </Field>
+        {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
+        {state?.ok && logged && <p className="text-sm text-emerald-700">{logged}</p>}
+        <DialogFooter>
+          <DialogClose render={<Button variant="outline" type="button" />}>{logged ? "Done" : "Cancel"}</DialogClose>
+          {/* First submit button in the markup = what Enter does, so the main action comes first. */}
+          <Button type="submit" disabled={pending} className="sm:order-last">
+            {pending ? "Saving…" : advance ? "Save changes" : "Log advance"}
+          </Button>
+          {!advance && (
+            <Button type="submit" name="intent" value="another" variant="outline" disabled={pending}>
+              Save &amp; add another
             </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+          )}
+        </DialogFooter>
+      </form>
+    </>
   );
 }
 
 export function AddBillDialog({ view, label = "Add bill column" }: Props & { label?: string }) {
-  const { open, setOpen, state, formAction, pending } = useDialogAction(addBill);
-  const [splitMode, setSplitMode] = useState<"equal" | "manual">("equal");
-  const memberItems = view.members.map((m) => ({ value: String(m.id), label: m.name }));
-  const collectorId = String(view.members.find((m) => m.isCollector)?.id ?? view.members[0]?.id);
-
+  const [open, setOpen] = useState(false);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button />}>
@@ -151,58 +209,59 @@ export function AddBillDialog({ view, label = "Add bill column" }: Props & { lab
         {label}
       </DialogTrigger>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add bill column</DialogTitle>
-          <DialogDescription>
-            A utility or service bill. Choose how it&apos;s split — this stays fixed for the column.
-          </DialogDescription>
-        </DialogHeader>
-        <form action={formAction} className="grid gap-4">
-          <input type="hidden" name="periodId" value={view.period.id} />
-          <Field label="Bill name" htmlFor="name">
-            <Input id="name" name="name" placeholder="Meralco" required maxLength={60} />
-          </Field>
-          <ModeChoice
-            value={splitMode}
-            onChange={setSplitMode}
-            equalHint="Everyone pays the same share of the total."
-            manualHint="Type each person's amount in the table; the total is their sum."
-          />
-          {splitMode === "equal" && (
-            <Field label="Total (₱)" htmlFor="total">
-              <Input id="total" name="total" inputMode="decimal" placeholder="0.00 if not in yet" defaultValue="0" required />
-            </Field>
-          )}
-          <Field label="Paid to the provider by" htmlFor="paidById">
-            <Select name="paidById" items={memberItems} defaultValue={collectorId}>
-              <SelectTrigger id="paidById" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {memberItems.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
-            <Button type="submit" disabled={pending}>
-              {pending ? "Saving…" : "Add bill"}
-            </Button>
-          </DialogFooter>
-        </form>
+        <AddBillForm view={view} onDone={() => setOpen(false)} />
       </DialogContent>
     </Dialog>
   );
 }
 
-export function AddMemberDialog() {
-  const { open, setOpen, state, formAction, pending } = useDialogAction(addMember);
+function AddBillForm({ view, onDone }: Props & { onDone: () => void }) {
+  const { state, pending, onSubmit } = useDialogForm(addBill, onDone);
+  const [splitMode, setSplitMode] = useState<"equal" | "manual">("equal");
+  const memberItems = view.members.map((m) => ({ value: String(m.id), label: m.name }));
+  const collectorId = String(view.members.find((m) => m.isCollector)?.id ?? view.members[0]?.id);
 
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>Add bill column</DialogTitle>
+        <DialogDescription>
+          A utility or service bill. Choose how it&apos;s split — this stays fixed for the column.
+        </DialogDescription>
+      </DialogHeader>
+      <form onSubmit={onSubmit} className="grid gap-4">
+        <input type="hidden" name="periodId" value={view.period.id} />
+        <Field label="Bill name" htmlFor="name">
+          <Input id="name" name="name" placeholder="Meralco" required maxLength={60} />
+        </Field>
+        <ModeChoice
+          value={splitMode}
+          onChange={setSplitMode}
+          equalHint="Everyone pays the same share of the total."
+          manualHint="Type each person's amount in the table; the total is their sum."
+        />
+        {splitMode === "equal" && (
+          <Field label="Total (₱)" htmlFor="total">
+            <Input id="total" name="total" inputMode="decimal" placeholder="0.00 if not in yet" defaultValue="0" required />
+          </Field>
+        )}
+        <Field label="Paid to the provider by" htmlFor="paidById">
+          <SelectField id="paidById" items={memberItems} defaultValue={collectorId} />
+        </Field>
+        {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
+        <DialogFooter>
+          <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
+          <Button type="submit" disabled={pending}>
+            {pending ? "Saving…" : "Add bill"}
+          </Button>
+        </DialogFooter>
+      </form>
+    </>
+  );
+}
+
+export function AddMemberDialog() {
+  const [open, setOpen] = useState(false);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button variant="outline" />}>
@@ -210,35 +269,41 @@ export function AddMemberDialog() {
         Add member
       </DialogTrigger>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add housemate</DialogTitle>
-          <DialogDescription>
-            They join every open month: equal bills are re-split to include them, and points bills give them 0 points
-            until you set theirs.
-          </DialogDescription>
-        </DialogHeader>
-        <form action={formAction} className="grid gap-4">
-          <Field label="Name" htmlFor="member-name">
-            <Input id="member-name" name="name" placeholder="Name" required maxLength={40} />
-          </Field>
-          {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
-            <Button type="submit" disabled={pending}>
-              {pending ? "Adding…" : "Add housemate"}
-            </Button>
-          </DialogFooter>
-        </form>
+        <AddMemberForm onDone={() => setOpen(false)} />
       </DialogContent>
     </Dialog>
   );
 }
 
-export function AddSharedColumnDialog({ view }: Props) {
-  const { open, setOpen, state, formAction, pending } = useDialogAction(addSharedColumn);
-  const [splitMode, setSplitMode] = useState<"equal" | "manual">("equal");
-  const [sharedMode, setSharedMode] = useState<"all" | "except">("all");
+function AddMemberForm({ onDone }: { onDone: () => void }) {
+  const { state, pending, onSubmit } = useDialogForm(addMember, onDone);
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>Add housemate</DialogTitle>
+        <DialogDescription>
+          They join every open month: equal bills are re-split to include them, and points bills give them 0 points
+          until you set theirs.
+        </DialogDescription>
+      </DialogHeader>
+      <form onSubmit={onSubmit} className="grid gap-4">
+        <Field label="Name" htmlFor="member-name">
+          <Input id="member-name" name="name" placeholder="Name" required maxLength={40} />
+        </Field>
+        {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
+        <DialogFooter>
+          <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
+          <Button type="submit" disabled={pending}>
+            {pending ? "Adding…" : "Add housemate"}
+          </Button>
+        </DialogFooter>
+      </form>
+    </>
+  );
+}
 
+export function AddSharedColumnDialog({ view }: Props) {
+  const [open, setOpen] = useState(false);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button variant="outline" />}>
@@ -246,64 +311,102 @@ export function AddSharedColumnDialog({ view }: Props) {
         Add shared column
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Add shared column</DialogTitle>
-          <DialogDescription>
-            For advances that aren&apos;t shared the usual way — e.g. &ldquo;Advances Shared w/o PA&rdquo; while someone
-            is away, or &ldquo;Ice Maker Adj.&rdquo; when one person carries more.
-          </DialogDescription>
-        </DialogHeader>
-        <form action={formAction} className="grid gap-4">
-          <input type="hidden" name="periodId" value={view.period.id} />
-          <Field label="Column name" htmlFor="column-name">
-            <Input id="column-name" name="name" placeholder="Advances Shared w/o PA" required maxLength={60} />
-          </Field>
-          <ModeChoice
-            value={splitMode}
-            onChange={setSplitMode}
-            equalHint="Split evenly among the people you pick."
-            manualHint="Type each person's amount in the table."
-          />
-          {splitMode === "equal" && (
-            <fieldset className="grid gap-2">
-              <legend className="mb-1.5 text-sm font-medium">Shared by</legend>
-              <div className="flex gap-4 text-sm">
-                {(["all", "except"] as const).map((mode) => (
-                  <label key={mode} className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="sharedMode"
-                      value={mode}
-                      checked={sharedMode === mode}
-                      onChange={() => setSharedMode(mode)}
-                      className="accent-amber-600"
-                    />
-                    {mode === "all" ? "Everyone" : "Everyone except…"}
+        <AddSharedColumnForm view={view} onDone={() => setOpen(false)} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AddSharedColumnForm({ view, onDone }: Props & { onDone: () => void }) {
+  const { state, pending, onSubmit } = useDialogForm(addSharedColumn, onDone);
+  const [splitMode, setSplitMode] = useState<"equal" | "manual">("equal");
+  const [sharedMode, setSharedMode] = useState<"all" | "except">("all");
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>Add shared column</DialogTitle>
+        <DialogDescription>
+          For advances that aren&apos;t shared the usual way — e.g. &ldquo;Advances Shared w/o PA&rdquo; while someone
+          is away, or &ldquo;Ice Maker Adj.&rdquo; when one person carries more.
+        </DialogDescription>
+      </DialogHeader>
+      <form onSubmit={onSubmit} className="grid gap-4">
+        <input type="hidden" name="periodId" value={view.period.id} />
+        <Field label="Column name" htmlFor="column-name">
+          <Input id="column-name" name="name" placeholder="Advances Shared w/o PA" required maxLength={60} />
+        </Field>
+        <ModeChoice
+          value={splitMode}
+          onChange={setSplitMode}
+          equalHint="Split evenly among the people you pick."
+          manualHint="Type each person's amount in the table."
+        />
+        {splitMode === "equal" && (
+          <fieldset className="grid gap-2">
+            <legend className="mb-1.5 text-sm font-medium">Shared by</legend>
+            <div className="flex gap-4 text-sm">
+              {(["all", "except"] as const).map((mode) => (
+                <label key={mode} className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="sharedMode"
+                    value={mode}
+                    checked={sharedMode === mode}
+                    onChange={() => setSharedMode(mode)}
+                    className="accent-amber-600"
+                  />
+                  {mode === "all" ? "Everyone" : "Everyone except…"}
+                </label>
+              ))}
+            </div>
+            {sharedMode === "except" && (
+              <div className="flex flex-wrap gap-x-4 gap-y-2 rounded-lg bg-zinc-50 p-3 text-sm">
+                {view.members.map((m) => (
+                  <label key={m.id} className="flex items-center gap-2">
+                    <input type="checkbox" name="excluded" value={m.id} className="accent-amber-600" />
+                    {m.name}
                   </label>
                 ))}
               </div>
-              {sharedMode === "except" && (
-                <div className="flex flex-wrap gap-x-4 gap-y-2 rounded-lg bg-zinc-50 p-3 text-sm">
-                  {view.members.map((m) => (
-                    <label key={m.id} className="flex items-center gap-2">
-                      <input type="checkbox" name="excluded" value={m.id} className="accent-amber-600" />
-                      {m.name}
-                    </label>
-                  ))}
-                </div>
-              )}
-            </fieldset>
-          )}
-          {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
-            <Button type="submit" disabled={pending}>
-              {pending ? "Adding…" : "Add column"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+            )}
+          </fieldset>
+        )}
+        {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
+        <DialogFooter>
+          <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
+          <Button type="submit" disabled={pending}>
+            {pending ? "Adding…" : "Add column"}
+          </Button>
+        </DialogFooter>
+      </form>
+    </>
+  );
+}
+
+/** A Select whose value is submitted with the form under `id` as its name. */
+function SelectField({
+  id,
+  items,
+  defaultValue,
+}: {
+  id: string;
+  items: { value: string; label: string }[];
+  defaultValue: string;
+}) {
+  return (
+    <Select name={id} items={items} defaultValue={defaultValue}>
+      <SelectTrigger id={id} className="w-full">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {items.map((item) => (
+          <SelectItem key={item.value} value={item.value}>
+            {item.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 

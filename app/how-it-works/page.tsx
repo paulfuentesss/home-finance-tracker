@@ -2,7 +2,7 @@ import { ArrowLeft, CircleHelp } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { FaqAccordion } from "@/components/faq-accordion";
 import { monthLabel } from "@/lib/format";
 import { MERALCO_POINT_ITEMS, MERALCO_POINTS_AS_OF } from "@/lib/household-config";
 import { formatPHP } from "@/lib/money";
@@ -79,6 +79,10 @@ export default async function HowItWorksPage() {
             When the usual split doesn&apos;t fit, a separate column is added for that month. For example PA was away
             from Aug 8, so those purchases went into &ldquo;Advances Shared w/o PA&rdquo;, shared by the other four.
           </p>
+          <p>
+            Logged something wrong, or in the wrong column? Edit it in the Advances Log (the pencil next to it) and
+            everyone&apos;s shares are recalculated.
+          </p>
         </>
       ),
     },
@@ -139,6 +143,24 @@ export default async function HowItWorksPage() {
       ),
     },
     {
+      id: "move-in-out",
+      q: "What happens when someone moves in or out?",
+      a: (
+        <>
+          <p>
+            Someone who <strong>moves in</strong> joins every open month: equal bills are re-split to include them,
+            they start at 0 Meralco points until theirs are set, and they share the everyday Advances Shared column.
+          </p>
+          <p>
+            Someone who <strong>moves out</strong> is left out of future months. In a month where they already have
+            something recorded — an advance, a payment, a bill they paid, or an amount typed for them in a Manual bill
+            or column — they stay, so that month&apos;s numbers don&apos;t change. Otherwise they&apos;re taken out and
+            the bills re-split. A new month&apos;s bill they&apos;re down as paying but that is still ₱0 goes to PA.
+          </p>
+        </>
+      ),
+    },
+    {
       id: "carry-over",
       q: "What happens if I don't pay in full?",
       a: (
@@ -177,11 +199,12 @@ export default async function HowItWorksPage() {
 
           {bills.length === 0 ? (
             <p className="mt-4 text-sm text-muted-foreground">
-              No bill is split by points in the latest month. Switch a column to Points in the Monthly Split Table to use it.
+              No bill is split by points in the latest month. Meralco is the points bill; its points are set in
+              Manage Columns &amp; People.
             </p>
           ) : (
             bills.map((bill) => {
-              const perPoint = bill.totalPoints > 0 ? Math.round(bill.total / bill.totalPoints) : 0;
+              const perPoint = bill.perUnit?.amount ?? 0;
               return (
                 <div key={bill.id} className="mt-4">
                   <table className="w-full text-sm">
@@ -244,14 +267,7 @@ export default async function HowItWorksPage() {
         </section>
 
         <section className="rounded-xl border bg-white px-5 py-2 shadow-xs">
-          <Accordion multiple>
-            {faqs.map((faq) => (
-              <AccordionItem key={faq.id} value={faq.id} id={faq.id} className="scroll-mt-6">
-                <AccordionTrigger className="text-base">{faq.q}</AccordionTrigger>
-                <AccordionContent className="space-y-2 text-muted-foreground">{faq.a}</AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+          <FaqAccordion items={faqs} />
         </section>
       </main>
     </div>

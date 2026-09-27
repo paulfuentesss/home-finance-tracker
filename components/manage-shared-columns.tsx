@@ -1,17 +1,16 @@
 "use client";
 
 import { Check, ChevronDown } from "lucide-react";
-import { useActionState, useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import {
   deleteSharedColumn,
   renameSharedColumn,
   setSharedColumnMode,
   updateSharedColumnMembers,
-  type ActionState,
 } from "@/app/periods/[year]/[month]/actions";
 import { ConfirmDeleteButton } from "@/components/confirm-button";
 import { AddSharedColumnDialog } from "@/components/entry-dialogs";
-import { Button } from "@/components/ui/button";
+import { InlineInput } from "@/components/inline-input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { formatPHP } from "@/lib/money";
 import type { PeriodView, ViewColumn } from "@/lib/periods";
@@ -45,8 +44,6 @@ export function ManageSharedColumns({ view }: { view: PeriodView }) {
 }
 
 function ColumnRow({ column, view, editable }: { column: ViewColumn; view: PeriodView; editable: boolean }) {
-  const [renameState, renameAction, renaming] = useActionState<ActionState, FormData>(renameSharedColumn, null);
-  const [membersState, membersAction, saving] = useActionState<ActionState, FormData>(updateSharedColumnMembers, null);
   const count = view.advances.filter((a) => a.columnId === column.id).length;
 
   return (
@@ -55,22 +52,17 @@ function ColumnRow({ column, view, editable }: { column: ViewColumn; view: Perio
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             {editable ? (
-              <form action={renameAction} className="min-w-0">
-                <input type="hidden" name="columnId" value={column.id} />
-                <input
-                  key={column.name}
-                  name="name"
-                  defaultValue={column.name}
-                  aria-label="Column name"
-                  disabled={renaming}
-                  maxLength={60}
-                  className="w-full rounded-md border border-transparent bg-transparent px-1 font-semibold hover:border-input focus:border-amber-500 focus:bg-white focus:outline-none"
-                  onBlur={(e) => {
-                    const value = e.currentTarget.value.trim();
-                    if (value && value !== column.name) e.currentTarget.form?.requestSubmit();
-                  }}
-                />
-              </form>
+              <InlineInput
+                action={renameSharedColumn}
+                hidden={{ columnId: column.id }}
+                name="name"
+                value={column.name}
+                label="Column name"
+                maxLength={60}
+                allowEmpty={false}
+                className="min-w-0"
+                inputClassName="w-full border-transparent bg-transparent px-1 font-semibold hover:border-input focus:bg-white"
+              />
             ) : (
               <span className="font-semibold">{column.name}</span>
             )}
@@ -86,45 +78,63 @@ function ColumnRow({ column, view, editable }: { column: ViewColumn; view: Perio
               </span>
             )}
           </p>
-          {renameState?.ok === false && <p className="px-1 text-xs text-destructive">{renameState.error}</p>}
         </div>
         {editable && !column.isDefault && (
           <ConfirmDeleteButton
             label={`Delete ${column.name}`}
-            title={`Delete the ${column.name} column?`}
+            title={count > 0 ? `${column.name} still has advances` : `Delete the ${column.name} column?`}
             description={
               count > 0
-                ? `It still has ${count} advance(s) — delete them in the Advances Log first.`
+                ? `It has ${count} advance${count === 1 ? "" : "s"}. Move them to another column (edit the advance in the Advances Log) or delete them first.`
                 : "It has no advances, so nothing else changes."
             }
-            onConfirm={() => deleteSharedColumn(column.id)}
+            onConfirm={count > 0 ? undefined : () => deleteSharedColumn(column.id)}
           />
         )}
       </div>
 
-      {editable && column.splitMode === "equal" && (
-        <form action={membersAction} className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 px-1 text-sm">
-          <input type="hidden" name="columnId" value={column.id} />
-          <span className="text-muted-foreground">Shared by:</span>
-          {view.members.map((m) => (
-            <label key={m.id} className="flex items-center gap-1.5">
-              <input
-                type="checkbox"
-                name="included"
-                value={m.id}
-                defaultChecked={column.includedIds.includes(m.id)}
-                className="accent-amber-600"
-              />
-              {m.name}
-            </label>
-          ))}
-          <Button type="submit" size="sm" variant="outline" disabled={saving}>
-            {saving ? "Saving…" : "Save"}
-          </Button>
-          {membersState?.ok === false && <span className="text-xs text-destructive">{membersState.error}</span>}
-        </form>
-      )}
+      {editable && column.splitMode === "equal" && <SharedBy column={column} members={view.members} />}
     </li>
+  );
+}
+
+/**
+ * Who shares an Auto-equal column. Each tick saves straight away, like every other field;
+ * the tick shows immediately and reverts on its own if the save is rejected.
+ */
+function SharedBy({ column, members }: { column: ViewColumn; members: PeriodView["members"] }) {
+  const [included, setIncluded] = useOptimistic(column.includedIds);
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const toggle = (memberId: number, checked: boolean) => {
+    const next = checked ? [...included, memberId] : included.filter((id) => id !== memberId);
+    startTransition(async () => {
+      setIncluded(next);
+      const formData = new FormData();
+      formData.set("columnId", String(column.id));
+      for (const id of next) formData.append("included", String(id));
+      const result = await updateSharedColumnMembers(null, formData);
+      setError(result?.ok === false ? result.error : null);
+    });
+  };
+
+  return (
+    <fieldset className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 px-1 text-sm" aria-busy={pending}>
+      <legend className="float-left mr-4 text-muted-foreground">Shared by:</legend>
+      {members.map((m) => (
+        <label key={m.id} className="flex items-center gap-1.5">
+          <input
+            type="checkbox"
+            checked={included.includes(m.id)}
+            onChange={(e) => toggle(m.id, e.currentTarget.checked)}
+            className="accent-amber-600"
+          />
+          {m.name}
+        </label>
+      ))}
+      {error && <span className="text-xs text-destructive">{error}</span>}
+    </fieldset>
   );
 }
 

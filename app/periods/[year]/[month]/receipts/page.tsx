@@ -1,5 +1,6 @@
 import { ImageOff, ShieldCheck, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { dateLabel } from "@/lib/format";
 import { formatPHP } from "@/lib/money";
 import { getPeriodView } from "@/lib/periods";
 import { parsePeriodParams } from "../params";
@@ -51,8 +52,7 @@ export default async function ReceiptsPage({ params }: PageProps<"/periods/[year
                 </div>
                 <p className="text-sm text-muted-foreground">
                   Paid by {nameOf.get(bill.paidById) ?? "—"}
-                  {bill.paidOn &&
-                    ` · ${new Date(`${bill.paidOn}T00:00:00Z`).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}`}
+                  {bill.paidOn && ` · ${dateLabel(bill.paidOn)}`}
                 </p>
               </div>
             </article>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BILL_SPLIT, groupLogRows, oneOffColumnColors, splitForColumn, type LogRow } from "@/lib/advances-log";
+import { BILL_SPLIT, groupLogRows, oneOffColumnColors, sharedByLabel, splitForColumn, type LogRow } from "@/lib/advances-log";
 
 const members = [
   { id: 1, name: "Ate Toni", dotClass: "a" },
@@ -80,5 +80,13 @@ describe("oneOffColumnColors", () => {
     expect(colors.has(3)).toBe(false);
     expect(colors.get(5)).not.toBe(colors.get(7));
     expect([...colors.keys()]).toEqual([5, 7]);
+  });
+});
+
+describe("sharedByLabel", () => {
+  it("says everyone when nobody is left out, otherwise names who is", () => {
+    expect(sharedByLabel([1, 2, 5], members)).toBe("everyone");
+    expect(sharedByLabel([1, 2], members)).toBe("everyone except PA");
+    expect(sharedByLabel([2], members)).toBe("everyone except Ate Toni, PA");
   });
 });

@@ -78,7 +78,9 @@ Money is stored as `numeric(12,2)` and all arithmetic is done in whole centavos
   then by `sort_order`. Water ₱2,173.63 ÷ 5 = 434.726 → PA, Ate Toni and Mayee pay ₱434.73;
   Skyler and PJ pay ₱434.72.
 - **Points / weighted splits:** largest-remainder method — leftovers go to the largest
-  fractional parts, ties broken in `splitOrder`. Shares always add up to the total.
+  fractional parts, ties broken in `splitOrder`. Shares always add up to the total. Points
+  (2 decimals) are converted to whole hundredths first (2.5 → 250) so the remainders are
+  compared exactly; floating-point decimals could otherwise break a tie the wrong way.
 
 ## Bill columns (fixed split)
 
@@ -130,7 +132,12 @@ Situational columns are added when needed:
 > (₱39,688.40 → ₱9,922.10 × 4). **Ice Maker Adj.** (₱3,761.00, paid by PA) is Manual: Ate
 > Toni ₱1,880.50, the others ₱470.13 each.
 
-A column with advances can't be deleted, and Advances Shared always stays.
+A column with advances can't be deleted — move them first by editing each advance and
+picking another column (or delete them) — and Advances Shared always stays.
+
+Advances can be **edited** (payer, category, description, amount, date, column) while the
+month is open; everyone's shares are recalculated from the new values. An advance always
+stays in the month it was logged in.
 
 ## Months and carry-over
 
@@ -163,9 +170,12 @@ round; edits to a closed month are already rejected.
   0 points until set; manual bills and columns give them ₱0; they join Advances Shared but
   not situational Auto-equal columns. Re-adding a former member's name reactivates them.
 - **Removing** someone deactivates them (left out of future months). In open months where
-  they have no advances, payments, bills paid or Manual column amounts, they're removed and
-  the bills re-split; where they do, they stay so that month's numbers don't change. The
-  collector can't be removed.
+  they have no advances, payments, bills paid (with an amount above ₱0), typed amounts in a
+  Manual bill, or Manual column amounts, they're removed and the bills re-split; where they
+  do, they stay so that month's numbers don't change. The collector can't be removed.
+- A ₱0 bill they're down as paying (copied from the previous month by "Start next month",
+  before the real bill arrives) doesn't keep them in: it's handed to the collector and they
+  leave that month.
 
 ## Email-imported bills
 

@@ -1,10 +1,10 @@
 "use client";
 
-import { ChevronDown, RotateCcw, Search } from "lucide-react";
+import { ChevronDown, ChevronsDownUp, ChevronsUpDown, Pencil, RotateCcw, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { deleteAdvance } from "@/app/periods/[year]/[month]/actions";
 import { ConfirmDeleteButton } from "@/components/confirm-button";
-import { AddAdvanceDialog } from "@/components/entry-dialogs";
+import { AddAdvanceDialog, EditAdvanceDialog } from "@/components/entry-dialogs";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -13,13 +13,14 @@ import {
   EVERYONE_COLOR,
   groupLogRows,
   oneOffColumnColors,
+  sharedByLabel,
   splitForColumn,
   type LogGroup,
   type LogRow,
 } from "@/lib/advances-log";
 import { CATEGORY_LABELS, dayLabel } from "@/lib/format";
 import { formatPHP, sumCentavos } from "@/lib/money";
-import type { PeriodView } from "@/lib/periods";
+import type { PeriodView, ViewAdvance } from "@/lib/periods";
 import { cn } from "@/lib/utils";
 
 const ALL = "all";
@@ -42,15 +43,13 @@ export function AdvancesLog({ view }: { view: PeriodView }) {
   const [category, setCategory] = useState(ALL);
   // Groups start closed; a search or filter opens them so matches are visible.
   const [expanded, setExpanded] = useState<Set<number | null>>(new Set());
+  const [editing, setEditing] = useState<ViewAdvance | null>(null);
   const nameOf = useMemo(() => new Map(view.members.map((m) => [m.id, m.name])), [view.members]);
+  const advanceOf = useMemo(() => new Map(view.advances.map((a) => [a.id, a])), [view.advances]);
 
   const rows = useMemo<LogRow[]>(() => {
     const columnOf = new Map(
-      view.columns.map((c) => {
-        const excluded = view.members.filter((m) => !c.includedIds.includes(m.id)).map((m) => m.name);
-        const sharedByLabel = excluded.length === 0 ? "everyone" : `everyone except ${excluded.join(", ")}`;
-        return [c.id, { ...c, sharedByLabel }];
-      }),
+      view.columns.map((c) => [c.id, { ...c, sharedByLabel: sharedByLabel(c.includedIds, view.members) }]),
     );
     return [
       ...view.bills
@@ -102,17 +101,17 @@ export function AdvancesLog({ view }: { view: PeriodView }) {
   const oneOffLegend = view.columns
     .filter((c) => !c.isDefault)
     .sort((a, b) => a.id - b.id)
-    .map((c) => {
-      const excluded = view.members.filter((m) => !c.includedIds.includes(m.id)).map((m) => m.name);
-      const who = excluded.length === 0 ? "everyone" : `everyone except ${excluded.join(", ")}`;
-      return {
-        id: c.id,
-        name: c.name,
-        text: c.splitMode === "manual" ? "Manual — typed amounts, this month only" : `Auto equal — ${who}, this month only`,
-      };
-    });
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      text:
+        c.splitMode === "manual"
+          ? "Manual — typed amounts, this month only"
+          : `Auto equal — ${sharedByLabel(c.includedIds, view.members)}, this month only`,
+    }));
   const isFiltered = search !== "" || payer !== ALL || category !== ALL;
   const columnCount = editable ? 6 : 5;
+  const allExpanded = groups.length > 0 && groups.every((g) => expanded.has(g.memberId));
 
   const payerItems = [{ value: ALL, label: "All payers" }, ...view.members.map((m) => ({ value: String(m.id), label: m.name }))];
   const categoryItems = [
@@ -166,6 +165,16 @@ export function AdvancesLog({ view }: { view: PeriodView }) {
             <RotateCcw />
             Reset filters
           </Button>
+          {!isFiltered && groups.length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setExpanded(allExpanded ? new Set() : new Set(groups.map((g) => g.memberId)))}
+            >
+              {allExpanded ? <ChevronsDownUp /> : <ChevronsUpDown />}
+              {allExpanded ? "Collapse all" : "Expand all"}
+            </Button>
+          )}
           <span className="ml-auto text-xs text-muted-foreground">
             {isFiltered ? `${filtered.length} of ${rows.length}` : `${rows.length} entries`} ·{" "}
             <span className="font-mono font-medium text-foreground">{formatPHP(sumCentavos(filtered.map((r) => r.amount)))}</span>
@@ -193,7 +202,7 @@ export function AdvancesLog({ view }: { view: PeriodView }) {
               <th className="px-3 py-2.5 text-right font-semibold">Amount</th>
               <th className="px-3 py-2.5 text-center font-semibold">Date</th>
               {editable && (
-                <th className="w-14 px-3 py-2.5">
+                <th className="w-24 px-3 py-2.5">
                   <span className="sr-only">Actions</span>
                 </th>
               )}
@@ -208,6 +217,8 @@ export function AdvancesLog({ view }: { view: PeriodView }) {
               onToggle={() => toggle(group.memberId)}
               editable={editable}
               columnCount={columnCount}
+              isFiltered={isFiltered}
+              onEdit={(advanceId) => setEditing(advanceOf.get(advanceId) ?? null)}
             />
           ))}
           {groups.length === 0 && (
@@ -221,6 +232,7 @@ export function AdvancesLog({ view }: { view: PeriodView }) {
           )}
         </table>
       </div>
+      {editable && <EditAdvanceDialog view={view} advance={editing} onClose={() => setEditing(null)} />}
     </section>
   );
 }
@@ -232,6 +244,8 @@ function PersonGroup({
   onToggle,
   editable,
   columnCount,
+  isFiltered,
+  onEdit,
 }: {
   group: LogGroup;
   chipColor: (tag: LogRow["split"]) => string;
@@ -239,6 +253,8 @@ function PersonGroup({
   onToggle: () => void;
   editable: boolean;
   columnCount: number;
+  isFiltered: boolean;
+  onEdit: (advanceId: number) => void;
 }) {
   return (
     <tbody className="border-t">
@@ -255,6 +271,13 @@ function PersonGroup({
             <span className="font-semibold">{group.name}</span>
             <span className="text-xs text-muted-foreground">
               {group.rows.length} item{group.rows.length === 1 ? "" : "s"}
+            </span>
+            {/* Everything they paid = their Own Advance (−) in the Split Table. */}
+            <span className="ml-auto font-mono text-sm font-semibold tabular-nums">
+              {formatPHP(group.subtotal)}
+              {isFiltered && group.subtotal !== group.fullSubtotal && (
+                <span className="font-normal text-muted-foreground"> of {formatPHP(group.fullSubtotal)}</span>
+              )}
             </span>
           </button>
         </th>
@@ -278,7 +301,18 @@ function PersonGroup({
                 {row.date ? dayLabel(row.date) : "—"}
               </td>
               {editable && (
-                <td className="px-3 py-2.5 text-center">
+                <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                  {row.advanceId !== null && (
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`Edit ${row.description}`}
+                      className="text-muted-foreground hover:text-foreground"
+                      onClick={() => onEdit(row.advanceId!)}
+                    >
+                      <Pencil />
+                    </Button>
+                  )}
                   {row.advanceId !== null && (
                     <ConfirmDeleteButton
                       label={`Delete ${row.description}`}

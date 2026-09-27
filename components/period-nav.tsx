@@ -20,11 +20,12 @@ import { monthLabel } from "@/lib/format";
 import type { PeriodSummary } from "@/lib/periods";
 import { cn } from "@/lib/utils";
 
+// `short` is shown on phones, where the full labels would push most tabs off-screen.
 const TABS = [
-  { href: "", label: "Monthly Split Table", icon: Layers },
-  { href: "/advances", label: "Advances Log & Report", icon: DollarSign },
-  { href: "/receipts", label: "Payment Proofs / Receipts", icon: ReceiptText },
-  { href: "/manage", label: "Manage Columns & People", icon: Settings },
+  { href: "", label: "Monthly Split Table", short: "Split", icon: Layers },
+  { href: "/advances", label: "Advances Log & Report", short: "Advances", icon: DollarSign },
+  { href: "/receipts", label: "Payment Proofs / Receipts", short: "Receipts", icon: ReceiptText },
+  { href: "/manage", label: "Manage Columns & People", short: "Manage", icon: Settings },
 ] as const;
 
 /** The part of the path after /periods/y/m, so switching months keeps the same tab. */
@@ -37,7 +38,7 @@ export function TabNav({ base }: { base: string }) {
   const suffix = useTabSuffix();
   return (
     <nav aria-label="Sections" className="-mb-px flex gap-1 overflow-x-auto">
-      {TABS.map(({ href, label, icon: Icon }) => {
+      {TABS.map(({ href, label, short, icon: Icon }) => {
         const active = suffix === href;
         return (
           <Link
@@ -52,7 +53,8 @@ export function TabNav({ base }: { base: string }) {
             )}
           >
             <Icon className="size-4" />
-            {label}
+            <span className="sm:hidden">{short}</span>
+            <span className="hidden sm:inline">{label}</span>
           </Link>
         );
       })}

@@ -38,10 +38,10 @@ export function ManageMembers({ members }: { members: Member[] }) {
                 title={`Remove ${m.name} from the household?`}
                 description={
                   <>
-                    {m.name} won&apos;t be included in future months. Months where {m.name} has advances, payments or
-                    paid bills keep them so those numbers don&apos;t change; otherwise they&apos;re taken out of open
-                    months and the bills re-split. Their history is kept, and adding the same name again brings them
-                    back.
+                    {m.name} won&apos;t be included in future months. Months where {m.name} has advances, payments,
+                    paid bills or typed Manual amounts keep them so those numbers don&apos;t change; otherwise
+                    they&apos;re taken out of open months and the bills re-split (a ₱0 bill they&apos;re down as paying
+                    goes to the collector). Their history is kept, and adding the same name again brings them back.
                   </>
                 }
                 confirmLabel="Remove"

@@ -67,6 +67,10 @@ export function splitEqually<Id extends string | number>(
  * Split a total by relative weights (e.g. Ice Maker: PA 4, everyone else 1 → 50% / 12.5% each).
  * Uses the largest-remainder method so the result sums exactly to the total; ties go to
  * the earlier entry.
+ *
+ * Whole-number weights (e.g. Meralco points in hundredths: 250, 180, …) are split with exact
+ * integer math. Decimal weights like 2.5 + 1.8 don't add up exactly in floating point, which
+ * could floor a share one centavo low and hand the leftover to the wrong person.
  */
 export function splitByWeights<Id extends string | number>(
   total: Centavos,
@@ -79,13 +83,22 @@ export function splitByWeights<Id extends string | number>(
     throw new Error("Weights must be non-negative with a positive sum");
   }
 
-  const exact = weights.map(([id, w], index) => ({ id, index, raw: (total * w) / weightSum }));
-  const result = new Map<Id, Centavos>(exact.map(({ id, raw }) => [id, Math.floor(raw)]));
+  const integral =
+    weights.every(([, w]) => Number.isSafeInteger(w)) && Number.isSafeInteger(total * weightSum);
+  const exact = weights.map(([id, w], index) => {
+    const scaled = total * w;
+    return {
+      id,
+      index,
+      base: Math.floor(scaled / weightSum),
+      // Only compared within this split, so the integer remainder and the fraction both work.
+      remainder: integral ? scaled % weightSum : (scaled / weightSum) % 1,
+    };
+  });
+  const result = new Map<Id, Centavos>(exact.map(({ id, base }) => [id, base]));
   let leftover = total - [...result.values()].reduce((a, b) => a + b, 0);
 
-  const byRemainder = [...exact].sort(
-    (a, b) => b.raw - Math.floor(b.raw) - (a.raw - Math.floor(a.raw)) || a.index - b.index,
-  );
+  const byRemainder = [...exact].sort((a, b) => b.remainder - a.remainder || a.index - b.index);
   for (const { id } of byRemainder) {
     if (leftover === 0) break;
     result.set(id, result.get(id)! + 1);

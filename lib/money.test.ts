@@ -81,6 +81,16 @@ describe("splitByWeights", () => {
     expect(sumCentavos(shares.values())).toBe(376100);
   });
 
+  it("whole-number weights use exact integer remainders", () => {
+    // 81 split 110 / 220 / 330 → 13.5 / 27 / 40.5: the tie goes to the earlier entry.
+    const shares = splitByWeights(81, [
+      ["a", 110],
+      ["b", 220],
+      ["c", 330],
+    ]);
+    expect(Object.fromEntries(shares)).toEqual({ a: 14, b: 27, c: 40 });
+  });
+
   it("rejects zero or negative weights", () => {
     expect(() => splitByWeights(100, [["a", 0]])).toThrow();
     expect(() => splitByWeights(100, [["a", -1], ["b", 2]])).toThrow();

@@ -7,7 +7,7 @@
 // ⚠️ There's no auth yet, so anyone who can reach the app can call these. Keep the app
 // local / unlisted until login exists.
 
-import { and, asc, desc, eq, gt, inArray, max, or } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, max, or, sql, type SQL } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import {
@@ -22,6 +22,7 @@ import {
   sharedColumnMembers,
   sharedColumns,
 } from "@/db";
+import { monthLabel } from "@/lib/format";
 import { fromCentavos, parseMoneyInput, splitEqually, sumCentavos, toCentavos, type Centavos } from "@/lib/money";
 import { computeBillShares, SettlementError, splitOrder, type MemberId } from "@/lib/settlement";
 
@@ -32,6 +33,8 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 class ActionError extends Error {}
 
 const id = z.coerce.number().int().positive();
+// numeric(12,2) holds up to 9,999,999,999.99.
+const MAX_CENTAVOS = 999_999_999_999;
 const moneyField = (allowZero: boolean) =>
   z.string().transform((raw, ctx): Centavos => {
     const centavos = parseMoneyInput(raw);
@@ -40,6 +43,10 @@ const moneyField = (allowZero: boolean) =>
         code: "custom",
         message: allowZero ? "Enter an amount like 2,699.00 (0 is fine)" : "Enter an amount greater than 0, like 2,699.00",
       });
+      return z.NEVER;
+    }
+    if (centavos > MAX_CENTAVOS) {
+      ctx.addIssue({ code: "custom", message: "That amount is too large" });
       return z.NEVER;
     }
     return centavos;
@@ -185,13 +192,7 @@ export async function addAdvance(_prev: ActionState, formData: FormData): Promis
     await db.transaction(async (tx) => {
       const { order } = await loadOpenPeriod(tx, data.periodId);
       if (!order.includes(data.payerId)) throw new ActionError("The payer isn't in this month.");
-      let columnId = data.columnId;
-      if (columnId) {
-        const column = await tx.query.sharedColumns.findFirst({ where: eq(sharedColumns.id, columnId) });
-        if (!column || column.periodId !== data.periodId) throw new ActionError("Choose a column from this month.");
-      } else {
-        columnId = await ensureDefaultColumn(tx, data.periodId, order);
-      }
+      const columnId = await resolveColumn(tx, data.periodId, data.columnId, order);
       await tx.insert(advances).values({
         periodId: data.periodId,
         columnId,
@@ -205,13 +206,38 @@ export async function addAdvance(_prev: ActionState, formData: FormData): Promis
   });
 }
 
+// Editing keeps the advance in its month; changing the column is how it moves between columns.
+const updateAdvanceSchema = addAdvanceSchema.omit({ periodId: true }).extend({ advanceId: id });
+
+export async function updateAdvance(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  return run(updateAdvanceSchema, formData, async ({ advanceId, ...data }) => {
+    await db.transaction(async (tx) => {
+      const advance = await tx.query.advances.findFirst({ where: eq(advances.id, advanceId) });
+      if (!advance) throw new ActionError("That advance was deleted.");
+      const { order } = await loadOpenPeriod(tx, advance.periodId);
+      if (!order.includes(data.payerId)) throw new ActionError("The payer isn't in this month.");
+      const columnId = await resolveColumn(tx, advance.periodId, data.columnId, order);
+      await tx
+        .update(advances)
+        .set({
+          columnId,
+          payerId: data.payerId,
+          category: data.category,
+          description: data.description,
+          amount: fromCentavos(data.amount),
+          spentOn: data.spentOn,
+        })
+        .where(eq(advances.id, advanceId));
+    });
+  });
+}
+
 export async function deleteAdvance(advanceId: number): Promise<ActionState> {
   return run(z.object({ advanceId: id }), { advanceId }, async ({ advanceId }) => {
     await db.transaction(async (tx) => {
       const advance = await tx.query.advances.findFirst({ where: eq(advances.id, advanceId) });
       if (!advance) throw new ActionError("That advance was already deleted.");
       await loadOpenPeriod(tx, advance.periodId);
-      // advance_shares rows (custom splits) are removed by ON DELETE CASCADE.
       await tx.delete(advances).where(eq(advances.id, advanceId));
     });
   });
@@ -258,20 +284,25 @@ export async function setSharedColumnMode(columnId: number, mode: "equal" | "man
         // Start from the current equal split so it adds up; then edit anyone's amount.
         const included = order.filter((m) => column.members.some((x) => x.memberId === m && x.included));
         const shares = total > 0 && included.length ? splitEqually(total, included) : new Map<MemberId, Centavos>();
-        for (const memberId of order) {
-          await upsertColumnMember(tx, columnId, memberId, { amount: fromCentavos(shares.get(memberId) ?? 0) });
-        }
+        await upsertColumnMembers(
+          tx,
+          columnId,
+          order.map((memberId) => ({ memberId, amount: fromCentavos(shares.get(memberId) ?? 0) })),
+        );
       } else {
         // Back to equal: whoever had an amount shares it (everyone, if nobody did).
         const withAmount = new Set(
           column.members.filter((m) => m.amount !== null && toCentavos(m.amount) > 0).map((m) => m.memberId),
         );
-        for (const memberId of order) {
-          await upsertColumnMember(tx, columnId, memberId, {
+        await upsertColumnMembers(
+          tx,
+          columnId,
+          order.map((memberId) => ({
+            memberId,
             amount: null,
             included: withAmount.size === 0 || withAmount.has(memberId),
-          });
-        }
+          })),
+        );
       }
       await tx.update(sharedColumns).set({ splitMode: mode }).where(eq(sharedColumns.id, columnId));
     });
@@ -285,9 +316,11 @@ export async function updateSharedColumnMembers(_prev: ActionState, formData: Fo
     await db.transaction(async (tx) => {
       const { order } = await loadColumn(tx, columnId);
       const chosen = new Set(included);
-      for (const memberId of order) {
-        await upsertColumnMember(tx, columnId, memberId, { included: chosen.has(memberId) });
-      }
+      await upsertColumnMembers(
+        tx,
+        columnId,
+        order.map((memberId) => ({ memberId, included: chosen.has(memberId) })),
+      );
     });
   });
 }
@@ -299,7 +332,7 @@ export async function updateSharedColumnAmount(_prev: ActionState, formData: For
       const { column, order } = await loadColumn(tx, columnId);
       if (column.splitMode !== "manual") throw new ActionError(`Switch ${column.name} to Manual to type amounts.`);
       if (!order.includes(memberId)) throw new ActionError("That person isn't in this month.");
-      await upsertColumnMember(tx, columnId, memberId, { amount: fromCentavos(amount) });
+      await upsertColumnMembers(tx, columnId, [{ memberId, amount: fromCentavos(amount) }]);
     });
   });
 }
@@ -321,7 +354,7 @@ export async function deleteSharedColumn(columnId: number): Promise<ActionState>
       if (column.isDefault) throw new ActionError(`${column.name} is the main shared column and stays.`);
       if (column.advances.length > 0) {
         throw new ActionError(
-          `${column.name} still has ${column.advances.length} advance(s). Delete or move them first.`,
+          `${column.name} still has ${column.advances.length} advance(s). Move them to another column (edit the advance) or delete them first.`,
         );
       }
       // shared_column_members rows go with it (ON DELETE CASCADE).
@@ -380,6 +413,10 @@ export async function removeMember(memberId: number): Promise<ActionState> {
       // Deactivated: left out of future months, history kept.
       await tx.update(members).set({ active: false }).where(eq(members.id, memberId));
 
+      const collector = await tx.query.members.findFirst({
+        where: and(eq(members.isCollector, true), eq(members.active, true)),
+      });
+
       for (const period of await openPeriods(tx)) {
         // Anyone with records in a month stays in that month so its numbers don't change.
         if (await hasRecordsIn(tx, period.id, memberId)) continue;
@@ -387,6 +424,21 @@ export async function removeMember(memberId: number): Promise<ActionState> {
           where: and(eq(periodBalances.periodId, period.id), eq(periodBalances.memberId, memberId)),
         });
         if (!inPeriod) continue;
+        // ₱0 bills they're down as paying (copied from last month by "Start next month")
+        // aren't real payments: hand them to the collector so the member can leave the month.
+        const zeroBillsPaid = await tx
+          .select({ id: billItems.id })
+          .from(billItems)
+          .where(
+            and(eq(billItems.periodId, period.id), eq(billItems.paidById, memberId), eq(billItems.totalAmount, "0")),
+          );
+        if (zeroBillsPaid.length) {
+          if (!collector) throw new ActionError(`${member.name} is down as paying a bill. Set a collector first.`);
+          await tx
+            .update(billItems)
+            .set({ paidById: collector.id })
+            .where(inArray(billItems.id, zeroBillsPaid.map((b) => b.id)));
+        }
         const columns = await tx.query.sharedColumns.findMany({
           where: eq(sharedColumns.periodId, period.id),
           with: { members: true, advances: true },
@@ -430,6 +482,11 @@ export async function startNextMonth(): Promise<ActionState> {
       if (!latest) throw new ActionError("There's no month to continue from yet.");
       const year = latest.month === 12 ? latest.year + 1 : latest.year;
       const month = latest.month === 12 ? 1 : latest.month + 1;
+      // A second click or tab could get here too; say so plainly instead of a unique-index error.
+      const exists = await tx.query.billingPeriods.findFirst({
+        where: and(eq(billingPeriods.year, year), eq(billingPeriods.month, month)),
+      });
+      if (exists) throw new ActionError(`${monthLabel(year, month)} has already been started.`);
 
       const activeMembers = await tx.query.members.findMany({ where: eq(members.active, true) });
       const order = splitOrder(activeMembers);
@@ -492,16 +549,31 @@ async function loadColumn(tx: Tx, columnId: number) {
   return { column, period, order };
 }
 
-async function upsertColumnMember(
+/**
+ * Sets fields for several members of a column in one statement (insert, or update if the row
+ * exists). Every row must carry the same fields; only those fields are updated.
+ */
+async function upsertColumnMembers(
   tx: Tx,
   columnId: number,
-  memberId: MemberId,
-  values: { included?: boolean; amount?: string | null },
+  rows: { memberId: MemberId; included?: boolean; amount?: string | null }[],
 ) {
+  if (rows.length === 0) return;
+  const set: { included?: SQL; amount?: SQL } = {};
+  if ("included" in rows[0]) set.included = sql.raw(`excluded.${sharedColumnMembers.included.name}`);
+  if ("amount" in rows[0]) set.amount = sql.raw(`excluded.${sharedColumnMembers.amount.name}`);
   await tx
     .insert(sharedColumnMembers)
-    .values({ columnId, memberId, ...values })
-    .onConflictDoUpdate({ target: [sharedColumnMembers.columnId, sharedColumnMembers.memberId], set: values });
+    .values(rows.map((row) => ({ columnId, ...row })))
+    .onConflictDoUpdate({ target: [sharedColumnMembers.columnId, sharedColumnMembers.memberId], set });
+}
+
+/** The column an advance goes into: one from this month, or 0 = the default column (created if missing). */
+async function resolveColumn(tx: Tx, periodId: number, columnId: number, order: MemberId[]): Promise<number> {
+  if (!columnId) return ensureDefaultColumn(tx, periodId, order);
+  const column = await tx.query.sharedColumns.findFirst({ where: eq(sharedColumns.id, columnId) });
+  if (!column || column.periodId !== periodId) throw new ActionError("Choose a column from this month.");
+  return columnId;
 }
 
 /** The month's everyday "Advances Shared" column (everyone, equal), created if missing. */
@@ -594,10 +666,25 @@ async function hasRecordsIn(tx: Tx, periodId: number, memberId: number): Promise
       and(eq(payments.periodId, periodId), or(eq(payments.fromMemberId, memberId), eq(payments.toMemberId, memberId))),
     )
     .limit(1);
+  // ₱0 bills don't count: they're copied month to month before anyone has paid.
   const [paidBill] = await tx
     .select({ id: billItems.id })
     .from(billItems)
-    .where(and(eq(billItems.periodId, periodId), eq(billItems.paidById, memberId)))
+    .where(and(eq(billItems.periodId, periodId), eq(billItems.paidById, memberId), gt(billItems.totalAmount, "0")))
+    .limit(1);
+  // Removing a typed share from a Manual bill would change that bill's total.
+  const [manualBillShare] = await tx
+    .select({ id: billItemShares.billItemId })
+    .from(billItemShares)
+    .innerJoin(billItems, eq(billItems.id, billItemShares.billItemId))
+    .where(
+      and(
+        eq(billItems.periodId, periodId),
+        eq(billItems.splitMode, "manual"),
+        eq(billItemShares.memberId, memberId),
+        gt(billItemShares.amount, "0"),
+      ),
+    )
     .limit(1);
   const [manualAmount] = await tx
     .select({ id: sharedColumnMembers.columnId })
@@ -612,7 +699,7 @@ async function hasRecordsIn(tx: Tx, periodId: number, memberId: number): Promise
       ),
     )
     .limit(1);
-  return Boolean(advance || payment || paidBill || manualAmount);
+  return Boolean(advance || payment || paidBill || manualBillShare || manualAmount);
 }
 
 /** Validates input, runs the change, refreshes the pages, and turns errors into messages. */

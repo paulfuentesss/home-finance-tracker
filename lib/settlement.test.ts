@@ -151,6 +151,14 @@ describe("computeBillShares", () => {
     expect(() => computeBillShares("points", 1000, order, { points: new Map() })).toThrow(SettlementError);
   });
 
+  it("points: exact ties go in split order (float math used to break them wrongly)", () => {
+    // 81 × 1.1 / 6.6 = 13.5 and 81 × 3.3 / 6.6 = 40.5: a true tie, so PA (collector) gets the centavo.
+    const shares = computeBillShares("points", 81, order, { points: byName({ PA: 1.1, "Ate Toni": 2.2, Mayee: 3.3 }) });
+    expect(shares.get(idOf("PA"))).toBe(14);
+    expect(shares.get(idOf("Ate Toni"))).toBe(27);
+    expect(shares.get(idOf("Mayee"))).toBe(40);
+  });
+
   it("points: a member with 0 points pays nothing", () => {
     const shares = computeBillShares("points", 10000, order, { points: byName({ PA: 1, PJ: 1 }) });
     expect(shares.get(idOf("Mayee"))).toBe(0);

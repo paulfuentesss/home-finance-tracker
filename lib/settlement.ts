@@ -141,7 +141,11 @@ export function computeBillShares(
       if (weights.every(([, w]) => w === 0)) {
         throw new SettlementError("Give at least one person some points");
       }
-      return splitByWeights(total, weights);
+      // Points have 2 decimals (numeric(5,2)); split in whole hundredths so the math is exact.
+      return splitByWeights(
+        total,
+        weights.map(([id, w]) => [id, Math.round(w * 100)] as const),
+      );
     }
     case "manual":
       return new Map(order.map((id) => [id, options.manual?.get(id) ?? 0]));

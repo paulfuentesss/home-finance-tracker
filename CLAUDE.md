@@ -7,6 +7,9 @@ The user (Paul, "PA" in the data) is both the developer and the household's
 **collector**: he pays the core bills upfront and everyone settles with him. He is
 learning these tools, so explain what each step does and why.
 
+**Current status:** see "Current status" in README.md (what works, what isn't built yet).
+Keep that list up to date when a feature lands.
+
 ## Rules
 
 - **Read `docs/settlement-rules.md` before touching `lib/settlement.ts`, `lib/money.ts`
@@ -28,6 +31,11 @@ learning these tools, so explain what each step does and why.
 - Every table has RLS enabled with no policies (blocks Supabase's public Data API).
   Keep `.enableRLS()` on new tables.
 - **No public deploy until auth exists**: the app shows household finances.
+- Editable values in tables/lists use `components/inline-input.tsx` (save on Enter/blur,
+  Escape reverts, readOnly while saving). Dialog forms submit through `useDialogForm` in
+  `components/entry-dialogs.tsx`. Both use `onSubmit` + `startTransition` instead of
+  `<form action>`, because React resets a form after every action — even a failed one —
+  which wipes what was typed.
 - Pre-PR: `npm run typecheck`, `npm run lint`, `npm test`.
 
 ## Known pitfalls (hit during development — check here first)
@@ -41,6 +49,8 @@ learning these tools, so explain what each step does and why.
 | Migration fails adding a NOT NULL column | Existing rows have no value | Hand-edit the generated SQL (backfill, or clear test data) and note why in a comment — see `drizzle/0002_shared-columns.sql` |
 | August numbers look wrong / points reset | Test data was edited while experimenting | `npm run db:seed:august -- --replace` resets only 2026-08 |
 | `tsc` errors about `LayoutProps` / `PageProps` | Route types are generated | Use `npm run typecheck` (runs `next typegen` first) |
+| A form loses everything typed when the server returns an error | `<form action={…}>` makes React reset the form after the action, even when it returns `{ ok: false }` | Submit via `onSubmit` + `startTransition(() => dispatch(formData))` — see `InlineInput` / `useDialogForm` |
+| A `loading.tsx` doesn't show when switching months | `loading.tsx` doesn't cover the `layout.tsx` in its own folder, and `[month]/layout.tsx` loads the data | Month switches use `app/periods/loading.tsx`; tab switches use `[month]/loading.tsx` |
 | `CLAUDE.md` shows as modified after `npm run dev` | `next dev` appends the Next.js agent-rules block below | Expected — commit it |
 
 **Fast dev loop:** make the change → `npm run typecheck && npx eslint && npm test` once per chunk (tests run in < 1 s) →

@@ -10,6 +10,8 @@ import {
   updateSharedColumnAmount,
   type ActionState,
 } from "@/app/periods/[year]/[month]/actions";
+import { Balance } from "@/components/balance";
+import { InlineInput, type FormAction } from "@/components/inline-input";
 import { useDragScroll } from "@/hooks/use-drag-scroll";
 import { dayLabel, monthLabel } from "@/lib/format";
 import { formatPHP, fromCentavos, sumCentavos } from "@/lib/money";
@@ -182,17 +184,6 @@ export function SplitTable({ view }: { view: PeriodView }) {
   );
 }
 
-function Balance({ amount }: { amount: number }) {
-  if (amount === 0) return <span className="text-zinc-500">₱0.00 <span className="font-sans text-[11px]">Settled</span></span>;
-  const owes = amount > 0;
-  return (
-    <span className={cn("font-semibold", owes ? "text-rose-600" : "text-emerald-600")}>
-      {formatPHP(Math.abs(amount))}
-      <span className="ml-1 font-sans text-[11px] font-normal">{owes ? "To pay" : "To receive"}</span>
-    </span>
-  );
-}
-
 function BillShareCell({ bill, memberId, editable }: { bill: ViewBill; memberId: number; editable: boolean }) {
   const share = bill.shares[String(memberId)];
   const amount = share?.amount ?? 0;
@@ -241,15 +232,7 @@ function ColumnShareCell({
   return <span>{formatPHP(share ?? 0)}</span>;
 }
 
-type FormAction = (prev: ActionState, formData: FormData) => Promise<ActionState>;
-
-/**
- * An amount field that saves on Enter or when it loses focus (only if changed). The server
- * re-splits and the page refreshes with the new numbers.
- *
- * While saving, the field is readOnly rather than disabled: disabling a focused input blurs
- * it, and the blur would re-submit a form whose disabled field is left out of the FormData.
- */
+/** An amount edited in place; the server re-splits and the page refreshes with the new numbers. */
 function MoneyInput({
   action,
   hidden,
@@ -263,33 +246,17 @@ function MoneyInput({
   value: number;
   label: string;
 }) {
-  const [state, formAction, pending] = useActionState<ActionState, FormData>(action, null);
-  const current = fromCentavos(value);
   return (
-    <form action={formAction} className="inline-block">
-      {Object.entries(hidden).map(([k, v]) => (
-        <input key={k} type="hidden" name={k} value={v} />
-      ))}
-      <label className="relative inline-flex items-center">
-        <span className="pointer-events-none absolute left-2 text-xs text-muted-foreground">₱</span>
-        <input
-          key={current}
-          name={name}
-          defaultValue={current}
-          inputMode="decimal"
-          aria-label={label}
-          aria-invalid={state?.ok === false || undefined}
-          readOnly={pending}
-          className="h-8 w-28 rounded-md border border-input bg-white pr-2 pl-5 text-right font-mono text-sm focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none read-only:opacity-50 aria-invalid:border-rose-500"
-          onBlur={(e) => {
-            if (!pending && e.currentTarget.value.trim() !== current) e.currentTarget.form?.requestSubmit();
-          }}
-        />
-      </label>
-      {state?.ok === false && (
-        <p className="mx-auto mt-1 max-w-32 font-sans text-[11px] whitespace-normal text-destructive">{state.error}</p>
-      )}
-    </form>
+    <InlineInput
+      action={action}
+      hidden={hidden}
+      name={name}
+      value={fromCentavos(value)}
+      label={label}
+      prefix="₱"
+      inputMode="decimal"
+      inputClassName="h-8 w-28 pr-2 text-right font-mono text-sm"
+    />
   );
 }
 
@@ -355,7 +322,7 @@ function ExplainerCards() {
     },
     {
       icon: Scale,
-      title: "Net payable balance",
+      title: "Month Final",
       body: "Your share of everything minus what you paid. Positive means you owe; negative means you get money back.",
       href: "#month-final",
     },

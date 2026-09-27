@@ -18,6 +18,11 @@ export function dayLabel(isoDate: string): string {
   return `${DAY_MONTHS[m - 1]} ${d}`;
 }
 
+/** "2026-09-06" → "Sept. 6, 2026" (same household style as dayLabel, with the year). */
+export function dateLabel(isoDate: string): string {
+  return `${dayLabel(isoDate)}, ${isoDate.slice(0, 4)}`;
+}
+
 /** Today's date in Manila as "YYYY-MM-DD" (for date inputs). */
 export function todayInManila(): string {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });

@@ -11,6 +11,34 @@ Drizzle ORM · PostgreSQL on Supabase · Vitest
 > ⚠️ There's no login yet. Don't deploy this publicly until auth is added: anyone
 > with the URL would see the household's finances.
 
+## Current status
+
+Runs locally against Supabase; not deployed (no login yet).
+
+**Working now**
+
+- **Monthly Split Table** — bill columns (Meralco by points, the rest Auto equal or Manual),
+  shared advance columns, Month Final, Prev Month Unsettled carry-over and Final, plus a
+  "Who owes what" summary that reads well on a phone. Amounts are edited in place (Enter or
+  click away saves, Escape undoes).
+- **Advances Log & Report** — every advance and bill paid, grouped by person with subtotals;
+  search and filters; log, edit (including moving to another column), delete; "Save & add
+  another" for entering many receipts in a row.
+- **Manage Columns & People** — bill columns, shared columns (Auto equal ↔ Manual, who
+  shares), Meralco points, adding and removing housemates.
+- **Months** — month picker, "Start <next month>" (copies bill columns at ₱0), loading
+  placeholders while a month loads.
+- **How it works** — the household-facing explanation of the rules.
+
+**Not built yet**
+
+- Login / auth (required before any public deploy)
+- Receipt uploads (the Receipts tab is laid out only)
+- Payments and a settle-up screen (the `payments` table exists; carry-over already uses it)
+- Closing / reopening a month
+- Email-imported bills (`status = 'pending'` is already ignored by the math)
+- A keep-alive job so the free Supabase project doesn't pause
+
 ## First-time setup
 
 1. **Install dependencies**
@@ -54,7 +82,7 @@ Drizzle ORM · PostgreSQL on Supabase · Vitest
 |---|---|---|
 | `npm run lint` | Checks code with ESLint | Before a PR (also runs automatically on every commit) |
 | `npm run typecheck` | Generates Next.js route types, then type-checks with TypeScript | Before a PR |
-| `npm test` | Runs the Vitest unit tests once (money and settlement math) | After changing anything in `lib/` |
+| `npm test` | Runs the Vitest unit tests once (money, settlement math, advances log grouping) | After changing anything in `lib/` |
 | `npm run test:watch` | Re-runs the tests on every save | While working on `lib/money.ts` or `lib/settlement.ts` |
 
 ### Database
@@ -116,10 +144,12 @@ pre-commit hook runs ESLint, so lint errors block the commit.
 
 ```
 app/            Next.js routes: /periods/[year]/[month] (4 tabs) and /how-it-works
+components/     App components (inline-input.tsx = the shared edit-in-place field)
 components/ui/  shadcn/ui components
 db/             Drizzle schema (schema.ts) and database clients
 drizzle/        Generated SQL migrations (committed)
 docs/           Business rules
-lib/            Money and settlement logic + tests
+hooks/          Client hooks (drag-to-scroll for the wide Split Table)
+lib/            Money, settlement and advances-log logic + tests
 scripts/        Seed and backup scripts
 ```

@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
-import { deleteBill, renameBill, type ActionState } from "@/app/periods/[year]/[month]/actions";
+import { deleteBill, renameBill } from "@/app/periods/[year]/[month]/actions";
 import { ConfirmDeleteButton } from "@/components/confirm-button";
+import { InlineInput } from "@/components/inline-input";
 import { AddBillDialog } from "@/components/entry-dialogs";
 import { formatPHP } from "@/lib/money";
 import type { PeriodView, ViewBill } from "@/lib/periods";
@@ -38,7 +38,6 @@ export function ManageBills({ view }: { view: PeriodView }) {
 }
 
 function BillRow({ bill, editable }: { bill: ViewBill; editable: boolean }) {
-  const [state, formAction, pending] = useActionState<ActionState, FormData>(renameBill, null);
   const pill = MODE_PILLS[bill.splitMode];
 
   return (
@@ -46,23 +45,17 @@ function BillRow({ bill, editable }: { bill: ViewBill; editable: boolean }) {
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           {editable ? (
-            <form action={formAction} className="min-w-0">
-              <input type="hidden" name="billId" value={bill.id} />
-              <input
-                key={bill.name}
-                name="name"
-                defaultValue={bill.name}
-                aria-label="Bill name"
-                readOnly={pending}
-                maxLength={60}
-                className="w-full rounded-md border border-transparent bg-transparent px-1 font-semibold hover:border-input focus:border-amber-500 focus:bg-white focus:outline-none"
-                onBlur={(e) => {
-                  if (!pending && e.currentTarget.value.trim() && e.currentTarget.value.trim() !== bill.name) {
-                    e.currentTarget.form?.requestSubmit();
-                  }
-                }}
-              />
-            </form>
+            <InlineInput
+              action={renameBill}
+              hidden={{ billId: bill.id }}
+              name="name"
+              value={bill.name}
+              label="Bill name"
+              maxLength={60}
+              allowEmpty={false}
+              className="min-w-0"
+              inputClassName="w-full border-transparent bg-transparent px-1 font-semibold hover:border-input focus:bg-white"
+            />
           ) : (
             <span className="font-semibold">{bill.name}</span>
           )}
@@ -72,7 +65,6 @@ function BillRow({ bill, editable }: { bill: ViewBill; editable: boolean }) {
           </span>
         </div>
         <p className="mt-0.5 px-1 font-mono text-sm text-muted-foreground tabular-nums">Base: {formatPHP(bill.total)}</p>
-        {state?.ok === false && <p className="px-1 text-xs text-destructive">{state.error}</p>}
       </div>
       {editable && (
         <ConfirmDeleteButton

@@ -38,6 +38,18 @@ export function oneOffColumnColors(columns: readonly { id: number; isDefault: bo
   return new Map(oneOffs.map((c, i) => [c.id, ONE_OFF_COLORS[i % ONE_OFF_COLORS.length]]));
 }
 
+/**
+ * Who shares an Auto-equal column, in words: "everyone", or "everyone except PA" when some
+ * of the month's members are left out.
+ */
+export function sharedByLabel(
+  includedIds: readonly number[],
+  members: readonly { id: number; name: string }[],
+): string {
+  const excluded = members.filter((m) => !includedIds.includes(m.id)).map((m) => m.name);
+  return excluded.length === 0 ? "everyone" : `everyone except ${excluded.join(", ")}`;
+}
+
 export interface LogRow {
   key: string;
   /** null for bill rows (bills are managed in the Manage tab). */

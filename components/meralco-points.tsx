@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
-import { updateBillPoints, type ActionState } from "@/app/periods/[year]/[month]/actions";
+import { updateBillPoints } from "@/app/periods/[year]/[month]/actions";
+import { InlineInput } from "@/components/inline-input";
 import { formatPHP } from "@/lib/money";
 import type { PeriodView, ViewBill } from "@/lib/periods";
 import { cn } from "@/lib/utils";
@@ -53,7 +53,6 @@ function PointsRow({
   dotClass: string;
   editable: boolean;
 }) {
-  const [state, formAction, pending] = useActionState<ActionState, FormData>(updateBillPoints, null);
   const share = bill.shares[String(memberId)];
   const current = String(share?.points ?? 0);
 
@@ -66,29 +65,20 @@ function PointsRow({
       <span className="flex items-center gap-3">
         <span className="font-mono text-muted-foreground tabular-nums">{formatPHP(share?.amount ?? 0)}</span>
         {editable ? (
-          <form action={formAction} className="flex items-center gap-1">
-            <input type="hidden" name="billId" value={bill.id} />
-            <input type="hidden" name="memberId" value={memberId} />
-            <input
-              key={current}
-              name="points"
-              defaultValue={current}
-              inputMode="decimal"
-              aria-label={`${name} points`}
-              aria-invalid={state?.ok === false || undefined}
-              readOnly={pending}
-              className="h-8 w-16 rounded-md border border-input px-2 text-right font-mono focus:border-amber-500 focus:outline-none aria-invalid:border-rose-500"
-              onBlur={(e) => {
-                if (!pending && e.currentTarget.value.trim() !== current) e.currentTarget.form?.requestSubmit();
-              }}
-            />
-            <span className="text-muted-foreground">pts</span>
-          </form>
+          <InlineInput
+            action={updateBillPoints}
+            hidden={{ billId: bill.id, memberId }}
+            name="points"
+            value={current}
+            label={`${name} points`}
+            suffix="pts"
+            inputMode="decimal"
+            inputClassName="h-8 w-16 px-2 text-right font-mono"
+          />
         ) : (
           <span className="font-mono">{current} pts</span>
         )}
       </span>
-      {state?.ok === false && <span className="basis-full text-xs text-destructive">{state.error}</span>}
     </li>
   );
 }
