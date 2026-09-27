@@ -1,6 +1,8 @@
 import { asc, eq } from "drizzle-orm";
 import { ManageBills } from "@/components/manage-bills";
 import { ManageMembers } from "@/components/manage-members";
+import { ManageSharedColumns } from "@/components/manage-shared-columns";
+import { MeralcoPoints } from "@/components/meralco-points";
 import { db, members } from "@/db";
 import { memberDotClass } from "@/lib/members";
 import { getPeriodView } from "@/lib/periods";
@@ -18,10 +20,16 @@ export default async function ManagePage({ params }: PageProps<"/periods/[year]/
 
   return (
     <div className="grid items-start gap-6 lg:grid-cols-2">
-      <ManageBills view={view} />
-      <ManageMembers
-        members={active.map((m) => ({ id: m.id, name: m.name, isCollector: m.isCollector, dotClass: memberDotClass(m.sortOrder - 1) }))}
-      />
+      <div className="space-y-6">
+        <ManageBills view={view} />
+        <ManageSharedColumns view={view} />
+      </div>
+      <div className="space-y-6">
+        <MeralcoPoints view={view} />
+        <ManageMembers
+          members={active.map((m) => ({ id: m.id, name: m.name, isCollector: m.isCollector, dotClass: memberDotClass(m.sortOrder - 1) }))}
+        />
+      </div>
     </div>
   );
 }

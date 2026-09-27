@@ -15,6 +15,13 @@
       "when": 1790525570898,
       "tag": "0001_split-modes-pools-dates",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790528666323,
+      "tag": "0002_shared-columns",
+      "breakpoints": true
     }
   ]
 }

@@ -24,8 +24,8 @@ export default async function HowItWorksPage() {
       a: (
         <>
           <p>
-            Most bills (Water, PLDT, Helper) are split <strong>equally</strong> between everyone in the house that
-            month. Amounts are worked out to the exact centavo, so everyone&apos;s shares always add up to the real
+            Water, PLDT and the Helper are always split <strong>equally</strong> between everyone in the house
+            that month. Amounts are worked out to the exact centavo, so everyone&apos;s shares always add up to the real
             bill.
           </p>
           <p>
@@ -49,18 +49,19 @@ export default async function HowItWorksPage() {
           </p>
           <p>
             <strong>Cost per point = bill ÷ total points.</strong> Someone with 2 points pays twice as much as someone
-            with 1 point.
+            with 1 point. Meralco always uses points; the allocation is changed in Manage Columns &amp; People.
           </p>
         </>
       ),
     },
     {
       id: "manual",
-      q: "Can a bill be split some other way?",
+      q: "Can a new bill be split some other way?",
       a: (
         <p>
-          Yes. Any bill column can be switched to <strong>Manual</strong> in the Monthly Split Table, and then each
-          person&apos;s amount is typed in by hand. The bill&apos;s total becomes the sum of what everyone was given.
+          When a new bill column is added it&apos;s set to <strong>Auto equal</strong> or <strong>Manual</strong>, and
+          stays that way. For a Manual bill each person&apos;s amount is typed in, and the bill&apos;s total is the
+          sum.
         </p>
       ),
     },
@@ -71,12 +72,12 @@ export default async function HowItWorksPage() {
         <>
           <p>
             A shared advance is something one person paid for the whole house — groceries, palengke, gas, a service.
-            It&apos;s added to a <strong>pool</strong> and everyone who shared it pays an equal part, including the
-            person who paid (they get the rest back).
+            It&apos;s logged into a <strong>shared column</strong>, usually <strong>Advances Shared</strong> (everyone),
+            and everyone in that column pays an equal part — including the person who paid, who gets the rest back.
           </p>
           <p>
-            If someone wasn&apos;t around — for example PA was away from Aug 8 — those purchases are shared only by the
-            people who were there. They show up as a separate column, like &ldquo;Adv shared (w/o PA)&rdquo;.
+            When the usual split doesn&apos;t fit, a separate column is added for that month. For example PA was away
+            from Aug 8, so those purchases went into &ldquo;Advances Shared w/o PA&rdquo;, shared by the other four.
           </p>
         </>
       ),
@@ -86,8 +87,9 @@ export default async function HowItWorksPage() {
       q: "What if something isn't shared equally?",
       a: (
         <p>
-          Some purchases have their own split — like the <strong>Ice Maker</strong>: Ate Toni covers half and the other
-          four split the other half (12.5% each). These get their own &ldquo;Adj.&rdquo; column in the table.
+          Switch a shared column to <strong>Manual</strong> and type each person&apos;s amount — like the{" "}
+          <strong>Ice Maker Adj.</strong>, where Ate Toni covers half and the other four split the rest. If the typed
+          amounts don&apos;t add up to the column&apos;s total, the table shows how much it&apos;s over or short.
         </p>
       ),
     },
@@ -112,7 +114,10 @@ export default async function HowItWorksPage() {
               <span className="font-medium text-zinc-600">Settled</span> — ₱0.00.
             </li>
           </ul>
-          <p>Everyone&apos;s Month Finals always add up to exactly ₱0.00 — what some owe is what others get back.</p>
+          <p>
+            Everyone&apos;s Month Finals add up to ₱0.00 — what some owe is what others get back. If a Manual column
+            is a few centavos over or short, the total shows that difference.
+          </p>
         </>
       ),
     },

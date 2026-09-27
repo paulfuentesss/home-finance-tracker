@@ -1,8 +1,14 @@
 "use client";
 
-import { Plus, UserPlus } from "lucide-react";
+import { Columns3, Plus, UserPlus } from "lucide-react";
 import { useActionState, useState } from "react";
-import { addAdvance, addBill, addMember, type ActionState } from "@/app/periods/[year]/[month]/actions";
+import {
+  addAdvance,
+  addBill,
+  addMember,
+  addSharedColumn,
+  type ActionState,
+} from "@/app/periods/[year]/[month]/actions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -37,11 +43,16 @@ function useDialogAction(action: (prev: ActionState, formData: FormData) => Prom
 
 export function AddAdvanceDialog({ view }: Props) {
   const { open, setOpen, state, formAction, pending } = useDialogAction(addAdvance);
-  const [sharedMode, setSharedMode] = useState<"all" | "except">("all");
 
   const memberItems = view.members.map((m) => ({ value: String(m.id), label: m.name }));
   const categoryItems = Object.entries(CATEGORY_LABELS).map(([value, label]) => ({ value, label }));
   const collectorId = String(view.members.find((m) => m.isCollector)?.id ?? view.members[0]?.id);
+  // "0" = the default "Advances Shared" column (created automatically if the month has none).
+  const defaultColumn = view.columns.find((c) => c.isDefault);
+  const columnItems = [
+    ...(defaultColumn ? [] : [{ value: "0", label: "Advances Shared" }]),
+    ...view.columns.map((c) => ({ value: String(c.id), label: c.name })),
+  ];
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -97,37 +108,23 @@ export function AddAdvanceDialog({ view }: Props) {
               <Input id="spentOn" name="spentOn" type="date" defaultValue={todayInManila()} />
             </Field>
           </div>
-          <fieldset className="grid gap-2">
-            <legend className="mb-1.5 text-sm font-medium">Shared by</legend>
-            <div className="flex gap-4 text-sm">
-              {(["all", "except"] as const).map((mode) => (
-                <label key={mode} className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="sharedMode"
-                    value={mode}
-                    checked={sharedMode === mode}
-                    onChange={() => setSharedMode(mode)}
-                    className="accent-amber-600"
-                  />
-                  {mode === "all" ? "Everyone" : "Everyone except…"}
-                </label>
-              ))}
-            </div>
-            {sharedMode === "except" && (
-              <div className="flex flex-wrap gap-x-4 gap-y-2 rounded-lg bg-zinc-50 p-3 text-sm">
-                {view.members.map((m) => (
-                  <label key={m.id} className="flex items-center gap-2">
-                    <input type="checkbox" name="excluded" value={m.id} className="accent-amber-600" />
-                    {m.name}
-                  </label>
+          <Field label="Column" htmlFor="columnId">
+            <Select name="columnId" items={columnItems} defaultValue={String(defaultColumn?.id ?? 0)}>
+              <SelectTrigger id="columnId" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {columnItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
                 ))}
-              </div>
-            )}
+              </SelectContent>
+            </Select>
             <p className="text-xs text-muted-foreground">
-              Leave someone out when they weren&apos;t around (e.g. away on a trip). Split equally among the rest.
+              Which shared column this goes into. Need a new one (e.g. someone away)? Add a shared column first.
             </p>
-          </fieldset>
+          </Field>
           {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
           <DialogFooter>
             <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
@@ -143,6 +140,7 @@ export function AddAdvanceDialog({ view }: Props) {
 
 export function AddBillDialog({ view, label = "Add bill column" }: Props & { label?: string }) {
   const { open, setOpen, state, formAction, pending } = useDialogAction(addBill);
+  const [splitMode, setSplitMode] = useState<"equal" | "manual">("equal");
   const memberItems = view.members.map((m) => ({ value: String(m.id), label: m.name }));
   const collectorId = String(view.members.find((m) => m.isCollector)?.id ?? view.members[0]?.id);
 
@@ -156,7 +154,7 @@ export function AddBillDialog({ view, label = "Add bill column" }: Props & { lab
         <DialogHeader>
           <DialogTitle>Add bill column</DialogTitle>
           <DialogDescription>
-            A utility or service bill. It starts as an equal split — switch it to Points or Manual in the table.
+            A utility or service bill. Choose how it&apos;s split — this stays fixed for the column.
           </DialogDescription>
         </DialogHeader>
         <form action={formAction} className="grid gap-4">
@@ -164,9 +162,17 @@ export function AddBillDialog({ view, label = "Add bill column" }: Props & { lab
           <Field label="Bill name" htmlFor="name">
             <Input id="name" name="name" placeholder="Meralco" required maxLength={60} />
           </Field>
-          <Field label="Total (₱)" htmlFor="total">
-            <Input id="total" name="total" inputMode="decimal" placeholder="0.00 if not in yet" defaultValue="0" required />
-          </Field>
+          <ModeChoice
+            value={splitMode}
+            onChange={setSplitMode}
+            equalHint="Everyone pays the same share of the total."
+            manualHint="Type each person's amount in the table; the total is their sum."
+          />
+          {splitMode === "equal" && (
+            <Field label="Total (₱)" htmlFor="total">
+              <Input id="total" name="total" inputMode="decimal" placeholder="0.00 if not in yet" defaultValue="0" required />
+            </Field>
+          )}
           <Field label="Paid to the provider by" htmlFor="paidById">
             <Select name="paidById" items={memberItems} defaultValue={collectorId}>
               <SelectTrigger id="paidById" className="w-full">
@@ -225,6 +231,113 @@ export function AddMemberDialog() {
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+export function AddSharedColumnDialog({ view }: Props) {
+  const { open, setOpen, state, formAction, pending } = useDialogAction(addSharedColumn);
+  const [splitMode, setSplitMode] = useState<"equal" | "manual">("equal");
+  const [sharedMode, setSharedMode] = useState<"all" | "except">("all");
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={<Button variant="outline" />}>
+        <Columns3 />
+        Add shared column
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Add shared column</DialogTitle>
+          <DialogDescription>
+            For advances that aren&apos;t shared the usual way — e.g. &ldquo;Advances Shared w/o PA&rdquo; while someone
+            is away, or &ldquo;Ice Maker Adj.&rdquo; when one person carries more.
+          </DialogDescription>
+        </DialogHeader>
+        <form action={formAction} className="grid gap-4">
+          <input type="hidden" name="periodId" value={view.period.id} />
+          <Field label="Column name" htmlFor="column-name">
+            <Input id="column-name" name="name" placeholder="Advances Shared w/o PA" required maxLength={60} />
+          </Field>
+          <ModeChoice
+            value={splitMode}
+            onChange={setSplitMode}
+            equalHint="Split evenly among the people you pick."
+            manualHint="Type each person's amount in the table."
+          />
+          {splitMode === "equal" && (
+            <fieldset className="grid gap-2">
+              <legend className="mb-1.5 text-sm font-medium">Shared by</legend>
+              <div className="flex gap-4 text-sm">
+                {(["all", "except"] as const).map((mode) => (
+                  <label key={mode} className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="sharedMode"
+                      value={mode}
+                      checked={sharedMode === mode}
+                      onChange={() => setSharedMode(mode)}
+                      className="accent-amber-600"
+                    />
+                    {mode === "all" ? "Everyone" : "Everyone except…"}
+                  </label>
+                ))}
+              </div>
+              {sharedMode === "except" && (
+                <div className="flex flex-wrap gap-x-4 gap-y-2 rounded-lg bg-zinc-50 p-3 text-sm">
+                  {view.members.map((m) => (
+                    <label key={m.id} className="flex items-center gap-2">
+                      <input type="checkbox" name="excluded" value={m.id} className="accent-amber-600" />
+                      {m.name}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </fieldset>
+          )}
+          {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
+            <Button type="submit" disabled={pending}>
+              {pending ? "Adding…" : "Add column"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ModeChoice({
+  value,
+  onChange,
+  equalHint,
+  manualHint,
+}: {
+  value: "equal" | "manual";
+  onChange: (value: "equal" | "manual") => void;
+  equalHint: string;
+  manualHint: string;
+}) {
+  return (
+    <fieldset className="grid gap-1.5">
+      <legend className="mb-1.5 text-sm font-medium">Split</legend>
+      <div className="flex gap-4 text-sm">
+        {(["equal", "manual"] as const).map((mode) => (
+          <label key={mode} className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="splitMode"
+              value={mode}
+              checked={value === mode}
+              onChange={() => onChange(mode)}
+              className="accent-amber-600"
+            />
+            {mode === "equal" ? "Auto equal" : "Manual"}
+          </label>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground">{value === "equal" ? equalHint : manualHint}</p>
+    </fieldset>
   );
 }
 

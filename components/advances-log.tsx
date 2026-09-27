@@ -64,10 +64,7 @@ export function AdvancesLog({ view }: { view: PeriodView }) {
         payerId: a.payerId,
         category: a.category,
         description: a.description,
-        tags: [
-          ...(a.customSplit ? [{ label: "custom split", className: "text-indigo-600" }] : []),
-          ...(a.sharedLabel ? [{ label: a.sharedLabel, className: "text-zinc-500" }] : []),
-        ],
+        tags: a.columnTag ? [{ label: a.columnTag, className: "text-indigo-600" }] : [],
         amount: a.amount,
         date: a.spentOn,
       })),

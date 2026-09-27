@@ -10,7 +10,6 @@ import { sumCentavos, toCentavos, type Centavos } from "@/lib/money";
 import {
   computeMonth,
   openingBalancesFrom,
-  poolLabel,
   SettlementError,
   type MemberId,
   type MonthInput,
@@ -51,8 +50,8 @@ export interface ViewBill {
 export interface ViewRow {
   memberId: number;
   billShares: Record<string, Centavos>;
-  poolShares: Record<string, Centavos>;
-  customShares: Record<string, Centavos>;
+  /** Keyed by shared column id (as string). */
+  columnShares: Record<string, Centavos>;
   total: Centavos;
   ownAdvances: Centavos;
   billsPaid: Centavos;
@@ -68,19 +67,35 @@ export interface ViewAdvance {
   description: string;
   amount: Centavos;
   spentOn: string | null;
-  sharedWith: number[] | null;
+  columnId: number;
   /** "w/o PA" style tag when not shared by everyone. */
-  sharedLabel: string | null;
-  customSplit: boolean;
+  /** The column's name when it isn't the month's default column. */
+  columnTag: string | null;
+}
+
+export interface ViewColumn {
+  id: number;
+  name: string;
+  splitMode: "equal" | "manual";
+  isDefault: boolean;
+  /** Sum of the advances logged into it. */
+  total: Centavos;
+  /** Manual: typed amounts − total (0 when it adds up). */
+  difference: Centavos;
+  /** Equal: who shares it. */
+  includedIds: number[];
+  /** "everyone" or "everyone except PA". */
+  sharedByLabel: string;
+  /** Manual: typed amount per member id (as string). */
+  amounts: Record<string, Centavos | null>;
 }
 
 export interface PeriodView {
   period: PeriodSummary & { status: "open" | "closed" };
   members: ViewMember[];
   bills: ViewBill[];
-  pools: { key: string; label: string; total: Centavos }[];
-  /** Custom-split advances get their own "<description> Adj." column. */
-  adjustments: { advanceId: number; label: string; total: Centavos }[];
+  /** Shared-advances columns ("Advances Shared", "… w/o PA", "Ice Maker Adj."). */
+  columns: ViewColumn[];
   rows: ViewRow[];
   advances: ViewAdvance[];
   stats: { coreBills: Centavos; sharedAdvances: Centavos };
@@ -98,7 +113,8 @@ const loadPeriods = () =>
     with: {
       balances: { with: { member: true } },
       billItems: { with: { shares: true }, orderBy: (b) => [asc(b.id)] },
-      advances: { with: { shares: true }, orderBy: (a) => [asc(a.spentOn), asc(a.id)] },
+      sharedColumns: { with: { members: true }, orderBy: (c) => [asc(c.id)] },
+      advances: { orderBy: (a) => [asc(a.spentOn), asc(a.id)] },
       payments: true,
     },
   });
@@ -186,22 +202,37 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
     };
   });
 
-  const settlementMembers = members as SettlementMember[];
-  const adjustments = period.advances
-    .filter((a) => a.shares.length > 0)
-    .map((a) => ({ advanceId: a.id, label: `${a.description} Adj.`, total: toCentavos(a.amount) }));
+  const columns: ViewColumn[] = period.sharedColumns.map((c) => {
+    const computed = result?.columns.find((r) => r.id === c.id);
+    const includedIds = members.filter((m) => c.members.some((x) => x.memberId === m.id && x.included)).map((m) => m.id);
+    const excluded = members.filter((m) => !includedIds.includes(m.id)).map((m) => m.name);
+    return {
+      id: c.id,
+      name: c.name,
+      splitMode: c.splitMode === "manual" ? "manual" : "equal",
+      isDefault: c.isDefault,
+      total:
+        computed?.total ??
+        sumCentavos(period.advances.filter((a) => a.columnId === c.id).map((a) => toCentavos(a.amount))),
+      difference: computed?.difference ?? 0,
+      includedIds,
+      sharedByLabel: excluded.length === 0 ? "everyone" : `everyone except ${excluded.join(", ")}`,
+      amounts: Object.fromEntries(
+        c.members.map((m) => [String(m.memberId), m.amount === null ? null : toCentavos(m.amount)]),
+      ),
+    };
+  });
+  const columnName = new Map(columns.map((c) => [c.id, c]));
 
   return {
     period: { id: period.id, year: period.year, month: period.month, status: period.status },
     members,
     bills,
-    pools: (result?.pools ?? []).map((p) => ({ key: p.key, label: poolLabel(p, settlementMembers), total: p.total })),
-    adjustments,
+    columns,
     rows: (result?.rows ?? []).map((r) => ({
       memberId: r.member.id,
       billShares: mapToRecord(r.billShares),
-      poolShares: mapToRecord(r.poolShares),
-      customShares: mapToRecord(r.customShares),
+      columnShares: mapToRecord(r.columnShares),
       total: r.total,
       ownAdvances: r.ownAdvances,
       billsPaid: r.billsPaid,
@@ -216,11 +247,8 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
       description: a.description,
       amount: toCentavos(a.amount),
       spentOn: a.spentOn,
-      sharedWith: a.sharedWith,
-      sharedLabel: a.sharedWith
-        ? poolLabel({ memberIds: a.sharedWith }, settlementMembers).replace(/^Adv shared \((.*)\)$/, "$1")
-        : null,
-      customSplit: a.shares.length > 0,
+      columnId: a.columnId,
+      columnTag: columnName.get(a.columnId)?.isDefault === false ? columnName.get(a.columnId)!.name : null,
     })),
     stats: {
       coreBills: sumCentavos(bills.filter((b) => b.status === "confirmed").map((b) => b.total)),
@@ -255,8 +283,13 @@ function toMonthInput(period: LoadedPeriod, opening: Map<MemberId, Centavos>): M
     members: periodMembers(period),
     bills: period.billItems,
     billShares: new Map(period.billItems.map((b) => [b.id, b.shares])),
+    sharedColumns: period.sharedColumns.map((c) => ({
+      id: c.id,
+      name: c.name,
+      splitMode: c.splitMode === "manual" ? "manual" : "equal",
+      members: c.members,
+    })),
     advances: period.advances,
-    advanceShares: new Map(period.advances.filter((a) => a.shares.length > 0).map((a) => [a.id, a.shares])),
     payments: period.payments,
     openingBalances: opening,
   };

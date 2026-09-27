@@ -4,36 +4,41 @@ import { Calculator, Scale, SlidersHorizontal, Zap } from "lucide-react";
 import Link from "next/link";
 import { useActionState, useState, useTransition } from "react";
 import {
-  setBillSplitMode,
+  setSharedColumnMode,
   updateBillDates,
-  updateBillPoints,
   updateBillShare,
   updateBillTotal,
+  updateSharedColumnAmount,
   type ActionState,
 } from "@/app/periods/[year]/[month]/actions";
-import { AddBillDialog, AddMemberDialog } from "@/components/entry-dialogs";
+import { AddBillDialog, AddMemberDialog, AddSharedColumnDialog } from "@/components/entry-dialogs";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { monthLabel } from "@/lib/format";
 import { formatPHP, fromCentavos, sumCentavos } from "@/lib/money";
-import type { PeriodView, ViewBill, ViewRow } from "@/lib/periods";
+import type { PeriodView, ViewBill, ViewColumn, ViewRow } from "@/lib/periods";
 import type { SplitMode } from "@/lib/settlement";
 import { cn } from "@/lib/utils";
 
-const MODE_STYLES: Record<SplitMode, { label: string; className: string }> = {
-  equal: { label: "Auto equal", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
-  points: { label: "Points", className: "bg-sky-50 text-sky-700 ring-sky-200" },
-  manual: { label: "Manual", className: "bg-amber-50 text-amber-700 ring-amber-200" },
+// Solid pills on the bright header, like the household sheet.
+const PILLS: Record<SplitMode, { label: string; className: string }> = {
+  equal: { label: "Auto equal", className: "bg-emerald-800 text-white" },
+  points: { label: "Points", className: "bg-sky-800 text-white" },
+  manual: { label: "Manual", className: "bg-amber-900 text-white" },
 };
+const pillBase = "mt-1 inline-flex h-6 items-center gap-1 rounded-full px-2.5 text-[11px] font-medium";
 
 const cellBase = "px-3 py-2.5 whitespace-nowrap";
-const summaryTint = "bg-amber-50/60";
+const headBright = "bg-amber-300 text-zinc-900";
+const headSummary = "bg-yellow-200 text-zinc-900";
+const summaryTint = "bg-yellow-50";
 
 export function SplitTable({ view }: { view: PeriodView }) {
   const editable = view.period.status === "open";
-  const { bills, pools, adjustments, members } = view;
+  const { bills, columns, members } = view;
   const rowOf = new Map(view.rows.map((r) => [r.memberId, r]));
   const sum = (pick: (r: ViewRow) => number) => sumCentavos(view.rows.map(pick));
   const finalsTotal = sum((r) => r.monthFinal);
+  const mismatched = columns.filter((c) => c.difference !== 0);
 
   return (
     <div className="space-y-6">
@@ -44,12 +49,13 @@ export function SplitTable({ view }: { view: PeriodView }) {
             <span className="text-sm font-normal text-muted-foreground">({members.length} members)</span>
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Type a bill&apos;s total to split it, or switch a column to Points or Manual.
+            Type each bill&apos;s total to split it. Shared columns can be Auto equal or Manual.
           </p>
         </div>
         {editable && (
           <div className="flex flex-wrap gap-2">
             <AddBillDialog view={view} />
+            <AddSharedColumnDialog view={view} />
             <AddMemberDialog />
           </div>
         )}
@@ -58,28 +64,27 @@ export function SplitTable({ view }: { view: PeriodView }) {
       <div className="overflow-x-auto rounded-xl border bg-white shadow-xs">
         <table className="w-full border-collapse text-sm">
           <thead>
-            <tr className="border-b bg-zinc-50 text-zinc-700">
-              <th className={cn(cellBase, "sticky left-0 z-10 bg-zinc-50 text-left font-semibold")}>
+            <tr className="border-b border-amber-400">
+              <th className={cn(cellBase, headBright, "sticky left-0 z-10 text-left font-bold")}>
                 {monthLabel(view.period.year, view.period.month)}
               </th>
               {bills.map((bill) => (
-                <th key={bill.id} className={cn(cellBase, "min-w-36 text-center font-semibold")}>
+                <th key={bill.id} className={cn(cellBase, headBright, "min-w-36 text-center font-bold")}>
                   <div>{bill.name}</div>
-                  <SplitModePill bill={bill} editable={editable} />
+                  <span className={cn(pillBase, PILLS[bill.splitMode].className)}>
+                    {bill.splitMode === "points" ? `Points · ${bill.totalPoints}` : PILLS[bill.splitMode].label}
+                  </span>
                 </th>
               ))}
-              {pools.map((pool) => (
-                <th key={pool.key} className={cn(cellBase, "min-w-32 text-center font-semibold")}>
-                  {pool.label}
+              {columns.map((column) => (
+                <th key={column.id} className={cn(cellBase, headBright, "min-w-36 text-center font-bold")}>
+                  <div>{column.name}</div>
+                  <ColumnModePill column={column} editable={editable} />
+                  <div className="mt-0.5 text-[11px] font-normal text-zinc-700">{column.sharedByLabel}</div>
                 </th>
               ))}
-              {adjustments.map((adj) => (
-                <th key={adj.advanceId} className={cn(cellBase, "min-w-32 text-center font-semibold")}>
-                  {adj.label}
-                </th>
-              ))}
-              {["Total", "Own Adv (−)", "Month Final", "Prev Month Unsettled", "Final"].map((label) => (
-                <th key={label} className={cn(cellBase, summaryTint, "text-right font-semibold")}>
+              {["Total", "Own Advance (−)", "Month Final", "Prev Month Unsettled", "Final"].map((label) => (
+                <th key={label} className={cn(cellBase, headSummary, "text-right font-bold")}>
                   {label}
                 </th>
               ))}
@@ -87,9 +92,9 @@ export function SplitTable({ view }: { view: PeriodView }) {
           </thead>
 
           <tbody className="divide-y font-mono tabular-nums">
-            {/* "Bill" row: the totals, like the sheet */}
-            <tr className="bg-zinc-50/60">
-              <th scope="row" className={cn(cellBase, "sticky left-0 z-10 bg-zinc-50 text-left font-sans font-medium italic")}>
+            {/* "Bill" row: each column's total, like the sheet */}
+            <tr className="bg-amber-50">
+              <th scope="row" className={cn(cellBase, "sticky left-0 z-10 bg-amber-50 text-left font-sans font-medium italic")}>
                 Bill
               </th>
               {bills.map((bill) => (
@@ -113,14 +118,14 @@ export function SplitTable({ view }: { view: PeriodView }) {
                   {bill.splitMode === "manual" && <div className="mt-1 text-[11px] text-muted-foreground">sum of shares</div>}
                 </td>
               ))}
-              {pools.map((pool) => (
-                <td key={pool.key} className={cn(cellBase, "text-center font-semibold")}>
-                  {formatPHP(pool.total)}
-                </td>
-              ))}
-              {adjustments.map((adj) => (
-                <td key={adj.advanceId} className={cn(cellBase, "text-center font-semibold")}>
-                  {formatPHP(adj.total)}
+              {columns.map((column) => (
+                <td key={column.id} className={cn(cellBase, "text-center")}>
+                  <span className="font-semibold">{formatPHP(column.total)}</span>
+                  {column.difference !== 0 && (
+                    <div className="mt-1 font-sans text-[11px] font-medium text-rose-600">
+                      {formatPHP(Math.abs(column.difference))} {column.difference > 0 ? "over" : "short"}
+                    </div>
+                  )}
                 </td>
               ))}
               <td colSpan={5} className={summaryTint} />
@@ -144,27 +149,18 @@ export function SplitTable({ view }: { view: PeriodView }) {
                       <BillShareCell bill={bill} memberId={member.id} editable={editable} />
                     </td>
                   ))}
-                  {pools.map((pool) => (
-                    <td key={pool.key} className={cn(cellBase, "text-center text-zinc-600")}>
-                      {row?.poolShares[pool.key] !== undefined ? formatPHP(row.poolShares[pool.key]) : "—"}
-                    </td>
-                  ))}
-                  {adjustments.map((adj) => (
-                    <td key={adj.advanceId} className={cn(cellBase, "text-center text-zinc-600")}>
-                      {row?.customShares[String(adj.advanceId)] !== undefined
-                        ? formatPHP(row.customShares[String(adj.advanceId)])
-                        : "—"}
+                  {columns.map((column) => (
+                    <td key={column.id} className={cn(cellBase, "text-center text-zinc-700")}>
+                      <ColumnShareCell column={column} memberId={member.id} row={row} editable={editable} />
                     </td>
                   ))}
                   <td className={cn(cellBase, summaryTint, "text-right font-semibold")}>{row ? formatPHP(row.total) : "—"}</td>
                   <td className={cn(cellBase, summaryTint, "text-right text-emerald-700")}>
                     {row ? formatPHP(row.ownAdvances + row.billsPaid) : "—"}
                   </td>
-                  <td className={cn(cellBase, summaryTint, "text-right")}>
-                    {row ? <Balance amount={row.monthFinal} /> : "—"}
-                  </td>
+                  <td className={cn(cellBase, summaryTint, "text-right")}>{row ? <Balance amount={row.monthFinal} /> : "—"}</td>
                   <td className={cn(cellBase, summaryTint, "text-right text-zinc-600")}>
-                    {row ? (row.opening === 0 ? "—" : formatPHP(row.opening)) : "—"}
+                    {row && row.opening !== 0 ? formatPHP(row.opening) : "—"}
                   </td>
                   <td className={cn(cellBase, summaryTint, "text-right")}>{row ? <Balance amount={row.balance} /> : "—"}</td>
                 </tr>
@@ -172,8 +168,8 @@ export function SplitTable({ view }: { view: PeriodView }) {
             })}
 
             {(["dueDate", "paidOn"] as const).map((field) => (
-              <tr key={field} className="bg-zinc-50/60 font-sans">
-                <th scope="row" className={cn(cellBase, "sticky left-0 z-10 bg-zinc-50 text-left font-medium text-zinc-600")}>
+              <tr key={field} className="bg-amber-50/60 font-sans">
+                <th scope="row" className={cn(cellBase, "sticky left-0 z-10 bg-amber-50 text-left font-medium text-zinc-600")}>
                   {field === "dueDate" ? "Due date" : "Date paid"}
                 </th>
                 {bills.map((bill) => (
@@ -181,29 +177,37 @@ export function SplitTable({ view }: { view: PeriodView }) {
                     <DateCell bill={bill} field={field} editable={editable} />
                   </td>
                 ))}
-                <td colSpan={pools.length + adjustments.length} />
+                <td colSpan={columns.length} />
                 <td colSpan={5} className={summaryTint} />
               </tr>
             ))}
           </tbody>
 
           <tfoot className="font-mono tabular-nums">
-            <tr className="border-t bg-zinc-50 font-semibold">
-              <th scope="row" className={cn(cellBase, "sticky left-0 z-10 bg-zinc-50 text-left font-sans")}>
+            <tr className="border-t bg-yellow-100 font-semibold">
+              <th scope="row" className={cn(cellBase, "sticky left-0 z-10 bg-yellow-100 text-left font-sans")}>
                 Total
               </th>
-              <td colSpan={bills.length + pools.length + adjustments.length} />
-              <td className={cn(cellBase, summaryTint, "text-right")}>{formatPHP(sum((r) => r.total))}</td>
-              <td className={cn(cellBase, summaryTint, "text-right")}>{formatPHP(sum((r) => r.ownAdvances + r.billsPaid))}</td>
+              <td colSpan={bills.length + columns.length} />
+              <td className={cn(cellBase, "text-right")}>{formatPHP(sum((r) => r.total))}</td>
+              <td className={cn(cellBase, "text-right")}>{formatPHP(sum((r) => r.ownAdvances + r.billsPaid))}</td>
               <td
-                className={cn(cellBase, summaryTint, "text-right", finalsTotal !== 0 && "text-rose-600")}
-                title="Everyone's Month Final always adds up to ₱0.00"
+                className={cn(cellBase, "text-right", finalsTotal !== 0 && "text-rose-600")}
+                title="Everyone's Month Final adds up to ₱0.00 when every column adds up"
               >
                 {formatPHP(finalsTotal)}
-                {finalsTotal !== 0 && <span className="ml-1 font-sans text-[11px]">should be ₱0.00</span>}
+                {finalsTotal !== 0 && (
+                  <div className="font-sans text-[11px] font-normal">
+                    should be ₱0.00
+                    {mismatched.length > 0 &&
+                      ` — ${mismatched
+                        .map((c) => `${c.name} is ${formatPHP(Math.abs(c.difference))} ${c.difference > 0 ? "over" : "short"}`)
+                        .join("; ")}`}
+                  </div>
+                )}
               </td>
-              <td className={cn(cellBase, summaryTint, "text-right")}>{formatPHP(sum((r) => r.opening))}</td>
-              <td className={cn(cellBase, summaryTint, "text-right")}>{formatPHP(sum((r) => r.balance))}</td>
+              <td className={cn(cellBase, "text-right")}>{formatPHP(sum((r) => r.opening))}</td>
+              <td className={cn(cellBase, "text-right")}>{formatPHP(sum((r) => r.balance))}</td>
             </tr>
           </tfoot>
         </table>
@@ -225,36 +229,34 @@ function Balance({ amount }: { amount: number }) {
   );
 }
 
-function SplitModePill({ bill, editable }: { bill: ViewBill; editable: boolean }) {
+/** Shared columns switch between Auto equal and Manual; bill columns have fixed modes. */
+function ColumnModePill({ column, editable }: { column: ViewColumn; editable: boolean }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const style = MODE_STYLES[bill.splitMode];
-  const label = bill.splitMode === "points" ? `Points · ${bill.totalPoints}` : style.label;
-  const pillClass = cn("mt-1 inline-flex h-6 items-center rounded-full px-2 text-[11px] font-medium ring-1 ring-inset", style.className);
+  const pill = PILLS[column.splitMode];
+  if (!editable) return <span className={cn(pillBase, pill.className)}>{pill.label}</span>;
 
-  if (!editable) return <span className={pillClass}>{label}</span>;
-  const items = (Object.keys(MODE_STYLES) as SplitMode[]).map((value) => ({ value, label: MODE_STYLES[value].label }));
-
+  const items = (["equal", "manual"] as const).map((value) => ({ value, label: PILLS[value].label }));
   return (
     <div>
       <Select
         items={items}
-        value={bill.splitMode}
+        value={column.splitMode}
         onValueChange={(mode) =>
           mode &&
           startTransition(async () => {
-            const result = await setBillSplitMode(bill.id, mode as SplitMode);
+            const result = await setSharedColumnMode(column.id, mode as "equal" | "manual");
             setError(result?.ok === false ? result.error : null);
           })
         }
       >
         <SelectTrigger
-          aria-label={`${bill.name} split mode`}
+          aria-label={`${column.name} split`}
           size="sm"
           disabled={pending}
-          className={cn(pillClass, "w-auto gap-1 border-none shadow-none [&_svg]:size-3")}
+          className={cn(pillBase, pill.className, "w-auto border-none shadow-none [&_svg]:size-3 [&_svg]:text-white/80")}
         >
-          <span>{label}</span>
+          <span>{pill.label}</span>
         </SelectTrigger>
         <SelectContent>
           {items.map((item) => (
@@ -264,7 +266,7 @@ function SplitModePill({ bill, editable }: { bill: ViewBill; editable: boolean }
           ))}
         </SelectContent>
       </Select>
-      {error && <p className="mt-1 max-w-36 text-[11px] font-normal whitespace-normal text-destructive">{error}</p>}
+      {error && <p className="mt-1 max-w-36 text-[11px] font-normal whitespace-normal text-rose-700">{error}</p>}
     </div>
   );
 }
@@ -286,17 +288,43 @@ function BillShareCell({ bill, memberId, editable }: { bill: ViewBill; memberId:
   }
   if (bill.splitMode === "points") {
     return (
-      <div className="flex flex-col items-center gap-1">
+      <div className="flex flex-col items-center">
         <span>{formatPHP(amount)}</span>
-        {editable ? (
-          <PointsInput billId={bill.id} memberId={memberId} points={share?.points ?? 0} billName={bill.name} />
-        ) : (
-          <span className="text-[11px] text-sky-700">{share?.points ?? 0} pts</span>
-        )}
+        <span className="font-sans text-[11px] text-sky-700">{share?.points ?? 0} pts</span>
       </div>
     );
   }
   return <span>{formatPHP(amount)}</span>;
+}
+
+function ColumnShareCell({
+  column,
+  memberId,
+  row,
+  editable,
+}: {
+  column: ViewColumn;
+  memberId: number;
+  row: ViewRow | undefined;
+  editable: boolean;
+}) {
+  if (column.splitMode === "manual") {
+    const typed = column.amounts[String(memberId)] ?? 0;
+    return editable ? (
+      <MoneyInput
+        action={updateSharedColumnAmount}
+        hidden={{ columnId: column.id, memberId }}
+        name="amount"
+        value={typed}
+        label={`${column.name} amount`}
+      />
+    ) : (
+      <span>{formatPHP(typed)}</span>
+    );
+  }
+  const share = row?.columnShares[String(column.id)];
+  if (!column.includedIds.includes(memberId)) return <span className="text-zinc-400">—</span>;
+  return <span>{formatPHP(share ?? 0)}</span>;
 }
 
 type FormAction = (prev: ActionState, formData: FormData) => Promise<ActionState>;
@@ -341,36 +369,8 @@ function MoneyInput({
           }}
         />
       </label>
-      {state?.ok === false && <p className="mx-auto mt-1 max-w-32 font-sans text-[11px] whitespace-normal text-destructive">{state.error}</p>}
-    </form>
-  );
-}
-
-function PointsInput({ billId, memberId, points, billName }: { billId: number; memberId: number; points: number; billName: string }) {
-  const [state, formAction, pending] = useActionState<ActionState, FormData>(updateBillPoints, null);
-  const current = String(points);
-  return (
-    <form action={formAction} className="flex items-center gap-1 font-sans text-[11px] text-sky-700">
-      <input type="hidden" name="billId" value={billId} />
-      <input type="hidden" name="memberId" value={memberId} />
-      <input
-        key={current}
-        name="points"
-        defaultValue={current}
-        inputMode="decimal"
-        aria-label={`${billName} points`}
-        aria-invalid={state?.ok === false || undefined}
-        disabled={pending}
-        className="h-6 w-12 rounded border border-sky-200 bg-sky-50 px-1 text-center font-mono focus:border-sky-500 focus:outline-none aria-invalid:border-rose-500"
-        onBlur={(e) => {
-          if (e.currentTarget.value.trim() !== current) e.currentTarget.form?.requestSubmit();
-        }}
-      />
-      pts
       {state?.ok === false && (
-        <span role="alert" className="text-destructive" title={state.error}>
-          ! <span className="sr-only">{state.error}</span>
-        </span>
+        <p className="mx-auto mt-1 max-w-32 font-sans text-[11px] whitespace-normal text-destructive">{state.error}</p>
       )}
     </form>
   );
@@ -406,25 +406,25 @@ function ExplainerCards() {
     {
       icon: Zap,
       title: "Automatic equal split",
-      body: "Type a bill's total and it splits evenly to the centavo. Any leftover centavo goes to PA, the collector.",
+      body: "Water, PLDT and the Helper split evenly to the centavo. Any leftover centavo goes to PA, the collector.",
       href: "#equal",
     },
     {
       icon: Calculator,
-      title: "Points split",
-      body: "Meralco is split by points (aircon, PC, general use). Cost per point = bill ÷ total points.",
+      title: "Meralco points",
+      body: "Meralco is always split by points (aircon, PC, general use). Points are set in Manage.",
       href: "#points",
     },
     {
       icon: SlidersHorizontal,
-      title: "Manual mode",
-      body: "Switch a column to Manual to type each person's amount. The bill total becomes the sum.",
-      href: "#manual",
+      title: "Shared columns",
+      body: "Advances are logged into a shared column — Auto equal, or Manual when someone shares more.",
+      href: "#shared-advances",
     },
     {
       icon: Scale,
       title: "Net payable balance",
-      body: "Your share of everything minus what you paid. Positive means you owe; negative means you get money back. It all adds up to ₱0.00.",
+      body: "Your share of everything minus what you paid. Positive means you owe; negative means you get money back.",
       href: "#month-final",
     },
   ];

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   AUGUST_2026,
+  DEFAULT_COLUMN,
   HOUSEHOLD_MEMBERS,
   SHEET_MONTH_FINALS,
   type MemberName,
@@ -9,12 +10,11 @@ import { fromCentavos, sumCentavos, toCentavos, type Centavos } from "@/lib/mone
 import {
   computeBillShares,
   computeMonth,
-  normalizeSharedWith,
   openingBalancesFrom,
-  poolLabel,
   SettlementError,
   splitOrder,
   type MonthInput,
+  type SettlementColumn,
   type SettlementMember,
   type SettlementShare,
 } from "@/lib/settlement";
@@ -42,19 +42,24 @@ function augustInput(): MonthInput {
       asShares(computeBillShares(b.splitMode, toCentavos(b.totalAmount), order, { points: byName(b.points ?? {}) })),
     ]),
   );
+  const sharedColumns: SettlementColumn[] = AUGUST_2026.columns.map((c, i) => ({
+    id: i + 1,
+    name: c.name,
+    splitMode: c.splitMode,
+    members: members.map((m) => ({
+      memberId: m.id,
+      included: c.included ? c.included.includes(m.name as MemberName) : true,
+      amount: c.amounts?.[m.name as MemberName] ?? null,
+    })),
+  }));
+  const columnId = (name: string) => sharedColumns.find((c) => c.name === name)!.id;
   const advances = AUGUST_2026.advances.map((a, i) => ({
     id: i + 1,
     payerId: idOf(a.payer),
     amount: a.amount,
-    sharedWith: a.sharedWith ? a.sharedWith.map(idOf) : null,
+    columnId: columnId(a.column ?? DEFAULT_COLUMN),
   }));
-  const advanceShares = new Map<number, SettlementShare[]>();
-  AUGUST_2026.advances.forEach((a, i) => {
-    if (!a.customWeights) return;
-    const shares = computeBillShares("points", toCentavos(a.amount), order, { points: byName(a.customWeights) });
-    advanceShares.set(i + 1, asShares(shares));
-  });
-  return { members, bills, billShares, advances, advanceShares, payments: [], openingBalances: new Map() };
+  return { members, bills, billShares, sharedColumns, advances, payments: [], openingBalances: new Map() };
 }
 
 const rowOf = (result: ReturnType<typeof computeMonth>, name: MemberName) =>
@@ -67,8 +72,8 @@ describe("August 2026 — reproduces the household sheet", () => {
     const expected: Record<MemberName, { total: string; own: string; final: string }> = {
       "Ate Toni": { total: "24156.54", own: "5732.00", final: "18424.54" },
       Mayee: { total: "20883.09", own: "8785.00", final: "12098.09" },
-      Skyler: { total: "20883.06", own: "37851.00", final: "-16967.94" },
-      PJ: { total: "19951.52", own: "13636.40", final: "6315.12" },
+      Skyler: { total: "20883.07", own: "37851.00", final: "-16967.93" },
+      PJ: { total: "19951.53", own: "13636.40", final: "6315.13" },
       PA: { total: "11519.91", own: "31389.72", final: "-19869.81" },
     };
     for (const [name, e] of Object.entries(expected) as [MemberName, (typeof expected)[MemberName]][]) {
@@ -79,15 +84,17 @@ describe("August 2026 — reproduces the household sheet", () => {
     }
   });
 
-  it("is within ₱0.02 of the sheet (which rounds each share on its own)", () => {
+  it("is within ₱0.01 of the sheet (which rounds each share on its own)", () => {
     for (const r of result.rows) {
       const sheet = toCentavos(SHEET_MONTH_FINALS[r.member.name as MemberName]);
-      expect(Math.abs(r.monthFinal - sheet), r.member.name).toBeLessThanOrEqual(2);
+      expect(Math.abs(r.monthFinal - sheet), r.member.name).toBeLessThanOrEqual(1);
     }
   });
 
-  it("everyone's Month Final sums to exactly ₱0.00 (full ledger)", () => {
-    expect(sumCentavos(result.rows.map((r) => r.monthFinal))).toBe(0);
+  it("Month Finals sum to the manual columns' mismatch (₱0.02 from the Ice Maker, like the sheet)", () => {
+    const mismatch = sumCentavos(result.columns.map((c) => c.difference));
+    expect(mismatch).toBe(2);
+    expect(sumCentavos(result.rows.map((r) => r.monthFinal))).toBe(mismatch);
   });
 
   // Exact points shares are 4,657.708 / 2,794.625 / 2,794.625 / 1,863.083 / 3,353.550. The 3
@@ -104,25 +111,24 @@ describe("August 2026 — reproduces the household sheet", () => {
     ]);
   });
 
-  it("has a 'w PA' and a 'w/o PA' pool, each split once", () => {
-    const [all, withoutPa] = result.pools;
-    expect(all.key).toBe("all");
+  it("splits 'Advances Shared' among everyone and 'w/o PA' among four", () => {
+    const [all, withoutPa] = result.columns;
     expect(fromCentavos(all.total)).toBe("27208.50");
     expect(fromCentavos(withoutPa.total)).toBe("39688.40");
-    expect(poolLabel(withoutPa, members)).toBe("Adv shared (w/o PA)");
     for (const name of ["Ate Toni", "Mayee", "Skyler", "PJ"] as const) {
-      expect(rowOf(result, name).poolShares.get(all.key)).toBe(544170);
-      expect(rowOf(result, name).poolShares.get(withoutPa.key)).toBe(992210);
+      expect(rowOf(result, name).columnShares.get(all.id)).toBe(544170);
+      expect(rowOf(result, name).columnShares.get(withoutPa.id)).toBe(992210);
     }
-    expect(rowOf(result, "PA").poolShares.get(withoutPa.key)).toBeUndefined();
+    expect(rowOf(result, "PA").columnShares.get(withoutPa.id)).toBeUndefined();
+    expect(withoutPa.includedIds).not.toContain(idOf("PA"));
   });
 
-  it("splits the Ice Maker 50% Ate Toni / 12.5% others", () => {
-    const iceMaker = AUGUST_2026.advances.findIndex((a) => a.description === "Ice Maker") + 1;
-    expect(rowOf(result, "Ate Toni").customShares.get(iceMaker)).toBe(188050);
-    const others = (["Mayee", "Skyler", "PJ", "PA"] as const).map((n) => rowOf(result, n).customShares.get(iceMaker)!);
-    expect(sumCentavos(others)).toBe(188050);
-    expect(others.every((c) => c === 47012 || c === 47013)).toBe(true);
+  it("uses the Ice Maker's typed amounts and reports it ₱0.02 over", () => {
+    const iceMaker = result.columns.find((c) => c.name === "Ice Maker Adj.")!;
+    expect(fromCentavos(iceMaker.total)).toBe("3761.00");
+    expect(iceMaker.difference).toBe(2);
+    expect(rowOf(result, "Ate Toni").columnShares.get(iceMaker.id)).toBe(188050);
+    expect(rowOf(result, "PJ").columnShares.get(iceMaker.id)).toBe(47013);
   });
 
   it("credits PA for the bills he paid", () => {
@@ -165,8 +171,15 @@ describe("computeMonth — rules", () => {
       members,
       bills: [{ id: 1, name: "Helper", totalAmount: fromCentavos(total), paidById: idOf(paidBy), status: "confirmed" }],
       billShares: new Map([[1, asShares(computeBillShares("equal", total, order))]]),
+      sharedColumns: [
+        {
+          id: 1,
+          name: "Advances Shared",
+          splitMode: "equal",
+          members: members.map((m) => ({ memberId: m.id, included: true, amount: null })),
+        },
+      ],
       advances: [],
-      advanceShares: new Map(),
       payments: [],
       openingBalances: new Map(),
     };
@@ -214,32 +227,64 @@ describe("computeMonth — rules", () => {
 
   it("rejects people who aren't in the month", () => {
     const input = helperOnly("PA");
-    input.advances = [{ id: 1, payerId: 999, amount: "10.00", sharedWith: null }];
+    input.advances = [{ id: 1, payerId: 999, amount: "10.00", columnId: 1 }];
     expect(() => computeMonth(input)).toThrow(SettlementError);
-    input.advances = [{ id: 1, payerId: idOf("PA"), amount: "10.00", sharedWith: [999] }];
+    input.advances = [{ id: 1, payerId: idOf("PA"), amount: "10.00", columnId: 99 }];
     expect(() => computeMonth(input)).toThrow(SettlementError);
   });
 });
 
-describe("advance sharing", () => {
-  const ids = members.map((m) => m.id);
-
-  it("normalizeSharedWith: everyone → null, subset → sorted ids", () => {
-    expect(normalizeSharedWith(null, ids)).toBeNull();
-    expect(normalizeSharedWith([...ids].reverse(), ids)).toBeNull();
-    expect(normalizeSharedWith([idOf("PJ"), idOf("Mayee")], ids)).toEqual([idOf("Mayee"), idOf("PJ")]);
+describe("shared columns", () => {
+  const input = (column: Partial<SettlementColumn>, amount = "1000.00"): MonthInput => ({
+    members,
+    bills: [],
+    billShares: new Map(),
+    sharedColumns: [
+      {
+        id: 1,
+        name: "Test",
+        splitMode: "equal",
+        members: members.map((m) => ({ memberId: m.id, included: true, amount: null })),
+        ...column,
+      },
+    ],
+    advances: [{ id: 1, payerId: idOf("Mayee"), amount, columnId: 1 }],
+    payments: [],
+    openingBalances: new Map(),
   });
 
-  it("normalizeSharedWith: rejects empty or outside ids", () => {
-    expect(() => normalizeSharedWith([], ids)).toThrow(SettlementError);
-    expect(() => normalizeSharedWith([999], ids)).toThrow(SettlementError);
-  });
-
-  it("poolLabel names who's left out", () => {
-    expect(poolLabel({ memberIds: ids }, members)).toBe("Adv shared (all)");
-    expect(poolLabel({ memberIds: [idOf("Mayee"), idOf("Skyler"), idOf("Ate Toni")] }, members)).toBe(
-      "Adv shared (w/o PJ, PA)",
+  it("equal: splits among included members only, leftovers collector-first", () => {
+    const result = computeMonth(
+      input({
+        members: members.map((m) => ({ memberId: m.id, included: m.name !== "PJ", amount: null })),
+      }, "10.01"),
     );
+    expect(rowOf(result, "PJ").columnShares.get(1)).toBeUndefined();
+    expect(rowOf(result, "PA").columnShares.get(1)).toBe(251);
+    expect(rowOf(result, "Skyler").columnShares.get(1)).toBe(250);
+    expect(sumCentavos(result.rows.map((r) => r.monthFinal))).toBe(0);
+  });
+
+  it("equal: an empty column has no shares; nobody included is an error once it has advances", () => {
+    const none = members.map((m) => ({ memberId: m.id, included: false, amount: null }));
+    expect(() => computeMonth(input({ members: none }))).toThrow(SettlementError);
+    const empty = { ...input({ members: none }), advances: [] };
+    expect(computeMonth(empty).rows.every((r) => r.total === 0)).toBe(true);
+  });
+
+  it("manual: uses typed amounts (missing = ₱0) and reports the mismatch instead of failing", () => {
+    const result = computeMonth(
+      input({
+        splitMode: "manual",
+        members: [
+          { memberId: idOf("PA"), included: true, amount: "600.00" },
+          { memberId: idOf("Mayee"), included: true, amount: "300.00" },
+        ],
+      }),
+    );
+    expect(result.columns[0].difference).toBe(-10000);
+    expect(rowOf(result, "PJ").columnShares.get(1)).toBe(0);
+    expect(sumCentavos(result.rows.map((r) => r.monthFinal))).toBe(-10000);
   });
 });
 

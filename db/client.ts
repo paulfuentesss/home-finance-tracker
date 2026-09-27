@@ -5,8 +5,8 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
 
-export function createDb(url: string, options: postgres.Options<Record<string, never>> = {}) {
-  const client = postgres(url, {
+export function createClient(url: string, options: postgres.Options<Record<string, never>> = {}) {
+  return postgres(url, {
     // Supabase's transaction pooler (port 6543) doesn't support prepared statements.
     prepare: false,
     // Close idle connections and recycle old ones, so a connection left behind by a dev
@@ -15,7 +15,15 @@ export function createDb(url: string, options: postgres.Options<Record<string, n
     max_lifetime: 60 * 30,
     ...options,
   });
-  return { db: drizzle(client, { schema }), client };
 }
 
-export type Database = ReturnType<typeof createDb>["db"];
+export function drizzleFor(client: postgres.Sql) {
+  return drizzle(client, { schema });
+}
+
+export function createDb(url: string, options: postgres.Options<Record<string, never>> = {}) {
+  const client = createClient(url, options);
+  return { db: drizzleFor(client), client };
+}
+
+export type Database = ReturnType<typeof drizzleFor>;

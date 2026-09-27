@@ -9,9 +9,9 @@ import type { PeriodView, ViewBill } from "@/lib/periods";
 import { cn } from "@/lib/utils";
 
 const MODE_PILLS = {
-  equal: { label: "Auto equal", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
-  points: { label: "Points", className: "bg-sky-50 text-sky-700 ring-sky-200" },
-  manual: { label: "Manual", className: "bg-amber-50 text-amber-700 ring-amber-200" },
+  equal: { label: "Auto equal", className: "bg-emerald-800 text-white" },
+  points: { label: "Points", className: "bg-sky-800 text-white" },
+  manual: { label: "Manual", className: "bg-amber-900 text-white" },
 } as const;
 
 export function ManageBills({ view }: { view: PeriodView }) {
@@ -20,8 +20,8 @@ export function ManageBills({ view }: { view: PeriodView }) {
     <section className="rounded-xl border bg-white p-5 shadow-xs">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold">Manage Columns &amp; Bills</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Rename or delete this month&apos;s bill columns.</p>
+          <h2 className="text-lg font-semibold">Bill Columns</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Each bill&apos;s split is fixed: Meralco by points, the rest as chosen when added.</p>
         </div>
         {editable && <AddBillDialog view={view} label="New column" />}
       </div>
@@ -66,7 +66,7 @@ function BillRow({ bill, editable }: { bill: ViewBill; editable: boolean }) {
           ) : (
             <span className="font-semibold">{bill.name}</span>
           )}
-          <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset", pill.className)}>
+          <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-medium", pill.className)}>
             {pill.label}
             {bill.splitMode === "points" && ` · ${bill.totalPoints}`}
           </span>

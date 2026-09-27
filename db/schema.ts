@@ -127,6 +127,54 @@ export const billItemShares = pgTable(
   ],
 ).enableRLS();
 
+// A shared-advances column in the month's matrix, e.g. "Advances Shared" (everyone),
+// "Advances Shared w/o PA" or "Ice Maker Adj.". Every advance is logged into one column;
+// the column's total is the sum of its advances.
+//   equal  → split equally among the members marked `included`
+//   manual → each member's typed `amount` (may not add up exactly; the UI flags it)
+export const sharedColumns = pgTable(
+  "shared_columns",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    periodId: integer("period_id")
+      .notNull()
+      .references(() => billingPeriods.id, { onDelete: "restrict" }),
+    name: text("name").notNull(),
+    // Only "equal" and "manual" are used for shared columns.
+    splitMode: billSplitMode("split_mode").notNull().default("equal"),
+    // The month's everyday "Advances Shared" column (carried into new months).
+    isDefault: boolean("is_default").notNull().default(false),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("shared_columns_period_name").on(t.periodId, t.name),
+    uniqueIndex("shared_columns_one_default").on(t.periodId).where(sql`${t.isDefault}`),
+  ],
+).enableRLS();
+
+export const sharedColumnMembers = pgTable(
+  "shared_column_members",
+  {
+    columnId: integer("column_id")
+      .notNull()
+      .references(() => sharedColumns.id, { onDelete: "cascade" }),
+    memberId: integer("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "restrict" }),
+    // Equal mode: whether this member shares the column.
+    included: boolean("included").notNull().default(true),
+    // Manual mode: the amount typed for this member.
+    amount: money("amount"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.columnId, t.memberId] }),
+    check("shared_column_members_amount_nonneg", sql`${t.amount} >= 0`),
+  ],
+).enableRLS();
+
 export const advances = pgTable(
   "advances",
   {
@@ -134,6 +182,10 @@ export const advances = pgTable(
     periodId: integer("period_id")
       .notNull()
       .references(() => billingPeriods.id, { onDelete: "restrict" }),
+    // The shared column this advance is split through.
+    columnId: integer("column_id")
+      .notNull()
+      .references(() => sharedColumns.id, { onDelete: "restrict" }),
     payerId: integer("payer_id")
       .notNull()
       .references(() => members.id, { onDelete: "restrict" }),
@@ -142,34 +194,11 @@ export const advances = pgTable(
     amount: money("amount").notNull(),
     // Optional: some sheet entries were logged without a date.
     spentOn: date("spent_on", { mode: "string" }),
-    // Equal-split advances: the member ids sharing it (sorted). null = everyone in the month.
-    sharedWith: integer("shared_with").array(),
     receiptPath: text("receipt_path"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (t) => [check("advances_amount_positive", sql`${t.amount} > 0`)],
-).enableRLS();
-
-// Only present for custom-split advances (e.g. Ice Maker 50/12.5).
-// No rows = split equally across the period's members.
-export const advanceShares = pgTable(
-  "advance_shares",
-  {
-    advanceId: integer("advance_id")
-      .notNull()
-      .references(() => advances.id, { onDelete: "cascade" }),
-    memberId: integer("member_id")
-      .notNull()
-      .references(() => members.id, { onDelete: "restrict" }),
-    amount: money("amount").notNull(),
-    createdAt: createdAt(),
-    updatedAt: updatedAt(),
-  },
-  (t) => [
-    primaryKey({ columns: [t.advanceId, t.memberId] }),
-    check("advance_shares_amount_nonneg", sql`${t.amount} >= 0`),
-  ],
 ).enableRLS();
 
 // Real money changing hands to settle up (usually member → collector).
@@ -225,6 +254,7 @@ export const membersRelations = relations(members, ({ many }) => ({
 
 export const billingPeriodsRelations = relations(billingPeriods, ({ many }) => ({
   billItems: many(billItems),
+  sharedColumns: many(sharedColumns),
   advances: many(advances),
   payments: many(payments),
   balances: many(periodBalances),
@@ -241,15 +271,21 @@ export const billItemSharesRelations = relations(billItemShares, ({ one }) => ({
   member: one(members, { fields: [billItemShares.memberId], references: [members.id] }),
 }));
 
-export const advancesRelations = relations(advances, ({ one, many }) => ({
-  period: one(billingPeriods, { fields: [advances.periodId], references: [billingPeriods.id] }),
-  payer: one(members, { fields: [advances.payerId], references: [members.id] }),
-  shares: many(advanceShares),
+export const sharedColumnsRelations = relations(sharedColumns, ({ one, many }) => ({
+  period: one(billingPeriods, { fields: [sharedColumns.periodId], references: [billingPeriods.id] }),
+  members: many(sharedColumnMembers),
+  advances: many(advances),
 }));
 
-export const advanceSharesRelations = relations(advanceShares, ({ one }) => ({
-  advance: one(advances, { fields: [advanceShares.advanceId], references: [advances.id] }),
-  member: one(members, { fields: [advanceShares.memberId], references: [members.id] }),
+export const sharedColumnMembersRelations = relations(sharedColumnMembers, ({ one }) => ({
+  column: one(sharedColumns, { fields: [sharedColumnMembers.columnId], references: [sharedColumns.id] }),
+  member: one(members, { fields: [sharedColumnMembers.memberId], references: [members.id] }),
+}));
+
+export const advancesRelations = relations(advances, ({ one }) => ({
+  period: one(billingPeriods, { fields: [advances.periodId], references: [billingPeriods.id] }),
+  column: one(sharedColumns, { fields: [advances.columnId], references: [sharedColumns.id] }),
+  payer: one(members, { fields: [advances.payerId], references: [members.id] }),
 }));
 
 export const paymentsRelations = relations(payments, ({ one }) => ({
@@ -273,6 +309,7 @@ export type NewBillItem = typeof billItems.$inferInsert;
 export type BillItemShare = typeof billItemShares.$inferSelect;
 export type Advance = typeof advances.$inferSelect;
 export type NewAdvance = typeof advances.$inferInsert;
-export type AdvanceShare = typeof advanceShares.$inferSelect;
+export type SharedColumn = typeof sharedColumns.$inferSelect;
+export type SharedColumnMember = typeof sharedColumnMembers.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
 export type PeriodBalance = typeof periodBalances.$inferSelect;
