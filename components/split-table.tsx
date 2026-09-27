@@ -11,7 +11,6 @@ import {
   updateSharedColumnAmount,
   type ActionState,
 } from "@/app/periods/[year]/[month]/actions";
-import { AddBillDialog, AddMemberDialog, AddSharedColumnDialog } from "@/components/entry-dialogs";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { monthLabel } from "@/lib/format";
 import { formatPHP, fromCentavos, sumCentavos } from "@/lib/money";
@@ -49,16 +48,9 @@ export function SplitTable({ view }: { view: PeriodView }) {
             <span className="text-sm font-normal text-muted-foreground">({members.length} members)</span>
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Type each bill&apos;s total to split it. Shared columns can be Auto equal or Manual.
+            Type each bill&apos;s total to split it. Add or change columns and people in Manage Columns &amp; People.
           </p>
         </div>
-        {editable && (
-          <div className="flex flex-wrap gap-2">
-            <AddBillDialog view={view} />
-            <AddSharedColumnDialog view={view} />
-            <AddMemberDialog />
-          </div>
-        )}
       </section>
 
       <div className="overflow-x-auto rounded-xl border bg-white shadow-xs">
