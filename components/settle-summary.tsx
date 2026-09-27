@@ -1,4 +1,4 @@
-import { Balance } from "@/components/balance";
+import { formatPHP } from "@/lib/money";
 import type { PeriodView } from "@/lib/periods";
 import { cn } from "@/lib/utils";
 
@@ -19,22 +19,26 @@ export function SettleSummary({ view }: { view: PeriodView }) {
       <ul className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] gap-2">
         {view.members.map((m) => {
           const balance = rowOf.get(m.id)?.balance ?? 0;
+          const owes = balance > 0;
           const direction =
             balance === 0
-              ? "nothing to do"
-              : m.isCollector
-                ? "net, across everyone"
-                : balance > 0
-                  ? `to ${collectorName}`
-                  : `from ${collectorName}`;
+              ? "Settled, nothing to do"
+              : `${owes ? "To pay" : "To receive"}${
+                  m.isCollector ? ", net across everyone" : owes ? ` to ${collectorName}` : ` from ${collectorName}`
+                }`;
           return (
-            <li key={m.id} className="rounded-lg border bg-zinc-50/60 px-3 py-2">
+            <li key={m.id} className="rounded-lg border bg-zinc-50/60 px-3 py-2 transition-colors hover:border-amber-300">
               <p className="flex items-center gap-2 text-sm font-medium">
                 <span className={cn("size-2 rounded-full", m.dotClass)} aria-hidden />
                 {m.name}
               </p>
-              <p className="mt-0.5 font-mono text-sm tabular-nums">
-                <Balance amount={balance} />
+              <p
+                className={cn(
+                  "mt-0.5 font-mono text-sm font-semibold tabular-nums",
+                  balance === 0 ? "text-zinc-500" : owes ? "text-rose-600" : "text-emerald-600",
+                )}
+              >
+                {formatPHP(Math.abs(balance))}
               </p>
               <p className="text-[11px] text-muted-foreground">{direction}</p>
             </li>
