@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, CalendarPlus, DollarSign, Layers, ReceiptText, RefreshCw, Settings } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarPlus, DollarSign, Layers, ReceiptText, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -114,22 +114,6 @@ export function MonthPicker({
         <ChevronRight />
       </Button>
     </div>
-  );
-}
-
-export function RefreshButton() {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      aria-label="Refresh"
-      title="Refresh"
-      onClick={() => startTransition(() => router.refresh())}
-    >
-      <RefreshCw className={cn(pending && "animate-spin")} />
-    </Button>
   );
 }
 

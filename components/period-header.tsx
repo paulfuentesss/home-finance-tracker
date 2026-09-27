@@ -1,6 +1,6 @@
 import { CircleHelp, FileText } from "lucide-react";
 import Link from "next/link";
-import { MonthPicker, RefreshButton, StartNextMonthButton, TabNav } from "@/components/period-nav";
+import { MonthPicker, StartNextMonthButton, TabNav } from "@/components/period-nav";
 import { formatPHP } from "@/lib/money";
 import type { PeriodView } from "@/lib/periods";
 import { cn } from "@/lib/utils";
@@ -36,7 +36,6 @@ export function PeriodHeader({ view }: { view: PeriodView }) {
         <div className="flex flex-wrap items-center gap-2">
           <Stat label="Total core bills" value={formatPHP(view.stats.coreBills)} />
           <Stat label="Shared advances" value={formatPHP(view.stats.sharedAdvances)} accent />
-          <RefreshButton />
           <Link
             href="/how-it-works"
             className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-sm text-muted-foreground transition-colors hover:bg-zinc-100 hover:text-foreground"
