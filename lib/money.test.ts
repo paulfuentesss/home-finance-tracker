@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatPHP, fromCentavos, splitByWeights, splitEqually, sumCentavos, toCentavos } from "@/lib/money";
+import { formatPHP, fromCentavos, parseMoneyInput, splitByWeights, splitEqually, sumCentavos, toCentavos } from "@/lib/money";
 
 describe("toCentavos / fromCentavos", () => {
   it.each([
@@ -27,6 +27,18 @@ describe("toCentavos / fromCentavos", () => {
 
   it("formats pesos", () => {
     expect(formatPHP(1546359)).toBe("₱15,463.59");
+  });
+});
+
+describe("parseMoneyInput", () => {
+  it("accepts what people type", () => {
+    expect(parseMoneyInput("15,463.59")).toBe(1546359);
+    expect(parseMoneyInput("₱ 2,699")).toBe(269900);
+    expect(parseMoneyInput(" 892.5 ")).toBe(89250);
+  });
+
+  it("returns null for junk", () => {
+    for (const bad of ["", "abc", "1.234", "12..5"]) expect(parseMoneyInput(bad)).toBeNull();
   });
 });
 

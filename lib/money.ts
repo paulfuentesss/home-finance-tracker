@@ -15,6 +15,18 @@ export function toCentavos(value: string): Centavos {
   return sign ? -centavos : centavos;
 }
 
+/**
+ * Parses an amount the way people type it ("15,463.59", "₱ 2699", "892.5") into centavos.
+ * Returns null for anything that isn't a valid amount.
+ */
+export function parseMoneyInput(raw: string): Centavos | null {
+  try {
+    return toCentavos(raw.replace(/[₱,\s]/g, ""));
+  } catch {
+    return null;
+  }
+}
+
 /** 1546359 → "15463.59" (the string form Postgres numeric expects). */
 export function fromCentavos(centavos: Centavos): string {
   assertInteger(centavos);
