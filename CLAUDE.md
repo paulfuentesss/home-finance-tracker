@@ -10,6 +10,15 @@ learning these tools, so explain what each step does and why.
 **Current status:** see "Current status" in README.md (what works, what isn't built yet).
 Keep that list up to date when a feature lands.
 
+**Repo & folder:** renamed from `MyHouse` on 2026-09-28.
+- GitHub: `paulfuentesss/home-finance-tracker`
+  (`origin` = https://github.com/paulfuentesss/home-finance-tracker.git; the old
+  `MyHouse` URL only works through GitHub's redirect).
+- Local folder: `~/Documents/GitHub/home-finance-tracker`.
+- The app itself is still called "MyHouse" (README title, the "My House" header label,
+  `package.json` `"name": "myhouse"`). Renaming it in the app hasn't been decided yet.
+- After moving the folder, delete `.next/`: its build cache stores absolute paths.
+
 ## Rules
 
 - **Read `docs/settlement-rules.md` before touching `lib/settlement.ts`, `lib/money.ts`
