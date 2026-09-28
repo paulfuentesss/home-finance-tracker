@@ -143,6 +143,29 @@ export default async function HowItWorksPage() {
       ),
     },
     {
+      id: "emailed-bills",
+      q: "What does “Pending” on a bill mean?",
+      a: (
+        <>
+          <p>
+            Meralco, Water and PLDT email their bills, and the app reads the amount and due date from the email. The
+            bill goes into the month it&apos;s for (the month the provider names, e.g. &ldquo;Meralco bill for August
+            2026&rdquo;) marked <strong>Pending</strong>.
+          </p>
+          <p>
+            A pending bill is <strong>not counted yet</strong>: nobody&apos;s totals change until PA checks it and taps{" "}
+            <strong>Confirm</strong>. If what was actually paid is a little different (a payment fee, say), PA changes
+            the amount first. <strong>Discard</strong> puts the bill back to ₱0.00 to type in by hand.
+          </p>
+          <p>
+            An emailed bill never replaces an amount that&apos;s already there. If its month hasn&apos;t started yet,
+            is closed, or already has that bill, it waits in the <strong>Bill Inbox</strong> (Manage) instead. A month
+            can&apos;t be closed while a bill in it is still pending.
+          </p>
+        </>
+      ),
+    },
+    {
       id: "move-in-out",
       q: "What happens when someone moves in or out?",
       a: (
@@ -201,8 +224,8 @@ export default async function HowItWorksPage() {
             amounts simply carry over.
           </p>
           <p>
-            Months close in order (July before August). If something needs fixing, PA can <strong>reopen</strong> the
-            latest closed month, fix it, and close it again.
+            Months close in order (July before August), and only once no bill in it is still pending. If something
+            needs fixing, PA can <strong>reopen</strong> the latest closed month, fix it, and close it again.
           </p>
         </>
       ),

@@ -219,7 +219,8 @@ function MonthLock({ view }: { view: PeriodView }) {
   }
 
   const unsettled = view.rows.filter((r) => r.balance !== 0);
-  const pendingBills = view.bills.filter((b) => b.status === "pending");
+  // Bills land in the month they're for, which usually ends before they arrive.
+  const emptyBills = view.bills.filter((b) => b.total === 0);
   const offColumns = view.columns.filter((c) => c.difference !== 0);
 
   return (
@@ -260,10 +261,13 @@ function MonthLock({ view }: { view: PeriodView }) {
           ) : (
             <p className="text-sm text-emerald-700">Everyone is settled.</p>
           )}
-          {(pendingBills.length > 0 || offColumns.length > 0) && (
+          {(emptyBills.length > 0 || offColumns.length > 0) && (
             <ul className="list-disc space-y-1 pl-5 text-sm text-amber-800">
-              {pendingBills.length > 0 && (
-                <li>Not counted (still pending): {pendingBills.map((b) => b.name).join(", ")}.</li>
+              {emptyBills.length > 0 && (
+                <li>
+                  Still at ₱0.00: {emptyBills.map((b) => b.name).join(", ")}. If the bill hasn&apos;t arrived yet, wait:
+                  once {label} is closed, its emailed bill goes to the Bill inbox instead.
+                </li>
               )}
               {offColumns.map((c) => (
                 <li key={c.id}>

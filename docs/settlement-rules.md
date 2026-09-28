@@ -195,8 +195,11 @@ Rules (`lib/month-lock.ts`):
   clears the closing balances; the next month goes back to live carry-over by itself.
 - **Blocked** while the month's numbers can't be calculated, or when someone with a non-zero
   Final isn't in the next month (their balance would vanish — record the payment first).
-- The confirmation lists who is still unsettled, bills still pending, and Manual columns that
-  don't add up; none of them block closing.
+- **Blocked while a bill is pending** (emailed, not yet confirmed or discarded): once the
+  month and the one after it are closed, it could never be.
+- The confirmation lists who is still unsettled, bills still at ₱0.00, and Manual columns
+  that don't add up; none of them block closing. (A bill still at ₱0.00 may simply not have
+  arrived: bills belong to the month they're for, which has usually ended when they arrive.)
 
 Back up the database after closing a month (`npm run db:backup`).
 
@@ -218,8 +221,35 @@ Back up the database after closing a month (`npm run db:backup`).
 
 ## Email-imported bills
 
-Bills parsed from emails (future feature) arrive with `status = 'pending'` and are ignored
-by the settlement until someone confirms them.
+Meralco, Water (Manila Water) and PLDT email their bills. Each email is read
+(`lib/bill-email/parse.ts`) and recorded in the **Bill inbox** (`bill_emails`):
+
+- **What's read:** the amount (Meralco "Current Amount Due", Manila Water "Total Amount
+  Due", PLDT "Current Charges" — not its Total, which would include an unpaid previous
+  balance), the due date and the billing period. Only emails from the providers' own domains
+  are read.
+- **Which month:** the month the provider names ("Meralco bill for August 2026", "Invoice for
+  the Month of August 2026", "eInvoice for August 2026") — the month the household sheet puts
+  it in. If none is named, the month holding the middle of the billing period.
+- **Where it goes:** it fills that month's existing bill column (Meralco, Water, PLDT Wifi —
+  `BILL_EMAIL_COLUMNS` in `lib/household-config.ts`) with `source = 'email'`,
+  `status = 'pending'` and its due date. Shares are computed as usual (Meralco by points), so
+  confirming only flips the status.
+- **Pending is ignored by the settlement** until someone confirms it. Before confirming, the
+  amount can still be changed — e.g. to what was actually paid, payment-channel fee included
+  (August 2026: the sheet's Meralco and Water are ₱15.00 and ₱7.00 above the emailed amounts).
+  **Discard** sets the column back to ₱0.00 (split and points unchanged) and sets the email
+  aside for good.
+- **It never overwrites an amount.** When the month isn't started or is closed, the column is
+  missing or split Manual, or the column already has an amount, the email stays in the Bill
+  inbox (Manage tab) with the reason, to Retry or Dismiss. Deleting a column that an email
+  filled sends that email back to the inbox.
+- **Each email counts once:** the same Message-ID is ignored, and so is a second email for
+  the same provider and month (a reminder) while the first isn't dismissed.
+
+Try it locally with `npm run bills:import -- meralco water pldt` (the real August 2026
+emails, `lib/bill-email/__fixtures__/`). Receiving forwarded emails needs a public address,
+so it comes after login.
 
 ## Receipts
 

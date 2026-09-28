@@ -10,3 +10,10 @@ export const MERALCO_POINT_ITEMS = [
 
 /** When the current Meralco point allocation was agreed. */
 export const MERALCO_POINTS_AS_OF = "April 2026";
+
+/** The Split Table column each emailed bill fills (docs/settlement-rules.md → "Email-imported bills"). */
+export const BILL_EMAIL_COLUMNS = {
+  meralco: "Meralco",
+  water: "Water",
+  pldt: "PLDT Wifi",
+} as const;

@@ -15,6 +15,13 @@ describe("closeCheck", () => {
     expect(closeCheck(september, august, null)).toEqual({ ok: false, reason: "Close August 2026 first." });
   });
 
+  it("refuses while an emailed bill is still pending", () => {
+    expect(closeCheck(august, null, null, ["Meralco", "Water"])).toEqual({
+      ok: false,
+      reason: "Confirm or discard the pending Meralco, Water bills first (Split Table).",
+    });
+  });
+
   it("refuses when the numbers can't be calculated, or it's already closed", () => {
     expect(closeCheck(august, null, "Shares for Water add up to ₱1.00").ok).toBe(false);
     expect(closeCheck({ ...august, status: "closed" }, null, null).ok).toBe(false);
