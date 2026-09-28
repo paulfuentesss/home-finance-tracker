@@ -16,6 +16,7 @@
     "db:seed": "tsx --env-file=.env.local scripts/seed.mts",
     "db:seed:august": "tsx --env-file=.env.local scripts/seed-august.mts",
     "db:backup": "tsx --env-file=.env.local scripts/backup.mts",
+    "bills:import": "tsx --env-file=.env.local scripts/import-email.mts",
     "prepare": "husky"
   },
   "dependencies": {

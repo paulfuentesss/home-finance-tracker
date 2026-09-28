@@ -39,6 +39,8 @@ export interface ViewBill {
   total: Centavos;
   paidById: number;
   status: "confirmed" | "pending";
+  /** "email" = filled in from a bill email. */
+  source: "manual" | "email";
   splitMode: SplitMode;
   dueDate: string | null;
   paidOn: string | null;
@@ -222,6 +224,7 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
       total,
       paidById: b.paidById,
       status: b.status,
+      source: b.source,
       splitMode: b.splitMode,
       dueDate: b.dueDate,
       paidOn: b.paidOn,
@@ -306,7 +309,7 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
     prev: summaries[index - 1] ?? null,
     next: summaries[index + 1] ?? null,
     isLatest: index === all.length - 1,
-    canClose: closeCheck(period, all[index - 1] ?? null, issue),
+    canClose: closeCheck(period, all[index - 1] ?? null, issue, pendingBillNames(period)),
     canReopen: reopenCheck(period, all[index + 1] ?? null),
     issue,
   };
@@ -322,6 +325,10 @@ export async function getLatestPointsBills() {
     bills: (view?.bills ?? []).filter((b) => b.splitMode === "points"),
     members: view?.members ?? [],
   };
+}
+
+export function pendingBillNames(period: LoadedPeriod): string[] {
+  return period.billItems.filter((b) => b.status === "pending").map((b) => b.name);
 }
 
 export function periodMembers(period: LoadedPeriod) {

@@ -12,6 +12,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import {
   advances,
+  billEmails,
   billingPeriods,
   billItems,
   billItemShares,
@@ -22,10 +23,12 @@ import {
   sharedColumnMembers,
   sharedColumns,
 } from "@/db";
+import { placeBill } from "@/lib/bill-import";
+import { pointsFor, pointsOf, writeShares, type Tx } from "@/lib/bill-shares";
 import { monthLabel } from "@/lib/format";
 import { fromCentavos, parseMoneyInput, splitEqually, sumCentavos, toCentavos, type Centavos } from "@/lib/money";
 import { closeCheck, reopenCheck, vanishingBalances } from "@/lib/month-lock";
-import { computePeriod, periodMembers } from "@/lib/periods";
+import { computePeriod, pendingBillNames, periodMembers } from "@/lib/periods";
 import {
   computeBillShares,
   openingBalancesFrom,
@@ -35,8 +38,6 @@ import {
 } from "@/lib/settlement";
 
 export type ActionState = { ok: true; redirectTo?: string } | { ok: false; error: string } | null;
-
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 class ActionError extends Error {}
 
@@ -176,9 +177,80 @@ export async function deleteBill(billId: number): Promise<ActionState> {
   return run(z.object({ billId: id }), { billId }, async ({ billId }) => {
     await db.transaction(async (tx) => {
       await loadBill(tx, billId);
+      // An email that filled this column goes back to the Bill inbox.
+      await tx
+        .update(billEmails)
+        .set({ status: "unmatched", reason: "Its bill column was deleted.", billItemId: null })
+        .where(eq(billEmails.billItemId, billId));
       // bill_item_shares rows go with it (ON DELETE CASCADE).
       await tx.delete(billItems).where(eq(billItems.id, billId));
     });
+  });
+}
+
+// ---------- Emailed bills (docs/settlement-rules.md → "Email-imported bills") ----------
+
+/** A pending (emailed) bill starts counting. */
+export async function confirmBill(billId: number): Promise<ActionState> {
+  return run(z.object({ billId: id }), { billId }, async ({ billId }) => {
+    await db.transaction(async (tx) => {
+      const { bill } = await loadBill(tx, billId);
+      if (bill.status !== "pending") throw new ActionError(`${bill.name} is already confirmed.`);
+      const shares = sumCentavos(bill.shares.map((s) => toCentavos(s.amount)));
+      if (shares !== toCentavos(bill.totalAmount)) {
+        throw new ActionError(`${bill.name}'s shares don't add up to its total. Re-enter the total, then confirm.`);
+      }
+      await tx.update(billItems).set({ status: "confirmed" }).where(eq(billItems.id, billId));
+    });
+  });
+}
+
+/** Undoes an emailed bill: the column goes back to ₱0 and the email is set aside for good. */
+export async function discardEmailBill(billId: number): Promise<ActionState> {
+  return run(z.object({ billId: id }), { billId }, async ({ billId }) => {
+    await db.transaction(async (tx) => {
+      const { bill, order } = await loadBill(tx, billId);
+      if (bill.status !== "pending") throw new ActionError(`${bill.name} is confirmed; change its amount instead.`);
+      // Split mode and points stay; the shares are rewritten at ₱0 so they still add up.
+      const points = bill.splitMode === "points" ? pointsFor(bill.shares, order) : null;
+      const shares = computeBillShares(bill.splitMode, 0, order, { points: points ?? undefined });
+      await tx
+        .update(billItems)
+        .set({ totalAmount: "0", dueDate: null, source: "manual", status: "confirmed" })
+        .where(eq(billItems.id, billId));
+      await writeShares(tx, billId, shares, points);
+      await tx
+        .update(billEmails)
+        .set({ status: "dismissed", reason: "Discarded from the Split Table.", billItemId: null })
+        .where(eq(billEmails.billItemId, billId));
+    });
+  });
+}
+
+/** Tries an inbox email again (e.g. after starting or reopening its month). */
+export async function retryBillEmail(emailId: number): Promise<ActionState> {
+  return run(z.object({ emailId: id }), { emailId }, async ({ emailId }) => {
+    const outcome = await db.transaction(async (tx) => {
+      const email = await tx.query.billEmails.findFirst({ where: eq(billEmails.id, emailId) });
+      if (!email || email.status !== "unmatched") throw new ActionError("That email is no longer in the inbox.");
+      return placeBill(tx, email);
+    });
+    if (outcome.kind === "unmatched") {
+      // The new reason is saved; refresh so the inbox shows it, and say it here too.
+      revalidatePath("/", "layout");
+      throw new ActionError(outcome.reason);
+    }
+  });
+}
+
+export async function dismissBillEmail(emailId: number): Promise<ActionState> {
+  return run(z.object({ emailId: id }), { emailId }, async ({ emailId }) => {
+    const [email] = await db
+      .update(billEmails)
+      .set({ status: "dismissed" })
+      .where(and(eq(billEmails.id, emailId), eq(billEmails.status, "unmatched")))
+      .returning({ id: billEmails.id });
+    if (!email) throw new ActionError("That email is no longer in the inbox.");
   });
 }
 
@@ -628,7 +700,7 @@ export async function closeMonth(periodId: number): Promise<ActionState> {
       const computed = await computePeriod(tx, target.year, target.month);
       if (!computed) throw new ActionError("That month no longer exists.");
       const { all, index, period, result, issue } = computed;
-      const check = closeCheck(period, all[index - 1] ?? null, issue);
+      const check = closeCheck(period, all[index - 1] ?? null, issue, pendingBillNames(period));
       if (!check.ok || !result) throw new ActionError(check.reason ?? "This month can't be closed yet.");
 
       const finals = openingBalancesFrom(result);
@@ -765,29 +837,6 @@ function openPeriods(tx: Tx) {
   return tx.query.billingPeriods.findMany({ where: eq(billingPeriods.status, "open") });
 }
 
-function pointsOf(shares: { memberId: number; points: string | null }[]): Map<MemberId, number> {
-  return new Map(shares.map((s) => [s.memberId, s.points === null ? 0 : Number(s.points)]));
-}
-
-/** Replaces a bill's shares (and points, in points mode). */
-async function writeShares(
-  tx: Tx,
-  billItemId: number,
-  shares: Map<MemberId, Centavos>,
-  points: ReadonlyMap<MemberId, number> | null,
-) {
-  await tx.delete(billItemShares).where(eq(billItemShares.billItemId, billItemId));
-  if (shares.size === 0) return;
-  await tx.insert(billItemShares).values(
-    [...shares].map(([memberId, amount]) => ({
-      billItemId,
-      memberId,
-      amount: fromCentavos(amount),
-      points: points ? String(points.get(memberId) ?? 0) : null,
-    })),
-  );
-}
-
 /** Re-splits every bill in a month after its members change. */
 async function resplitPeriodBills(tx: Tx, periodId: number) {
   const order = await periodOrder(tx, periodId);
@@ -804,10 +853,7 @@ async function resplitPeriodBills(tx: Tx, periodId: number) {
       await writeShares(tx, bill.id, shares, null);
       continue;
     }
-    const points = pointsOf(bill.shares);
-    if (bill.splitMode === "points" && order.every((m) => (points.get(m) ?? 0) === 0)) {
-      order.forEach((m) => points.set(m, 1));
-    }
+    const points = pointsFor(bill.shares, order);
     const shares = computeBillShares(bill.splitMode, toCentavos(bill.totalAmount), order, { points });
     await writeShares(tx, bill.id, shares, bill.splitMode === "points" ? points : null);
   }

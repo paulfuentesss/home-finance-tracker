@@ -9,6 +9,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { createDb } from "../db/client";
 import {
   advances,
+  billEmails,
   billingPeriods,
   billItems,
   billItemShares,
@@ -48,6 +49,10 @@ try {
       await tx.delete(payments).where(eq(payments.periodId, existing.id));
       await tx.delete(periodBalances).where(eq(periodBalances.periodId, existing.id));
       await tx.delete(billingPeriods).where(eq(billingPeriods.id, existing.id));
+      // Its bill emails too, so the sample emails can be imported again (npm run bills:import).
+      await tx
+        .delete(billEmails)
+        .where(and(eq(billEmails.billYear, AUGUST_2026.year), eq(billEmails.billMonth, AUGUST_2026.month)));
       console.log("Deleted the existing August 2026.");
     }
 

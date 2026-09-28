@@ -27,6 +27,10 @@ export const periodStatus = pgEnum("period_status", ["open", "closed"]);
 export const billSource = pgEnum("bill_source", ["manual", "email"]);
 // Email-parsed bills land as "pending" and are ignored by settlement until confirmed.
 export const billStatus = pgEnum("bill_status", ["confirmed", "pending"]);
+export const billProvider = pgEnum("bill_provider", ["meralco", "water", "pldt"]);
+// imported = filled a bill column (as pending) · unmatched = needs a look (reason says why) ·
+// dismissed = ignored for good.
+export const billEmailStatus = pgEnum("bill_email_status", ["imported", "unmatched", "dismissed"]);
 // equal = split evenly; points = split by each member's points (Meralco);
 // manual = amounts typed per member, and the bill total is their sum.
 export const billSplitMode = pgEnum("bill_split_mode", ["equal", "points", "manual"]);
@@ -227,6 +231,44 @@ export const payments = pgTable(
   ],
 ).enableRLS();
 
+// Every bill email received (docs/settlement-rules.md → "Email-imported bills"): the Bill
+// inbox. Only a short snippet of the body is kept — the full email holds account numbers.
+export const billEmails = pgTable(
+  "bill_emails",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    // The Message-ID header: the same email arriving twice (webhook retries) is ignored.
+    messageId: text("message_id").notNull().unique(),
+    receivedAt: timestamp("received_at", { withTimezone: true }).notNull(),
+    fromAddress: text("from_address").notNull(),
+    subject: text("subject").notNull(),
+    snippet: text("snippet").notNull(),
+    // Parsed values; null when the email couldn't be read.
+    provider: billProvider("provider"),
+    amount: money("amount"),
+    dueDate: date("due_date", { mode: "string" }),
+    periodStart: date("period_start", { mode: "string" }),
+    periodEnd: date("period_end", { mode: "string" }),
+    // The month the bill belongs to.
+    billYear: integer("bill_year"),
+    billMonth: integer("bill_month"),
+    status: billEmailStatus("status").notNull(),
+    // Why it's unmatched, in words for the household.
+    reason: text("reason"),
+    // The bill column it filled (imported only).
+    billItemId: integer("bill_item_id").references(() => billItems.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    // One live email per provider per month: a reminder or re-forward of the same bill is
+    // ignored, but after a Discard (dismissed) a corrected email can come in.
+    uniqueIndex("bill_emails_one_per_month")
+      .on(t.provider, t.billYear, t.billMonth)
+      .where(sql`${t.status} <> 'dismissed'`),
+  ],
+).enableRLS();
+
 // One row per member per period = that period's membership (equal splits use this list).
 // opening_balance carries over from the previous month; closing_balance is snapshotted on close.
 export const periodBalances = pgTable(
@@ -288,6 +330,10 @@ export const advancesRelations = relations(advances, ({ one }) => ({
   payer: one(members, { fields: [advances.payerId], references: [members.id] }),
 }));
 
+export const billEmailsRelations = relations(billEmails, ({ one }) => ({
+  billItem: one(billItems, { fields: [billEmails.billItemId], references: [billItems.id] }),
+}));
+
 export const paymentsRelations = relations(payments, ({ one }) => ({
   period: one(billingPeriods, { fields: [payments.periodId], references: [billingPeriods.id] }),
   from: one(members, { fields: [payments.fromMemberId], references: [members.id] }),
@@ -312,4 +358,5 @@ export type NewAdvance = typeof advances.$inferInsert;
 export type SharedColumn = typeof sharedColumns.$inferSelect;
 export type SharedColumnMember = typeof sharedColumnMembers.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
+export type BillEmailRow = typeof billEmails.$inferSelect;
 export type PeriodBalance = typeof periodBalances.$inferSelect;

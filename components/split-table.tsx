@@ -11,6 +11,7 @@ import {
   type ActionState,
 } from "@/app/periods/[year]/[month]/actions";
 import { Balance } from "@/components/balance";
+import { PendingBillActions } from "@/components/emailed-bills";
 import { InlineInput, type FormAction } from "@/components/inline-input";
 import { useDragScroll } from "@/hooks/use-drag-scroll";
 import { dayLabel, monthLabel } from "@/lib/format";
@@ -47,6 +48,11 @@ export function SplitTable({ view }: { view: PeriodView }) {
               {bills.map((bill) => (
                 <th key={bill.id} className={cn(cellBase, headBright, "min-w-36 text-center font-bold")}>
                   {bill.name}
+                  {bill.status === "pending" && (
+                    <span className="ml-1.5 rounded-full bg-white/70 px-1.5 py-0.5 align-middle text-[10px] font-semibold text-amber-800">
+                      Pending
+                    </span>
+                  )}
                 </th>
               ))}
               {columns.map((column) => (
@@ -89,6 +95,7 @@ export function SplitTable({ view }: { view: PeriodView }) {
                     <span className="font-semibold">{formatPHP(bill.total)}</span>
                   )}
                   {bill.splitMode === "manual" && <div className="mt-1 text-[11px] text-muted-foreground">sum of shares</div>}
+                  {bill.status === "pending" && editable && <PendingBillActions bill={bill} />}
                 </td>
               ))}
               {columns.map((column) => (
@@ -118,7 +125,7 @@ export function SplitTable({ view }: { view: PeriodView }) {
                     </span>
                   </th>
                   {bills.map((bill) => (
-                    <td key={bill.id} className={cn(cellBase, "text-center")}>
+                    <td key={bill.id} className={cn(cellBase, "text-center", bill.status === "pending" && "text-zinc-400")}>
                       <BillShareCell bill={bill} memberId={member.id} editable={editable} />
                     </td>
                   ))}

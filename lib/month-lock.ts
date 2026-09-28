@@ -19,14 +19,24 @@ interface MonthRef {
 
 /**
  * Months close oldest-first: a closed month's opening balance must itself be locked, or
- * editing an earlier month could still change it.
+ * editing an earlier month could still change it. Pending (emailed) bills must be confirmed
+ * or discarded first: in a closed month they could never be.
  */
-export function closeCheck(current: MonthRef, prev: MonthRef | null, issue: string | null): LockCheck {
+export function closeCheck(
+  current: MonthRef,
+  prev: MonthRef | null,
+  issue: string | null,
+  pendingBills: readonly string[] = [],
+): LockCheck {
   if (current.status === "closed") return { ok: false, reason: "This month is already closed." };
   if (prev && prev.status !== "closed") {
     return { ok: false, reason: `Close ${monthLabel(prev.year, prev.month)} first.` };
   }
   if (issue) return { ok: false, reason: "Fix the problem above first; the numbers can't be calculated yet." };
+  if (pendingBills.length) {
+    const bills = `${pendingBills.join(", ")} bill${pendingBills.length > 1 ? "s" : ""}`;
+    return { ok: false, reason: `Confirm or discard the pending ${bills} first (Split Table).` };
+  }
   return { ok: true };
 }
 
