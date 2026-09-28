@@ -1,6 +1,6 @@
 # Settlement rules
 
-How MyHouse splits household costs each month. This is the source of truth for
+How My House splits household costs each month. This is the source of truth for
 `lib/settlement.ts`, `lib/money.ts` and `db/schema.ts`: change the rules here first, then
 the code. The household-facing version is the **How it works** page
 (`app/how-it-works/page.tsx`) — keep the two in sync. This file holds the rules only: what

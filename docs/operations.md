@@ -1,6 +1,6 @@
 # Operations
 
-Running and looking after MyHouse: database changes, backups, the Supabase free plan,
+Running and looking after My House: database changes, backups, the Supabase free plan,
 commits, troubleshooting, where things live, and keeping household data private.
 
 ## Changing the database schema
@@ -88,7 +88,7 @@ scripts/        Seed, backup and bill-email import scripts
 
 ## Services & accounts
 
-Where MyHouse's pieces live. No credentials here — they're in `.env.local`, GitHub
+Where My House's pieces live. No credentials here — they're in `.env.local`, GitHub
 secrets or a password manager.
 
 | Service | What it's for | Notes |

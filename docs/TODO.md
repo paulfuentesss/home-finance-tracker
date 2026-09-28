@@ -32,7 +32,6 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
   ([email-bills](features/email-bills.md)). Wouldn't catch every payment fee, since some
   providers only report what they received.
 - Show the How it works page's example numbers from the latest month instead of August.
-- Rename the app from "MyHouse" to match the repo (`home-finance-tracker`)? Undecided.
 
 ## Before going online
 

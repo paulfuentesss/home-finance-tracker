@@ -1,6 +1,6 @@
 # First-time setup
 
-Getting MyHouse running on a new machine. Afterwards, day to day you only need
+Getting My House running on a new machine. Afterwards, day to day you only need
 `npm run dev` ([commands.md](commands.md)).
 
 1. **Install dependencies**

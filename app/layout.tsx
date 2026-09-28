@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: { default: "MyHouse", template: "%s · MyHouse" },
+  title: { default: "My House", template: "%s · My House" },
   description: "Household bills and shared expenses, settled monthly.",
 };
 
