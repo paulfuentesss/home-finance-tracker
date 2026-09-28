@@ -1,5 +1,6 @@
-import { TriangleAlert } from "lucide-react";
+import { Lock, TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PeriodHeader } from "@/components/period-header";
 import { monthLabel } from "@/lib/format";
@@ -23,6 +24,18 @@ export default async function PeriodLayout({ params, children }: Props) {
     <>
       <PeriodHeader view={view} />
       <main className="mx-auto w-full max-w-7xl space-y-6 px-4 py-8">
+        {view.period.status === "closed" && (
+          <div className="flex items-start gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700">
+            <Lock className="mt-0.5 size-4 shrink-0" />
+            <p>
+              {monthLabel(year, month)} is closed, so nothing in it can be changed.{" "}
+              <Link href={`/periods/${year}/${month}/settle`} className="font-medium underline underline-offset-2">
+                Reopen it in Settle Up
+              </Link>{" "}
+              to make changes.
+            </p>
+          </div>
+        )}
         {view.issue && (
           <div
             role="alert"

@@ -1,13 +1,15 @@
 "use client";
 
-import { Columns3, Plus, UserPlus } from "lucide-react";
+import { Columns3, HandCoins, Plus, UserPlus } from "lucide-react";
 import { startTransition, useActionState, useRef, useState } from "react";
 import {
   addAdvance,
   addBill,
   addMember,
+  addPayment,
   addSharedColumn,
   updateAdvance,
+  updatePayment,
   type ActionState,
 } from "@/app/periods/[year]/[month]/actions";
 import { Button } from "@/components/ui/button";
@@ -25,8 +27,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CATEGORY_LABELS, todayInManila } from "@/lib/format";
-import { formatPHP, fromCentavos, parseMoneyInput } from "@/lib/money";
-import type { PeriodView, ViewAdvance } from "@/lib/periods";
+import { formatPHP, fromCentavos, parseMoneyInput, type Centavos } from "@/lib/money";
+import type { PeriodView, ViewAdvance, ViewPayment } from "@/lib/periods";
 
 interface Props {
   view: PeriodView;
@@ -194,6 +196,135 @@ function AdvanceForm({ view, advance, onDone }: Props & { advance?: ViewAdvance;
               Save &amp; add another
             </Button>
           )}
+        </DialogFooter>
+      </form>
+    </>
+  );
+}
+
+export interface PaymentPrefill {
+  fromMemberId: number;
+  toMemberId: number;
+  /** What they owe, pre-filled; change it for a partial payment. */
+  amount: Centavos;
+}
+
+/**
+ * Records a payment. From a "Who still owes" row it opens pre-filled (who, to whom, the full
+ * amount); without `prefill` it's for any other payment between two people.
+ */
+export function RecordPaymentDialog({
+  view,
+  prefill,
+  label,
+  variant = "default",
+  className,
+}: Props & {
+  prefill?: PaymentPrefill;
+  label: string;
+  variant?: "default" | "outline";
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={<Button variant={variant} className={className} />}>
+        <HandCoins />
+        {label}
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <PaymentForm view={view} prefill={prefill} onDone={() => setOpen(false)} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Edits a recorded payment (open while `payment` is set). */
+export function EditPaymentDialog({
+  view,
+  payment,
+  onClose,
+}: Props & { payment: ViewPayment | null; onClose: () => void }) {
+  return (
+    <Dialog open={payment !== null} onOpenChange={(next) => !next && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        {payment && <PaymentForm key={payment.id} view={view} payment={payment} onDone={onClose} />}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PaymentForm({
+  view,
+  payment,
+  prefill,
+  onDone,
+}: Props & { payment?: ViewPayment; prefill?: PaymentPrefill; onDone: () => void }) {
+  const { state, pending, onSubmit } = useDialogForm(payment ? updatePayment : addPayment, onDone);
+  const [typed, setTyped] = useState(prefill ? fromCentavos(prefill.amount) : "");
+  const typedAmount = parseMoneyInput(typed);
+  const nameOf = new Map(view.members.map((m) => [m.id, m.name]));
+  const memberItems = view.members.map((m) => ({ value: String(m.id), label: m.name }));
+  const collector = view.members.find((m) => m.isCollector) ?? view.members[0];
+  const firstOther = view.members.find((m) => m.id !== collector?.id) ?? collector;
+  const from = payment?.fromMemberId ?? prefill?.fromMemberId ?? firstOther?.id;
+  const to = payment?.toMemberId ?? prefill?.toMemberId ?? collector?.id;
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>{payment ? "Edit payment" : "Record payment"}</DialogTitle>
+        <DialogDescription>
+          {prefill
+            ? `${nameOf.get(prefill.fromMemberId)} → ${nameOf.get(prefill.toMemberId)}. Change the amount if it was only part of it.`
+            : "Money that changed hands to settle up. It comes off the payer's Final and the receiver's."}
+        </DialogDescription>
+      </DialogHeader>
+      <form onSubmit={onSubmit} className="grid gap-4">
+        {payment ? (
+          <input type="hidden" name="paymentId" value={payment.id} />
+        ) : (
+          <input type="hidden" name="periodId" value={view.period.id} />
+        )}
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Paid by" htmlFor="fromMemberId">
+            <SelectField id="fromMemberId" items={memberItems} defaultValue={String(from)} />
+          </Field>
+          <Field label="Paid to" htmlFor="toMemberId">
+            <SelectField id="toMemberId" items={memberItems} defaultValue={String(to)} />
+          </Field>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Amount (₱)" htmlFor="amount">
+            <Input
+              id="amount"
+              name="amount"
+              inputMode="decimal"
+              placeholder="1,500.00"
+              defaultValue={payment ? fromCentavos(payment.amount) : typed}
+              onChange={(e) => setTyped(e.target.value)}
+              required
+            />
+          </Field>
+          <Field label="Date paid" htmlFor="paidOn">
+            <Input id="paidOn" name="paidOn" type="date" defaultValue={payment?.paidOn ?? todayInManila()} required />
+          </Field>
+        </div>
+        {prefill && typedAmount !== null && typedAmount > prefill.amount && (
+          <p className="text-xs text-amber-700">
+            More than the {formatPHP(prefill.amount)} owed. {nameOf.get(prefill.fromMemberId)} will be owed the
+            difference.
+          </p>
+        )}
+        <Field label="Note (optional)" htmlFor="note">
+          <Input id="note" name="note" placeholder="GCash" defaultValue={payment?.note ?? ""} maxLength={120} />
+        </Field>
+        {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
+        <DialogFooter>
+          <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
+          <Button type="submit" disabled={pending}>
+            {pending ? "Saving…" : payment ? "Save changes" : "Record payment"}
+          </Button>
         </DialogFooter>
       </form>
     </>

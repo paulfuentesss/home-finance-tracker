@@ -24,7 +24,15 @@ import {
 } from "@/db";
 import { monthLabel } from "@/lib/format";
 import { fromCentavos, parseMoneyInput, splitEqually, sumCentavos, toCentavos, type Centavos } from "@/lib/money";
-import { computeBillShares, SettlementError, splitOrder, type MemberId } from "@/lib/settlement";
+import { closeCheck, reopenCheck, vanishingBalances } from "@/lib/month-lock";
+import { computePeriod, periodMembers } from "@/lib/periods";
+import {
+  computeBillShares,
+  openingBalancesFrom,
+  SettlementError,
+  splitOrder,
+  type MemberId,
+} from "@/lib/settlement";
 
 export type ActionState = { ok: true; redirectTo?: string } | { ok: false; error: string } | null;
 
@@ -243,6 +251,67 @@ export async function deleteAdvance(advanceId: number): Promise<ActionState> {
   });
 }
 
+// ---------- Payments ----------
+
+// Money actually changing hands to settle up (usually someone ↔ the collector).
+const paymentSchema = z.object({
+  fromMemberId: id,
+  toMemberId: id,
+  amount: moneyField(false),
+  paidOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose the date it was paid"),
+  note: z
+    .string()
+    .trim()
+    .max(120, "Keep the note under 120 characters")
+    .optional()
+    .transform((v) => v || null),
+});
+
+type PaymentInput = z.output<typeof paymentSchema>;
+
+function checkPaymentMembers(order: MemberId[], data: PaymentInput) {
+  if (data.fromMemberId === data.toMemberId) throw new ActionError("Pick two different people.");
+  if (!order.includes(data.fromMemberId) || !order.includes(data.toMemberId)) {
+    throw new ActionError("Both people have to be in this month.");
+  }
+}
+
+export async function addPayment(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  return run(paymentSchema.extend({ periodId: id }), formData, async ({ periodId, ...data }) => {
+    await db.transaction(async (tx) => {
+      const { order } = await loadOpenPeriod(tx, periodId);
+      checkPaymentMembers(order, data);
+      await tx.insert(payments).values({ periodId, ...data, amount: fromCentavos(data.amount) });
+    });
+  });
+}
+
+export async function updatePayment(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  return run(paymentSchema.extend({ paymentId: id }), formData, async ({ paymentId, ...data }) => {
+    await db.transaction(async (tx) => {
+      const payment = await tx.query.payments.findFirst({ where: eq(payments.id, paymentId) });
+      if (!payment) throw new ActionError("That payment was deleted.");
+      const { order } = await loadOpenPeriod(tx, payment.periodId);
+      checkPaymentMembers(order, data);
+      await tx
+        .update(payments)
+        .set({ ...data, amount: fromCentavos(data.amount) })
+        .where(eq(payments.id, paymentId));
+    });
+  });
+}
+
+export async function deletePayment(paymentId: number): Promise<ActionState> {
+  return run(z.object({ paymentId: id }), { paymentId }, async ({ paymentId }) => {
+    await db.transaction(async (tx) => {
+      const payment = await tx.query.payments.findFirst({ where: eq(payments.id, paymentId) });
+      if (!payment) throw new ActionError("That payment was already deleted.");
+      await loadOpenPeriod(tx, payment.periodId);
+      await tx.delete(payments).where(eq(payments.id, paymentId));
+    });
+  });
+}
+
 // ---------- Shared columns ----------
 
 const addSharedColumnSchema = z.object({
@@ -420,6 +489,11 @@ export async function removeMember(memberId: number): Promise<ActionState> {
       for (const period of await openPeriods(tx)) {
         // Anyone with records in a month stays in that month so its numbers don't change.
         if (await hasRecordsIn(tx, period.id, memberId)) continue;
+        // So does anyone who carried an unsettled balance into it, or that money would vanish.
+        // (If the month can't be computed, keep them to be safe.)
+        const computed = await computePeriod(tx, period.year, period.month);
+        const row = computed?.result?.rows.find((r) => r.member.id === memberId);
+        if (!computed?.result || (row && row.opening !== 0)) continue;
         const inPeriod = await tx.query.periodBalances.findFirst({
           where: and(eq(periodBalances.periodId, period.id), eq(periodBalances.memberId, memberId)),
         });
@@ -477,7 +551,7 @@ export async function startNextMonth(): Promise<ActionState> {
     await db.transaction(async (tx) => {
       const latest = await tx.query.billingPeriods.findFirst({
         orderBy: [desc(billingPeriods.year), desc(billingPeriods.month)],
-        with: { billItems: { with: { shares: true }, orderBy: (b) => [asc(b.id)] } },
+        with: { billItems: { with: { shares: true }, orderBy: (b) => [asc(b.id)] }, balances: true },
       });
       if (!latest) throw new ActionError("There's no month to continue from yet.");
       const year = latest.month === 12 ? latest.year + 1 : latest.year;
@@ -493,8 +567,31 @@ export async function startNextMonth(): Promise<ActionState> {
       const collector = activeMembers.find((m) => m.isCollector) ?? activeMembers[0];
       if (!collector) throw new ActionError("Add a household member first.");
 
+      // Someone who moved out with an unsettled Final would silently lose it.
+      const computed = await computePeriod(tx, latest.year, latest.month);
+      if (computed?.result) {
+        const lost = vanishingBalances(openingBalancesFrom(computed.result), new Set(order));
+        if (lost.length) {
+          const names = computed.result.rows.filter((r) => lost.includes(r.member.id)).map((r) => r.member.name);
+          throw new ActionError(
+            `${names.join(" and ")} moved out but still ${lost.length === 1 ? "has" : "have"} an unsettled balance in ${monthLabel(latest.year, latest.month)}. Record the payment there first.`,
+          );
+        }
+      }
+      // After a closed month the opening balances are stored (live carry-over reads them).
+      const closing =
+        latest.status === "closed"
+          ? new Map(latest.balances.map((b) => [b.memberId, toCentavos(b.closingBalance ?? "0")]))
+          : null;
+
       const [period] = await tx.insert(billingPeriods).values({ year, month }).returning();
-      await tx.insert(periodBalances).values(order.map((memberId) => ({ periodId: period.id, memberId })));
+      await tx.insert(periodBalances).values(
+        order.map((memberId) => ({
+          periodId: period.id,
+          memberId,
+          openingBalance: fromCentavos(closing?.get(memberId) ?? 0),
+        })),
+      );
 
       // Copy the bill columns (name, split mode, points, payer) with ₱0 totals, ready to fill in.
       for (const bill of latest.billItems) {
@@ -516,6 +613,70 @@ export async function startNextMonth(): Promise<ActionState> {
       path = `/periods/${year}/${month}`;
     });
     return path;
+  });
+}
+
+/**
+ * Locks a month: saves everyone's Final as their closing balance and, when the next month
+ * exists, as its opening balance. Unpaid amounts carry over (docs/settlement-rules.md).
+ */
+export async function closeMonth(periodId: number): Promise<ActionState> {
+  return run(z.object({ periodId: id }), { periodId }, async ({ periodId }) => {
+    await db.transaction(async (tx) => {
+      const target = await tx.query.billingPeriods.findFirst({ where: eq(billingPeriods.id, periodId) });
+      if (!target) throw new ActionError("That month no longer exists.");
+      const computed = await computePeriod(tx, target.year, target.month);
+      if (!computed) throw new ActionError("That month no longer exists.");
+      const { all, index, period, result, issue } = computed;
+      const check = closeCheck(period, all[index - 1] ?? null, issue);
+      if (!check.ok || !result) throw new ActionError(check.reason ?? "This month can't be closed yet.");
+
+      const finals = openingBalancesFrom(result);
+      const next = all[index + 1] ?? null;
+      const lost = vanishingBalances(finals, next ? new Set(next.balances.map((b) => b.memberId)) : null);
+      if (next && lost.length) {
+        const names = periodMembers(period).filter((m) => lost.includes(m.id)).map((m) => m.name);
+        throw new ActionError(
+          `${names.join(" and ")} ${lost.length === 1 ? "isn't" : "aren't"} in ${monthLabel(next.year, next.month)} but still ${lost.length === 1 ? "has" : "have"} an unsettled balance. Record the payment first.`,
+        );
+      }
+
+      for (const [memberId, balance] of finals) {
+        await tx
+          .update(periodBalances)
+          .set({ closingBalance: fromCentavos(balance) })
+          .where(and(eq(periodBalances.periodId, periodId), eq(periodBalances.memberId, memberId)));
+      }
+      await tx
+        .update(billingPeriods)
+        .set({ status: "closed", closedAt: new Date() })
+        .where(eq(billingPeriods.id, periodId));
+      if (next) {
+        for (const b of next.balances) {
+          await tx
+            .update(periodBalances)
+            .set({ openingBalance: fromCentavos(finals.get(b.memberId) ?? 0) })
+            .where(and(eq(periodBalances.periodId, next.id), eq(periodBalances.memberId, b.memberId)));
+        }
+      }
+    });
+  });
+}
+
+/** Unlocks a month. The next month goes back to live carry-over on its own. */
+export async function reopenMonth(periodId: number): Promise<ActionState> {
+  return run(z.object({ periodId: id }), { periodId }, async ({ periodId }) => {
+    await db.transaction(async (tx) => {
+      const all = await tx.query.billingPeriods.findMany({
+        orderBy: [asc(billingPeriods.year), asc(billingPeriods.month)],
+      });
+      const index = all.findIndex((p) => p.id === periodId);
+      if (index === -1) throw new ActionError("That month no longer exists.");
+      const check = reopenCheck(all[index], all[index + 1] ?? null);
+      if (!check.ok) throw new ActionError(check.reason!);
+      await tx.update(billingPeriods).set({ status: "open", closedAt: null }).where(eq(billingPeriods.id, periodId));
+      await tx.update(periodBalances).set({ closingBalance: null }).where(eq(periodBalances.periodId, periodId));
+    });
   });
 }
 

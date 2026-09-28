@@ -54,8 +54,15 @@ export function SplitTable({ view }: { view: PeriodView }) {
                   {column.name}
                 </th>
               ))}
-              {["Total", "Own Advance (−)", "Month Final", "Prev Month Unsettled", "Final"].map((label) => (
-                <th key={label} className={cn(cellBase, headBright, "text-center font-bold")}>
+              {[
+                { label: "Total" },
+                { label: "Own Advance (−)" },
+                { label: "Month Final" },
+                { label: "Prev Month Unsettled" },
+                { label: "Payments", title: "Recorded in Settle Up: − paid back, + received" },
+                { label: "Final" },
+              ].map(({ label, title }) => (
+                <th key={label} title={title} className={cn(cellBase, headBright, "text-center font-bold")}>
                   {label}
                 </th>
               ))}
@@ -128,6 +135,9 @@ export function SplitTable({ view }: { view: PeriodView }) {
                   <td className={cn(cellBase, "text-center", row?.opening ? "text-zinc-700" : "text-zinc-400")}>
                     {row ? formatPHP(row.opening) : "—"}
                   </td>
+                  <td className={cn(cellBase, "text-center", row && paymentsOf(row) ? "text-zinc-700" : "text-zinc-400")}>
+                    {row ? signedPHP(paymentsOf(row)) : "—"}
+                  </td>
                   <td className={cn(cellBase, "text-center")}>{row ? <Balance amount={row.balance} /> : "—"}</td>
                 </tr>
               );
@@ -144,7 +154,7 @@ export function SplitTable({ view }: { view: PeriodView }) {
                   </td>
                 ))}
                 <td colSpan={columns.length} />
-                <td colSpan={5} />
+                <td colSpan={6} />
               </tr>
             ))}
           </tbody>
@@ -173,6 +183,7 @@ export function SplitTable({ view }: { view: PeriodView }) {
                 )}
               </td>
               <td className={cn(footCell, "text-center")}>{formatPHP(sum((r) => r.opening))}</td>
+              <td className={cn(footCell, "text-center")}>{signedPHP(sum(paymentsOf))}</td>
               <td className={cn(footCell, "text-center")}>{formatPHP(sum((r) => r.balance))}</td>
             </tr>
           </tfoot>
@@ -182,6 +193,17 @@ export function SplitTable({ view }: { view: PeriodView }) {
       <ExplainerCards />
     </div>
   );
+}
+
+/**
+ * Payments recorded this month, signed the way they move the Final: paying back lowers what
+ * you owe (−), receiving lowers what you're owed (+). Everyone's adds up to ₱0.00.
+ */
+const paymentsOf = (r: ViewRow) => r.received - r.paidOut;
+
+function signedPHP(amount: number): string {
+  if (amount === 0) return formatPHP(0);
+  return `${amount > 0 ? "+" : "−"}${formatPHP(Math.abs(amount))}`;
 }
 
 function BillShareCell({ bill, memberId, editable }: { bill: ViewBill; memberId: number; editable: boolean }) {

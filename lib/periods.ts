@@ -5,7 +5,10 @@ import "server-only";
 import { asc, desc } from "drizzle-orm";
 import { cache } from "react";
 import { billingPeriods, db } from "@/db";
+import type { Database } from "@/db/client";
+import { dateInManila } from "@/lib/format";
 import { memberDotClass } from "@/lib/members";
+import { closeCheck, reopenCheck, type LockCheck } from "@/lib/month-lock";
 import { sumCentavos, toCentavos, type Centavos } from "@/lib/money";
 import {
   computeMonth,
@@ -57,7 +60,18 @@ export interface ViewRow {
   billsPaid: Centavos;
   monthFinal: Centavos;
   opening: Centavos;
+  paidOut: Centavos;
+  received: Centavos;
   balance: Centavos;
+}
+
+export interface ViewPayment {
+  id: number;
+  fromMemberId: number;
+  toMemberId: number;
+  amount: Centavos;
+  paidOn: string;
+  note: string | null;
 }
 
 export interface ViewAdvance {
@@ -88,31 +102,41 @@ export interface ViewColumn {
 }
 
 export interface PeriodView {
-  period: PeriodSummary & { status: "open" | "closed" };
+  period: PeriodSummary & {
+    status: "open" | "closed";
+    /** Manila calendar date it was closed ("YYYY-MM-DD"). */
+    closedOn: string | null;
+  };
   members: ViewMember[];
   bills: ViewBill[];
   /** Shared-advances columns ("Advances Shared", "… w/o PA", "Ice Maker Adj."). */
   columns: ViewColumn[];
   rows: ViewRow[];
   advances: ViewAdvance[];
+  payments: ViewPayment[];
   stats: { coreBills: Centavos; sharedAdvances: Centavos };
   periods: PeriodSummary[];
   prev: PeriodSummary | null;
   next: PeriodSummary | null;
   isLatest: boolean;
+  canClose: LockCheck;
+  canReopen: LockCheck;
   /** Set when the numbers can't be computed (e.g. shares that don't add up). */
   issue: string | null;
 }
 
-const loadPeriods = () =>
-  db.query.billingPeriods.findMany({
+/** The app's `db` or a transaction (Server Actions pass `tx` for a consistent snapshot). */
+export type Executor = Pick<Database, "query">;
+
+const loadPeriods = (executor: Executor = db) =>
+  executor.query.billingPeriods.findMany({
     orderBy: [asc(billingPeriods.year), asc(billingPeriods.month)],
     with: {
       balances: { with: { member: true } },
       billItems: { with: { shares: true }, orderBy: (b) => [asc(b.id)] },
       sharedColumns: { with: { members: true }, orderBy: (c) => [asc(c.id)] },
       advances: { orderBy: (a) => [asc(a.spentOn), asc(a.id)] },
-      payments: true,
+      payments: { orderBy: (p) => [asc(p.paidOn), asc(p.id)] },
     },
   });
 
@@ -128,13 +152,14 @@ export async function getLatestPeriod(): Promise<PeriodSummary | null> {
 }
 
 /**
- * One month, fully computed. Wrapped in React `cache()` so the layout and the tab page
- * share a single database round trip per request.
+ * Every month up to `year`/`month`, with that month's numbers computed (null when it doesn't
+ * exist). Used by the pages and by Server Actions that need a month's Finals (closing a month,
+ * removing someone).
  */
-export const getPeriodView = cache(async (year: number, month: number): Promise<PeriodView | null> => {
+export async function computePeriod(executor: Executor, year: number, month: number) {
   // The whole history is small (a handful of rows per month), and carry-over needs every
   // earlier month anyway, so load it in one query.
-  const all = await loadPeriods();
+  const all = await loadPeriods(executor);
   const index = all.findIndex((p) => p.year === year && p.month === month);
   if (index === -1) return null;
 
@@ -147,6 +172,8 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
     const period = all[i];
     if (i === 0 || all[i - 1].status === "closed") {
       opening = new Map(period.balances.map((b) => [b.memberId, toCentavos(b.openingBalance)]));
+      // Stored balances don't depend on earlier months, so an earlier problem no longer matters.
+      issue = null;
     }
     try {
       result = computeMonth(toMonthInput(period, opening));
@@ -159,8 +186,18 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
       opening = new Map();
     }
   }
+  return { all, index, period: all[index], result, issue };
+}
 
-  const period = all[index];
+/**
+ * One month, fully computed. Wrapped in React `cache()` so the layout and the tab page
+ * share a single database round trip per request.
+ */
+export const getPeriodView = cache(async (year: number, month: number): Promise<PeriodView | null> => {
+  const computed = await computePeriod(db, year, month);
+  if (!computed) return null;
+  const { all, index, period, result, issue } = computed;
+
   const members = periodMembers(period).map((m) => ({
     id: m.id,
     name: m.name,
@@ -220,7 +257,13 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
   const columnById = new Map(columns.map((c) => [c.id, c]));
 
   return {
-    period: { id: period.id, year: period.year, month: period.month, status: period.status },
+    period: {
+      id: period.id,
+      year: period.year,
+      month: period.month,
+      status: period.status,
+      closedOn: period.closedAt ? dateInManila(period.closedAt) : null,
+    },
     members,
     bills,
     columns,
@@ -233,6 +276,8 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
       billsPaid: r.billsPaid,
       monthFinal: r.monthFinal,
       opening: r.opening,
+      paidOut: r.paidOut,
+      received: r.received,
       balance: r.balance,
     })),
     advances: period.advances.map((a) => ({
@@ -245,6 +290,14 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
       columnId: a.columnId,
       columnTag: columnById.get(a.columnId)?.isDefault === false ? columnById.get(a.columnId)!.name : null,
     })),
+    payments: period.payments.map((p) => ({
+      id: p.id,
+      fromMemberId: p.fromMemberId,
+      toMemberId: p.toMemberId,
+      amount: toCentavos(p.amount),
+      paidOn: p.paidOn,
+      note: p.note,
+    })),
     stats: {
       coreBills: sumCentavos(bills.filter((b) => b.status === "confirmed").map((b) => b.total)),
       sharedAdvances: sumCentavos(period.advances.map((a) => toCentavos(a.amount))),
@@ -253,6 +306,8 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
     prev: summaries[index - 1] ?? null,
     next: summaries[index + 1] ?? null,
     isLatest: index === all.length - 1,
+    canClose: closeCheck(period, all[index - 1] ?? null, issue),
+    canReopen: reopenCheck(period, all[index + 1] ?? null),
     issue,
   };
 });
@@ -269,7 +324,7 @@ export async function getLatestPointsBills() {
   };
 }
 
-function periodMembers(period: LoadedPeriod) {
+export function periodMembers(period: LoadedPeriod) {
   return period.balances.map((b) => b.member).sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
 }
 

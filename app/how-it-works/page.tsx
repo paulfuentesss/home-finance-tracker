@@ -157,6 +157,10 @@ export default async function HowItWorksPage() {
             or column — they stay, so that month&apos;s numbers don&apos;t change. Otherwise they&apos;re taken out and
             the bills re-split. A new month&apos;s bill they&apos;re down as paying but that is still ₱0 goes to PA.
           </p>
+          <p>
+            Someone who still owes, or is still owed, money from an earlier month also stays until it&apos;s settled,
+            so an unpaid balance never disappears.
+          </p>
         </>
       ),
     },
@@ -168,6 +172,39 @@ export default async function HowItWorksPage() {
           Nothing is lost: whatever is still unpaid at the end of a month carries over to the next month&apos;s
           &ldquo;Prev Month Unsettled&rdquo; column and is added to that month&apos;s Final.
         </p>
+      ),
+    },
+    {
+      id: "payments",
+      q: "How do I record that I paid?",
+      a: (
+        <>
+          <p>
+            Open the <strong>Settle Up</strong> tab. It lists who still owes whom — everyone settles with PA — and
+            &ldquo;Record payment&rdquo; fills in the amount. Change it if you only paid part.
+          </p>
+          <p>
+            A payment comes off the payer&apos;s Final and the receiver&apos;s, and shows in the Split Table&apos;s
+            Payments column. Pay back ₱12,098.09 you owed and your Final goes to ₱0.00 — Settled.
+          </p>
+        </>
+      ),
+    },
+    {
+      id: "closing",
+      q: "What does closing a month do?",
+      a: (
+        <>
+          <p>
+            Once a month is done, PA <strong>closes</strong> it in Settle Up. A closed month is locked: nothing in it
+            can be changed, and everyone&apos;s Final is saved as next month&apos;s Prev Month Unsettled. Unpaid
+            amounts simply carry over.
+          </p>
+          <p>
+            Months close in order (July before August). If something needs fixing, PA can <strong>reopen</strong> the
+            latest closed month, fix it, and close it again.
+          </p>
+        </>
       ),
     },
   ];

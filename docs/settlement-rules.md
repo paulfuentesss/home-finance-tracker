@@ -142,8 +142,24 @@ stays in the month it was logged in.
 ## Months and carry-over
 
 **Final** = Prev Month Unsettled (opening) + Month Final − paid out + received — the same
-formula for everyone, the collector included. Payments (`payments`) record money actually
-changing hands; they come with the settle-up screens (next round).
+formula for everyone, the collector included.
+
+## Payments (Settle Up)
+
+A payment (`payments`) records money actually changing hands. It belongs to the month it's
+recorded in: the payer's `paid out` and the receiver's `received` both move toward ₱0.
+The Split Table shows them in the **Payments** column as `received − paid out` (− when
+you paid back, + when you received), which adds up to ₱0.00 across everyone.
+
+The Settle Up tab suggests the payments that settle everyone with the collector
+(`suggestedPayments` in `lib/settlement.ts`): whoever owes pays the collector their Final,
+and the collector pays whoever is owed. Recording all of them brings every Final to ₱0 except
+the collector's, which keeps only what doesn't add up (a Manual column that's over or short).
+Any other pair and partial amounts are allowed. Payments can be edited or deleted while the
+month is open.
+
+> August: Ate Toni → PA ₱18,424.54 · PA → Skyler ₱16,967.93 · Mayee → PA ₱12,098.09 ·
+> PJ → PA ₱6,315.13. Afterwards PA's Final is ₱0.02 (the Ice Maker difference).
 
 **Carry-over is live:** an open month's opening balance is the previous month's Final,
 computed on the fly back to the first month (or to the last closed month, whose stored
@@ -161,8 +177,28 @@ everyone currently active and carries over:
 Situational shared columns, advances and dates aren't copied. December is followed by
 January of the next year.
 
-**Closing / reopening** a month (locking it and saving closing balances) comes in the next
-round; edits to a closed month are already rejected.
+**After a closed month**, "Start next month" copies each person's stored closing balance as
+the new month's opening balance.
+
+## Closing and reopening a month
+
+**Closing** locks a month (`billing_periods.status = 'closed'`): every change to it is
+rejected. It saves each member's Final as `period_balances.closing_balance`, and — when the
+next month already exists — as that month's `opening_balance`, which is used from then on
+instead of the live carry-over. Unpaid amounts carry over; nobody has to be at ₱0.
+
+Rules (`lib/month-lock.ts`):
+
+- **Oldest-first:** a month can close only when the previous month is closed (or it's the
+  first month). Otherwise its opening balance could still change.
+- **Newest-first reopening:** only a month whose next month is open can reopen. Reopening
+  clears the closing balances; the next month goes back to live carry-over by itself.
+- **Blocked** while the month's numbers can't be calculated, or when someone with a non-zero
+  Final isn't in the next month (their balance would vanish — record the payment first).
+- The confirmation lists who is still unsettled, bills still pending, and Manual columns that
+  don't add up; none of them block closing.
+
+Back up the database after closing a month (`npm run db:backup`).
 
 ## Adding and removing members
 
@@ -172,7 +208,10 @@ round; edits to a closed month are already rejected.
 - **Removing** someone deactivates them (left out of future months). In open months where
   they have no advances, payments, bills paid (with an amount above ₱0), typed amounts in a
   Manual bill, or Manual column amounts, they're removed and the bills re-split; where they
-  do, they stay so that month's numbers don't change. The collector can't be removed.
+  do, they stay so that month's numbers don't change. They also stay in a month they carried
+  an unsettled balance into (Prev Month Unsettled ≠ ₱0), so it can't vanish; "Start next
+  month" refuses to leave out someone who moved out with an unsettled Final. The collector
+  can't be removed.
 - A ₱0 bill they're down as paying (copied from the previous month by "Start next month",
   before the real bill arrives) doesn't keep them in: it's handed to the collector and they
   leave that month.

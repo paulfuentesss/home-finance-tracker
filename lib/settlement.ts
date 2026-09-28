@@ -257,6 +257,33 @@ export function computeMonth(input: MonthInput): MonthResult {
   return { rows: members.map((m) => row(m.id)), columns };
 }
 
+export interface SuggestedPayment {
+  fromMemberId: MemberId;
+  toMemberId: MemberId;
+  amount: Centavos;
+}
+
+/**
+ * The payments that settle everyone with the collector: whoever owes pays the collector
+ * their Final, and the collector pays whoever is owed. Largest first. Recording all of them
+ * brings every Final to ₱0 except the collector's, which keeps only what doesn't add up
+ * (e.g. a Manual column that's ₱0.02 over).
+ */
+export function suggestedPayments(
+  balances: readonly { memberId: MemberId; balance: Centavos }[],
+  collectorId: MemberId | null,
+): SuggestedPayment[] {
+  if (collectorId === null) return [];
+  return balances
+    .filter((b) => b.memberId !== collectorId && b.balance !== 0)
+    .sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance))
+    .map((b) =>
+      b.balance > 0
+        ? { fromMemberId: b.memberId, toMemberId: collectorId, amount: b.balance }
+        : { fromMemberId: collectorId, toMemberId: b.memberId, amount: -b.balance },
+    );
+}
+
 /** Each member's Final this month = their opening balance next month. */
 export function openingBalancesFrom(result: MonthResult): Map<MemberId, Centavos> {
   return new Map(result.rows.map((r) => [r.member.id, r.balance]));

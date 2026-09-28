@@ -24,20 +24,33 @@ Runs locally against Supabase; not deployed (no login yet).
 - **Advances Log & Report** — every advance and bill paid, grouped by person (totals in the report);
   search and filters; log, edit (including moving to another column), delete; "Save & add
   another" for entering many receipts in a row.
+- **Settle Up** — who still owes whom (everyone settles with the collector), one tap to
+  record a payment (partial amounts fine), the month's payments (edit/delete), and a
+  Payments column in the Split Table so every row adds up.
+- **Closing / reopening a month** — locks the month and saves everyone's Final as next
+  month's Prev Month Unsettled; months close oldest-first and reopen newest-first.
+- **Keep-alive** — a GitHub Actions job reads the database twice a week so the free
+  Supabase project doesn't pause (see below).
 - **Manage Columns & People** — bill columns, shared columns (Auto equal ↔ Manual, who
   shares), Meralco points, adding and removing housemates.
 - **Months** — month picker, "Start <next month>" (copies bill columns at ₱0), loading
   placeholders while a month loads.
 - **How it works** — the household-facing explanation of the rules.
 
-**Not built yet**
+**Roadmap**
 
-- Login / auth (required before any public deploy)
-- Receipt uploads (the Receipts tab is laid out only)
-- Payments and a settle-up screen (the `payments` table exists; carry-over already uses it)
-- Closing / reopening a month
-- Email-imported bills (`status = 'pending'` is already ignored by the math)
-- A keep-alive job so the free Supabase project doesn't pause
+- [ ] Login / auth (required before any public deploy)
+- [ ] Receipt uploads (the Receipts tab is laid out only)
+- [x] Payments and a Settle Up screen
+- [x] Closing / reopening a month
+- [ ] Email-imported bills (`status = 'pending'` is already ignored by the math)
+- [x] A keep-alive job so the free Supabase project doesn't pause
+- [ ] A GIF for each household member, shown wherever that member appears (e.g. the Who
+      owes what cards and the advances log). Needs file storage, like receipt uploads.
+- [ ] PWA: installable, polished on mobile, and usable offline. Offline *viewing* (the last
+      months loaded, cached by a service worker) is the realistic first step; offline
+      *editing* needs a sync queue and conflict handling. Comes after login, because cached
+      pages put household finances on the device.
 
 ## First-time setup
 
@@ -123,10 +136,25 @@ brew link --force libpq
 
 ## Supabase free plan: the project goes to sleep
 
-Free Supabase projects **pause after 7 days without activity**. Since this app is used
-mostly around month-end, expect it to be asleep sometimes. When the app can't reach
-the database, open the Supabase dashboard and click **Restore project**. No data is
-lost. A weekly keep-alive job is planned.
+Free Supabase projects **pause after 7 days without activity**. When the app can't reach
+the database, open the Supabase dashboard and click **Restore project**. No data is lost.
+
+**Keep-alive job** (`.github/workflows/keep-alive.yml`): every Monday and Thursday at
+09:00 Manila, GitHub Actions reads one small table so the project never sits idle for 7
+days. Setup, once:
+
+```bash
+gh secret set DIRECT_URL   # paste the DIRECT_URL value from .env.local
+```
+
+- It only runs from the **`main`** branch, so it starts once this is merged. To run it by
+  hand: GitHub → **Actions → Keep Supabase awake → Run workflow**.
+- If the project is already paused, the run fails and GitHub emails you — your cue to click
+  **Restore project**.
+- GitHub turns off scheduled jobs in public repos after 60 days without commits. It emails
+  a warning first; one click re-enables it.
+- Supabase doesn't document exactly what counts as activity. If a "your project will be
+  paused" email still arrives, the job needs to do more than a read.
 
 ## Commit conventions
 
@@ -143,13 +171,14 @@ pre-commit hook runs ESLint, so lint errors block the commit.
 ## Project layout
 
 ```
-app/            Next.js routes: /periods/[year]/[month] (4 tabs) and /how-it-works
+app/            Next.js routes: /periods/[year]/[month] (5 tabs) and /how-it-works
+.github/        Keep-alive workflow for the free Supabase project
 components/     App components (inline-input.tsx = the shared edit-in-place field)
 components/ui/  shadcn/ui components
 db/             Drizzle schema (schema.ts) and database clients
 drizzle/        Generated SQL migrations (committed)
 docs/           Business rules
 hooks/          Client hooks (drag-to-scroll for the wide Split Table)
-lib/            Money, settlement and advances-log logic + tests
+lib/            Money, settlement, month-lock and advances-log logic + tests
 scripts/        Seed and backup scripts
 ```

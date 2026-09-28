@@ -23,9 +23,14 @@ export function dateLabel(isoDate: string): string {
   return `${dayLabel(isoDate)}, ${isoDate.slice(0, 4)}`;
 }
 
+/** A moment's calendar date in Manila as "YYYY-MM-DD" (e.g. when a month was closed). */
+export function dateInManila(moment: Date): string {
+  return moment.toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
+}
+
 /** Today's date in Manila as "YYYY-MM-DD" (for date inputs). */
 export function todayInManila(): string {
-  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
+  return dateInManila(new Date());
 }
 
 export const CATEGORY_LABELS = {

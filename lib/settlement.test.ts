@@ -13,6 +13,7 @@ import {
   openingBalancesFrom,
   SettlementError,
   splitOrder,
+  suggestedPayments,
   type MonthInput,
   type SettlementColumn,
   type SettlementMember,
@@ -305,5 +306,40 @@ describe("splitOrder", () => {
       "Skyler",
       "PJ",
     ]);
+  });
+});
+
+describe("suggestedPayments", () => {
+  const august = computeMonth(augustInput());
+  const balances = august.rows.map((r) => ({ memberId: r.member.id, balance: r.balance }));
+  const suggestions = suggestedPayments(balances, idOf("PA"));
+
+  it("settles everyone with the collector, largest first", () => {
+    const named = suggestions.map((s) => ({
+      from: members.find((m) => m.id === s.fromMemberId)!.name,
+      to: members.find((m) => m.id === s.toMemberId)!.name,
+      amount: fromCentavos(s.amount),
+    }));
+    expect(named).toEqual([
+      { from: "Ate Toni", to: "PA", amount: "18424.54" },
+      { from: "PA", to: "Skyler", amount: "16967.93" },
+      { from: "Mayee", to: "PA", amount: "12098.09" },
+      { from: "PJ", to: "PA", amount: "6315.13" },
+    ]);
+  });
+
+  it("recording them all brings every Final to ₱0 except what doesn't add up", () => {
+    const input = augustInput();
+    input.payments = suggestions.map((s) => ({ ...s, amount: fromCentavos(s.amount) }));
+    const settled = computeMonth(input);
+    for (const r of settled.rows) {
+      // The collector keeps only the Ice Maker's ₱0.02 difference.
+      expect(r.balance).toBe(r.member.name === "PA" ? 2 : 0);
+    }
+  });
+
+  it("suggests nothing without a collector or when everyone is settled", () => {
+    expect(suggestedPayments(balances, null)).toEqual([]);
+    expect(suggestedPayments([{ memberId: 1, balance: 0 }], 5)).toEqual([]);
   });
 });
