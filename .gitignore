@@ -43,3 +43,6 @@ next-env.d.ts
 
 # database backups (db:backup) — contain real household data
 /backups
+
+# private household notes — never committed (public repo)
+/.private

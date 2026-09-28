@@ -4,7 +4,8 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { FaqAccordion } from "@/components/faq-accordion";
 import { monthLabel } from "@/lib/format";
-import { MERALCO_POINT_ITEMS, MERALCO_POINTS_AS_OF } from "@/lib/household-config";
+import { paymentFee } from "@/lib/bill-email/fees";
+import { BILL_EMAIL_COLUMNS, MERALCO_POINT_ITEMS, MERALCO_POINTS_AS_OF } from "@/lib/household-config";
 import { formatPHP } from "@/lib/money";
 import { getLatestPointsBills } from "@/lib/periods";
 import { cn } from "@/lib/utils";
@@ -16,6 +17,12 @@ export default async function HowItWorksPage() {
   await connection();
   const { period, bills, members } = await getLatestPointsBills();
   const back = period ? `/periods/${period.year}/${period.month}` : "/";
+  // From the BILL_PAYMENT_FEES setting, so this page never shows an old fee.
+  const feeList = (Object.keys(BILL_EMAIL_COLUMNS) as (keyof typeof BILL_EMAIL_COLUMNS)[])
+    .map((provider) => ({ column: BILL_EMAIL_COLUMNS[provider], ...paymentFee(provider) }))
+    .filter((f) => f.fee > 0);
+  const fees = feeList.map((f) => `${formatPHP(f.fee)} for ${f.column}${f.note ? `, the ${f.note}` : ""}`);
+  const firstFeeNote = feeList[0]?.note ?? "payment fee";
 
   const faqs = [
     {
@@ -153,9 +160,9 @@ export default async function HowItWorksPage() {
             2026&rdquo;) marked <strong>Pending</strong>.
           </p>
           <p>
-            The small fee for paying it is added and shared like the bill: ₱15.00 for Meralco (Bayad app) and ₱7.00
-            for Water (Dragonpay). The column says so, e.g. &ldquo;Emailed bill ₱15,448.59 + ₱15.00 Bayad app
-            convenience fee&rdquo;.
+            The small fee for paying it is added and shared like the bill
+            {fees.length > 0 ? `: ${fees.join("; ")}` : ""}. The column says so, e.g. &ldquo;Emailed bill ₱… + ₱…
+            {fees.length > 0 ? ` ${firstFeeNote}` : " payment fee"}&rdquo;.
           </p>
           <p>
             A pending bill is <strong>not counted yet</strong>: nobody&apos;s totals change until PA checks it and taps{" "}
