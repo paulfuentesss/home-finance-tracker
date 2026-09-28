@@ -42,6 +42,7 @@ export default async function ManagePage({ params }: PageProps<"/periods/[year]/
             snippet: e.snippet,
             reason: e.reason,
             amount: e.amount === null ? null : toCentavos(e.amount),
+            fee: e.fee === null ? 0 : toCentavos(e.fee),
             billYear: e.billYear,
             billMonth: e.billMonth,
             canRetry: e.provider !== null && e.amount !== null && e.billYear !== null,

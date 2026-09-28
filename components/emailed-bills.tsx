@@ -19,6 +19,24 @@ import { dateLabel, monthLabel } from "@/lib/format";
 import { formatPHP, type Centavos } from "@/lib/money";
 import type { ViewBill } from "@/lib/periods";
 
+/** Under an emailed bill's amount: what the email said, and the payment fee that was added. */
+export function EmailedNote({ bill }: { bill: ViewBill }) {
+  if (!bill.emailed) return null;
+  const { amount, fee, feeNote } = bill.emailed;
+  return (
+    <p className="mx-auto mt-1 max-w-40 font-sans text-[11px] whitespace-normal text-muted-foreground">
+      {fee > 0 ? (
+        <>
+          Emailed bill {formatPHP(amount)} + {formatPHP(fee)}
+          {feeNote ? ` ${feeNote}` : " payment fee"}
+        </>
+      ) : (
+        <>From email</>
+      )}
+    </p>
+  );
+}
+
 /** Under a pending bill's amount: it isn't counted until someone confirms it. */
 export function PendingBillActions({ bill }: { bill: ViewBill }) {
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +49,7 @@ export function PendingBillActions({ bill }: { bill: ViewBill }) {
 
   return (
     <div className="mt-1.5 font-sans">
-      <p className="text-[11px] font-medium text-amber-700">From email · not counted yet</p>
+      <p className="text-[11px] font-medium text-amber-700">Not counted until confirmed</p>
       <div className="mt-1 flex items-center justify-center gap-1">
         <Button size="xs" disabled={pending} onClick={() => run(() => confirmBill(bill.id))}>
           <Check />
@@ -59,6 +77,8 @@ export interface InboxEmail {
   snippet: string;
   reason: string | null;
   amount: Centavos | null;
+  /** Payment fee that will be added (0 when none). */
+  fee: Centavos;
   billYear: number | null;
   billMonth: number | null;
   /** Parsed, so Retry can place it once the month or column is ready. */
@@ -106,6 +126,7 @@ function InboxRow({ email }: { email: InboxEmail }) {
         {email.amount !== null && (
           <span className="font-mono tabular-nums">
             {formatPHP(email.amount)}
+            {email.fee > 0 && <span className="font-sans text-muted-foreground"> + {formatPHP(email.fee)} fee</span>}
             {email.billYear && email.billMonth && (
               <span className="font-sans text-muted-foreground"> · {monthLabel(email.billYear, email.billMonth)}</span>
             )}

@@ -32,8 +32,10 @@ Runs locally against Supabase; not deployed (no login yet).
 - **Keep-alive** — a GitHub Actions job reads the database twice a week so the free
   Supabase project doesn't pause (see below).
 - **Email-imported bills** — Meralco, Water and PLDT bill emails fill their month's column as
-  **Pending** (not counted until confirmed; Confirm / Discard in the Split Table); ones that
-  don't fit wait in the Bill Inbox (Manage). Tried locally with `npm run bills:import`.
+  **Pending** (not counted until confirmed; Confirm / Discard in the Split Table), with the
+  usual payment fee added and noted (Meralco ₱15 Bayad, Water ₱7 Dragonpay — set in
+  `BILL_PAYMENT_FEES`, `lib/household-config.ts`); ones that don't fit wait in the Bill Inbox
+  (Manage). Tried locally with `npm run bills:import`.
 - **Manage Columns & People** — bill columns, shared columns (Auto equal ↔ Manual, who
   shares), Meralco points, adding and removing housemates.
 - **Months** — month picker, "Start <next month>" (copies bill columns at ₱0), loading
@@ -46,7 +48,7 @@ Runs locally against Supabase; not deployed (no login yet).
 - [ ] Receipt uploads (the Receipts tab is laid out only)
 - [x] Payments and a Settle Up screen
 - [x] Closing / reopening a month
-- [x] Email-imported bills (parsing, Pending bills, Bill Inbox)
+- [x] Email-imported bills (parsing, Pending bills, Bill Inbox, payment fees)
 - [ ] Bill inbox address: forwarded emails reach the app by webhook (after login + deploy)
 - [x] A keep-alive job so the free Supabase project doesn't pause
 - [ ] A GIF for each household member, shown wherever that member appears (e.g. the Who

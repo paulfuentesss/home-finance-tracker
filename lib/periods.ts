@@ -41,6 +41,8 @@ export interface ViewBill {
   status: "confirmed" | "pending";
   /** "email" = filled in from a bill email. */
   source: "manual" | "email";
+  /** The email it came from: the billed amount and the payment fee added (why the total is higher). */
+  emailed: { amount: Centavos; fee: Centavos; feeNote: string | null } | null;
   splitMode: SplitMode;
   dueDate: string | null;
   paidOn: string | null;
@@ -135,7 +137,7 @@ const loadPeriods = (executor: Executor = db) =>
     orderBy: [asc(billingPeriods.year), asc(billingPeriods.month)],
     with: {
       balances: { with: { member: true } },
-      billItems: { with: { shares: true }, orderBy: (b) => [asc(b.id)] },
+      billItems: { with: { shares: true, emails: true }, orderBy: (b) => [asc(b.id)] },
       sharedColumns: { with: { members: true }, orderBy: (c) => [asc(c.id)] },
       advances: { orderBy: (a) => [asc(a.spentOn), asc(a.id)] },
       payments: { orderBy: (p) => [asc(p.paidOn), asc(p.id)] },
@@ -225,6 +227,7 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
       paidById: b.paidById,
       status: b.status,
       source: b.source,
+      emailed: emailedOf(b.emails),
       splitMode: b.splitMode,
       dueDate: b.dueDate,
       paidOn: b.paidOn,
@@ -324,6 +327,16 @@ export async function getLatestPointsBills() {
     period: latest,
     bills: (view?.bills ?? []).filter((b) => b.splitMode === "points"),
     members: view?.members ?? [],
+  };
+}
+
+function emailedOf(emails: LoadedPeriod["billItems"][number]["emails"]): ViewBill["emailed"] {
+  const email = emails.find((e) => e.status === "imported" && e.amount !== null);
+  if (!email) return null;
+  return {
+    amount: toCentavos(email.amount!),
+    fee: email.fee === null ? 0 : toCentavos(email.fee),
+    feeNote: email.feeNote,
   };
 }
 

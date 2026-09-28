@@ -235,11 +235,16 @@ Meralco, Water (Manila Water) and PLDT email their bills. Each email is read
   `BILL_EMAIL_COLUMNS` in `lib/household-config.ts`) with `source = 'email'`,
   `status = 'pending'` and its due date. Shares are computed as usual (Meralco by points), so
   confirming only flips the status.
+- **Payment fee:** the fixed fee of the way PA pays each bill is added on top
+  (`BILL_PAYMENT_FEES` in `lib/household-config.ts`): Meralco ₱15.00 (Bayad app convenience
+  fee), Water ₱7.00 (Dragonpay fee on the Manila Water QR), PLDT ₱0. It's part of the bill, so
+  **everyone shares it**, and the column notes it ("Emailed bill ₱15,448.59 + ₱15.00 Bayad app
+  convenience fee"). August 2026 with the fees = the sheet exactly: Meralco ₱15,463.59, Water
+  ₱2,173.63. Change the setting when the way of paying changes; bills already imported keep
+  the fee they came in with (`bill_emails.fee`).
 - **Pending is ignored by the settlement** until someone confirms it. Before confirming, the
-  amount can still be changed — e.g. to what was actually paid, payment-channel fee included
-  (August 2026: the sheet's Meralco and Water are ₱15.00 and ₱7.00 above the emailed amounts).
-  **Discard** sets the column back to ₱0.00 (split and points unchanged) and sets the email
-  aside for good.
+  amount can still be changed. **Discard** sets the column back to ₱0.00 (split and points
+  unchanged) and sets the email aside for good.
 - **It never overwrites an amount.** When the month isn't started or is closed, the column is
   missing or split Manual, or the column already has an amount, the email stays in the Bill
   inbox (Manage tab) with the reason, to Retry or Dismiss. Deleting a column that an email

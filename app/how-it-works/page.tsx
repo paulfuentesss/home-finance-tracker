@@ -153,9 +153,14 @@ export default async function HowItWorksPage() {
             2026&rdquo;) marked <strong>Pending</strong>.
           </p>
           <p>
+            The small fee for paying it is added and shared like the bill: ₱15.00 for Meralco (Bayad app) and ₱7.00
+            for Water (Dragonpay). The column says so, e.g. &ldquo;Emailed bill ₱15,448.59 + ₱15.00 Bayad app
+            convenience fee&rdquo;.
+          </p>
+          <p>
             A pending bill is <strong>not counted yet</strong>: nobody&apos;s totals change until PA checks it and taps{" "}
-            <strong>Confirm</strong>. If what was actually paid is a little different (a payment fee, say), PA changes
-            the amount first. <strong>Discard</strong> puts the bill back to ₱0.00 to type in by hand.
+            <strong>Confirm</strong>. PA can still change the amount first. <strong>Discard</strong> puts the bill back
+            to ₱0.00 to type in by hand.
           </p>
           <p>
             An emailed bill never replaces an amount that&apos;s already there. If its month hasn&apos;t started yet,

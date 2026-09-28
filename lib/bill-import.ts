@@ -3,12 +3,13 @@
 // (with `createDb()`), so it takes the database as a parameter and never imports "@/db".
 //
 // Every email gets a `bill_emails` row — the Bill inbox. A readable one then fills its month's
-// ₱0 bill column as *pending* (not counted until confirmed); anything that doesn't fit stays
-// in the inbox as `unmatched` with the reason.
+// ₱0 bill column as *pending* (not counted until confirmed), with the usual payment fee added;
+// anything that doesn't fit stays in the inbox as `unmatched` with the reason.
 
 import { and, eq } from "drizzle-orm";
 import type { Database } from "@/db/client";
 import { billEmails, billingPeriods, billItems, type BillEmailRow } from "@/db/schema";
+import { paymentFee } from "@/lib/bill-email/fees";
 import { parseBillEmail, type BillEmail } from "@/lib/bill-email/parse";
 import { pointsFor, writeShares, type Tx } from "@/lib/bill-shares";
 import { monthLabel } from "@/lib/format";
@@ -28,6 +29,8 @@ class NoFit extends Error {}
 export async function importBillEmail(db: Database, email: BillEmail): Promise<ImportOutcome> {
   const parsed = parseBillEmail(email);
   const bill = parsed.ok ? parsed.bill : null;
+  // Kept on the row, so changing BILL_PAYMENT_FEES later doesn't change bills already in.
+  const fee = bill ? paymentFee(bill.provider) : null;
   return db.transaction(async (tx) => {
     // Any unique conflict — the same Message-ID, or a live email for the same provider and
     // month (a reminder or re-forward) — means there's nothing new to do.
@@ -43,6 +46,8 @@ export async function importBillEmail(db: Database, email: BillEmail): Promise<I
         snippet: bill ? "" : email.text.replace(/\s+/g, " ").trim().slice(0, 500),
         provider: bill?.provider ?? (parsed.ok ? null : parsed.provider),
         amount: bill ? fromCentavos(bill.amount) : null,
+        fee: fee ? fromCentavos(fee.fee) : null,
+        feeNote: fee?.note ?? null,
         dueDate: bill?.dueDate ?? null,
         periodStart: bill?.periodStart ?? null,
         periodEnd: bill?.periodEnd ?? null,
@@ -114,10 +119,12 @@ async function fillColumn(tx: Tx, row: BillEmailRow): Promise<number> {
 
   const order = splitOrder(period.balances.map((b) => b.member));
   const points = bill.splitMode === "points" ? pointsFor(bill.shares, order) : null;
-  const shares = computeBillShares(bill.splitMode, toCentavos(amount), order, { points: points ?? undefined });
+  // The bill plus the usual payment fee: shared by everyone, like the bill.
+  const total = toCentavos(amount) + (row.fee === null ? 0 : toCentavos(row.fee));
+  const shares = computeBillShares(bill.splitMode, total, order, { points: points ?? undefined });
   await tx
     .update(billItems)
-    .set({ totalAmount: amount, dueDate: row.dueDate ?? bill.dueDate, source: "email", status: "pending" })
+    .set({ totalAmount: fromCentavos(total), dueDate: row.dueDate ?? bill.dueDate, source: "email", status: "pending" })
     .where(eq(billItems.id, bill.id));
   await writeShares(tx, bill.id, shares, points);
   return bill.id;

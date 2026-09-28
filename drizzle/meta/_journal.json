@@ -29,6 +29,13 @@
       "when": 1790582012376,
       "tag": "0003_bill-emails",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790584596501,
+      "tag": "0004_bill-email-fees",
+      "breakpoints": true
     }
   ]
 }
