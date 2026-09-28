@@ -11,7 +11,7 @@ import {
   type ActionState,
 } from "@/app/periods/[year]/[month]/actions";
 import { Balance } from "@/components/balance";
-import { PendingBillActions } from "@/components/emailed-bills";
+import { EmailedNote, PendingBillActions } from "@/components/emailed-bills";
 import { InlineInput, type FormAction } from "@/components/inline-input";
 import { useDragScroll } from "@/hooks/use-drag-scroll";
 import { dayLabel, monthLabel } from "@/lib/format";
@@ -95,6 +95,7 @@ export function SplitTable({ view }: { view: PeriodView }) {
                     <span className="font-semibold">{formatPHP(bill.total)}</span>
                   )}
                   {bill.splitMode === "manual" && <div className="mt-1 text-[11px] text-muted-foreground">sum of shares</div>}
+                  <EmailedNote bill={bill} />
                   {bill.status === "pending" && editable && <PendingBillActions bill={bill} />}
                 </td>
               ))}

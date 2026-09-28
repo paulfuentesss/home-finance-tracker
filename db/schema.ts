@@ -246,6 +246,9 @@ export const billEmails = pgTable(
     // Parsed values; null when the email couldn't be read.
     provider: billProvider("provider"),
     amount: money("amount"),
+    // The payment fee added on import (BILL_PAYMENT_FEES at the time) and what it's for.
+    fee: money("fee"),
+    feeNote: text("fee_note"),
     dueDate: date("due_date", { mode: "string" }),
     periodStart: date("period_start", { mode: "string" }),
     periodEnd: date("period_end", { mode: "string" }),
@@ -306,6 +309,7 @@ export const billItemsRelations = relations(billItems, ({ one, many }) => ({
   period: one(billingPeriods, { fields: [billItems.periodId], references: [billingPeriods.id] }),
   paidBy: one(members, { fields: [billItems.paidById], references: [members.id] }),
   shares: many(billItemShares),
+  emails: many(billEmails),
 }));
 
 export const billItemSharesRelations = relations(billItemShares, ({ one }) => ({

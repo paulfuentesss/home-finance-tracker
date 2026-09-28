@@ -17,3 +17,15 @@ export const BILL_EMAIL_COLUMNS = {
   water: "Water",
   pldt: "PLDT Wifi",
 } as const;
+
+/**
+ * The fixed fee each way of paying adds on top of the emailed bill. It's added to the bill
+ * when the email is imported, split by everyone like the bill itself, and shown as a note on
+ * the column. Update it when PA changes how a bill is paid; bills already imported keep the
+ * fee they were imported with. Amounts are strings (pesos), converted with toCentavos.
+ */
+export const BILL_PAYMENT_FEES = {
+  meralco: { fee: "15.00", note: "Bayad app convenience fee" },
+  water: { fee: "7.00", note: "Dragonpay fee (Manila Water QR)" },
+  pldt: { fee: "0.00", note: null },
+} as const;

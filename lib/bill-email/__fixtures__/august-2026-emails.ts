@@ -3,8 +3,8 @@
 // `npm run bills:import` for trying the import locally.
 //
 // The sheet's Meralco (₱15,463.59) and Water (₱2,173.63) are ₱15.00 and ₱7.00 above these
-// emails: what was actually paid, payment-channel fee included. The imported amount stays
-// editable until the bill is confirmed.
+// emails: the Bayad convenience fee and the Dragonpay fee (receipts from Aug 31), which the
+// import adds (BILL_PAYMENT_FEES in lib/household-config.ts).
 
 import type { BillEmail } from "@/lib/bill-email/parse";
 
