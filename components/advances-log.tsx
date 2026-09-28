@@ -217,7 +217,6 @@ export function AdvancesLog({ view }: { view: PeriodView }) {
               onToggle={() => toggle(group.memberId)}
               editable={editable}
               columnCount={columnCount}
-              isFiltered={isFiltered}
               onEdit={(advanceId) => setEditing(advanceOf.get(advanceId) ?? null)}
             />
           ))}
@@ -244,7 +243,6 @@ function PersonGroup({
   onToggle,
   editable,
   columnCount,
-  isFiltered,
   onEdit,
 }: {
   group: LogGroup;
@@ -253,7 +251,6 @@ function PersonGroup({
   onToggle: () => void;
   editable: boolean;
   columnCount: number;
-  isFiltered: boolean;
   onEdit: (advanceId: number) => void;
 }) {
   return (
@@ -271,13 +268,6 @@ function PersonGroup({
             <span className="font-semibold">{group.name}</span>
             <span className="text-xs text-muted-foreground">
               {group.rows.length} item{group.rows.length === 1 ? "" : "s"}
-            </span>
-            {/* Everything they paid = their Own Advance (−) in the Split Table. */}
-            <span className="ml-auto font-mono text-sm font-semibold tabular-nums">
-              {formatPHP(group.subtotal)}
-              {isFiltered && group.subtotal !== group.fullSubtotal && (
-                <span className="font-normal text-muted-foreground"> of {formatPHP(group.fullSubtotal)}</span>
-              )}
             </span>
           </button>
         </th>

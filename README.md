@@ -21,7 +21,7 @@ Runs locally against Supabase; not deployed (no login yet).
   shared advance columns, Month Final, Prev Month Unsettled carry-over and Final, plus a
   "Who owes what" summary that reads well on a phone. Amounts are edited in place (Enter or
   click away saves, Escape undoes).
-- **Advances Log & Report** — every advance and bill paid, grouped by person with subtotals;
+- **Advances Log & Report** — every advance and bill paid, grouped by person (totals in the report);
   search and filters; log, edit (including moving to another column), delete; "Save & add
   another" for entering many receipts in a row.
 - **Manage Columns & People** — bill columns, shared columns (Auto equal ↔ Manual, who
