@@ -18,7 +18,7 @@ each one gets a shortcut or two:
 | ESLint | Catches mistakes and style issues | `lint` |
 | Vitest | Unit tests | `test`, `test:watch` |
 | Drizzle Kit | Database schema and migrations | `db:generate`, `db:migrate`, `db:studio` |
-| tsx + `scripts/` | Runs our own one-off TypeScript scripts | `db:seed`, `db:seed:august`, `db:backup`, `bills:import` |
+| tsx + `scripts/` | Runs our own one-off TypeScript scripts | `db:seed`, `db:seed:august`, `db:backup`, `bills:import`, `auth:invite` |
 | Husky | Git hooks | `prepare` (runs automatically) |
 
 The `db:` and `test:` prefixes are just a naming convention for grouping.
@@ -63,6 +63,13 @@ The `db:` and `test:` prefixes are just a naming convention for grouping.
 | Command | What it does | When to run it |
 |---|---|---|
 | `npm run bills:import -- meralco water pldt` | Imports bill emails the way the future inbox address will: the August 2026 sample emails by name, or a `.json` email file (`{ messageId, from, subject, receivedAt, text }`) | Trying the email import locally ([features/email-bills.md](features/email-bills.md)) |
+
+## Login
+
+| Command | What it does | When to run it |
+|---|---|---|
+| `npm run auth:invite -- PA you@gmail.com` | Gives a member a login for that email (Google or an emailed code), replacing any login they had — the same as typing it in Manage | Once for PA's own login during setup; to change PA's login email; to get back in if it's wrong ([features/auth.md](features/auth.md)) |
+| `npm run auth:invite -- <name> --remove` | Takes a member's login away | Rarely — clearing the email in Manage does the same for everyone but PA |
 
 ## Automatic (you never run these)
 

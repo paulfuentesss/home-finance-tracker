@@ -6,6 +6,7 @@ import { asc, desc } from "drizzle-orm";
 import { cache } from "react";
 import { billingPeriods, db } from "@/db";
 import type { Database } from "@/db/client";
+import { requireViewer } from "@/lib/auth";
 import { dateInManila } from "@/lib/format";
 import { memberDotClass } from "@/lib/members";
 import { closeCheck, reopenCheck, type LockCheck } from "@/lib/month-lock";
@@ -146,7 +147,12 @@ const loadPeriods = (executor: Executor = db) =>
 
 type LoadedPeriod = Awaited<ReturnType<typeof loadPeriods>>[number];
 
+// Page reads go through getLatestPeriod / getPeriodView / getLatestPointsBills, and each one
+// requires a signed-in member first (lib/auth.ts). computePeriod is also used by actions,
+// which check the caller in run().
+
 export async function getLatestPeriod(): Promise<PeriodSummary | null> {
+  await requireViewer();
   const [latest] = await db
     .select({ id: billingPeriods.id, year: billingPeriods.year, month: billingPeriods.month })
     .from(billingPeriods)
@@ -198,10 +204,13 @@ export async function computePeriod(executor: Executor, year: number, month: num
  * share a single database round trip per request.
  */
 export const getPeriodView = cache(async (year: number, month: number): Promise<PeriodView | null> => {
+  await requireViewer();
   const computed = await computePeriod(db, year, month);
   if (!computed) return null;
   const { all, index, period, result, issue } = computed;
 
+  // Field by field, never a spread: member rows hold login details (email, auth_user_id) that
+  // must not reach the browser.
   const members = periodMembers(period).map((m) => ({
     id: m.id,
     name: m.name,
@@ -320,6 +329,7 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
 
 /** Points-mode bills in the latest month, for the "How it works" page. */
 export async function getLatestPointsBills() {
+  await requireViewer();
   const latest = await getLatestPeriod();
   if (!latest) return { period: null, bills: [] as ViewBill[], members: [] as ViewMember[] };
   const view = await getPeriodView(latest.year, latest.month);

@@ -43,7 +43,7 @@ export function InlineInput({
   label: string;
   prefix?: string;
   suffix?: string;
-  inputMode?: "decimal" | "text";
+  inputMode?: "decimal" | "text" | "email";
   maxLength?: number;
   /** false: an emptied field (e.g. a name) is put back instead of saved. */
   allowEmpty?: boolean;

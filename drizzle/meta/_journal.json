@@ -36,6 +36,13 @@
       "when": 1790584596501,
       "tag": "0004_bill-email-fees",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790592454409,
+      "tag": "0005_member-logins",
+      "breakpoints": true
     }
   ]
 }

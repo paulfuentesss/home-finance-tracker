@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { monthLabel } from "@/lib/format";
+import { useViewer } from "@/components/viewer-context";
+import { isAdmin } from "@/lib/permissions";
 import type { PeriodSummary } from "@/lib/periods";
 import { cn } from "@/lib/utils";
 
@@ -37,9 +39,11 @@ function useTabSuffix() {
 
 export function TabNav({ base }: { base: string }) {
   const suffix = useTabSuffix();
+  // Manage is PA's (the page itself redirects anyone else).
+  const tabs = isAdmin(useViewer()) ? TABS : TABS.filter((t) => t.href !== "/manage");
   return (
     <nav aria-label="Sections" className="-mb-px flex gap-1 overflow-x-auto">
-      {TABS.map(({ href, label, short, icon: Icon }) => {
+      {tabs.map(({ href, label, short, icon: Icon }) => {
         const active = suffix === href;
         return (
           <Link

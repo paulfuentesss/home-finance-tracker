@@ -5,10 +5,12 @@ import { InlineInput } from "@/components/inline-input";
 import { formatPHP } from "@/lib/money";
 import type { PeriodView, ViewBill } from "@/lib/periods";
 import { cn } from "@/lib/utils";
+import { useCanEdit } from "@/components/viewer-context";
 
 // Meralco is always split by points; this is the one place to change the allocation.
 export function MeralcoPoints({ view }: { view: PeriodView }) {
-  const editable = view.period.status === "open";
+  // PA in an open month; everyone else sees plain values.
+  const editable = useCanEdit(view.period.status);
   const bills = view.bills.filter((b) => b.splitMode === "points");
   if (bills.length === 0) return null;
 

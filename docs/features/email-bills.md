@@ -2,9 +2,9 @@
 
 ## Status
 🚧 Partly built. Reading emails, Pending bills, the Bill Inbox and payment fees work.
-**Missing:** the inbox address that forwarded emails arrive at — it needs the app online,
-which needs login first ([TODO.md](../TODO.md)). Until then, emails are imported with
-`npm run bills:import`.
+**Missing:** the inbox address that forwarded emails arrive at — it needs the app online
+([TODO.md](../TODO.md)). Until then, emails are imported with `npm run bills:import`.
+Confirming, discarding and the Bill Inbox are PA's ([auth.md](auth.md)).
 
 ## What it does
 - Reads Meralco, Water (Manila Water) and PLDT bill emails: amount, due date, billing period,
@@ -40,7 +40,9 @@ webhook and from `scripts/import-email.mts`. Test emails: [testing.md](../testin
 [Closing and reopening a month](../settlement-rules.md#closing-and-reopening-a-month)
 
 ## Open items
-- The bill inbox address (webhook) — after login + deploy ([TODO.md](../TODO.md)).
+- The bill inbox address (webhook) — after deploy ([TODO.md](../TODO.md)). Its Route Handler
+  is public, so it checks the provider's signature itself and joins `PUBLIC_PATHS` in
+  `proxy.ts` and the allowlist in `lib/actions-guard.test.ts` ([auth.md](auth.md)).
 - Idea: read payment-confirmation emails to fill "Date paid" ([TODO.md](../TODO.md)).
 
 ## Built in

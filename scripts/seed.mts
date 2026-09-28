@@ -13,7 +13,8 @@ const { db, client } = createDb(url, { max: 1 });
 try {
   const inserted = await db
     .insert(members)
-    .values(HOUSEHOLD_MEMBERS.map((m) => ({ ...m })))
+    // The collector (PA) is the admin; logins are added later with `npm run auth:invite`.
+    .values(HOUSEHOLD_MEMBERS.map((m) => ({ ...m, role: m.isCollector ? ("admin" as const) : ("member" as const) })))
     .onConflictDoNothing({ target: members.name })
     .returning({ name: members.name });
   console.log(

@@ -67,7 +67,21 @@ Part of every change, in the same PR — not a separate chore.
 - Schema changes: `npm run db:generate`, review the SQL, then `npm run db:migrate`. Never `push`.
 - Every table has RLS enabled with no policies (blocks Supabase's public Data API).
   Keep `.enableRLS()` on new tables.
-- **No public deploy until auth exists**: the app shows household finances.
+- **Login guards everything** (`docs/features/auth.md`). Server Actions and Route Handlers are
+  public endpoints:
+  - Every Server Action goes through `run("admin" | "member", …)`; only the three advance
+    actions are `"member"`, and they check ownership with `canManageAdvance`.
+  - Page reads go through `lib/auth.ts` (`requireViewer` in `lib/periods.ts`); a page that
+    queries `db` directly checks the viewer itself (see the Manage page).
+  - Permission rules live in `lib/permissions.ts` (pure, tested). Members match on
+    `auth_user_id` only — never the email in the token. Never spread member rows into what
+    goes to the browser.
+  - A new Route Handler does its own auth, joins `PUBLIC_PATHS` in `proxy.ts` if public, and
+    the allowlist in `lib/actions-guard.test.ts`.
+  - `SUPABASE_SECRET_KEY` is read only in `lib/supabase/admin-server.ts` (and scripts).
+  - Storage policies must never grant access to every `authenticated` user.
+- **Going online** follows `docs/TODO.md` → Before going online (production URL in Supabase's
+  Site URL and Redirect URLs, env vars on the host).
 - Editable values in tables/lists use `components/inline-input.tsx` (save on Enter/blur,
   Escape reverts, readOnly while saving). Dialog forms submit through `useDialogForm` in
   `components/entry-dialogs.tsx`. Both use `onSubmit` + `startTransition` instead of
@@ -88,10 +102,14 @@ Part of every change, in the same PR — not a separate chore.
 | `tsc` errors about `LayoutProps` / `PageProps` | Route types are generated | Use `npm run typecheck` (runs `next typegen` first) |
 | A form loses everything typed when the server returns an error | `<form action={…}>` makes React reset the form after the action, even when it returns `{ ok: false }` | Submit via `onSubmit` + `startTransition(() => dispatch(formData))` — see `InlineInput` / `useDialogForm` |
 | A `loading.tsx` doesn't show when switching months | `loading.tsx` doesn't cover the `layout.tsx` in its own folder, and `[month]/layout.tsx` loads the data | Month switches use `app/periods/loading.tsx`; tab switches use `[month]/loading.tsx` |
+| `npm run auth:invite` fails: "Node.js detected but native WebSocket not found" | Node 20 or older; `@supabase/supabase-js` needs Node 22+ | `nvm install && nvm use` (`.nvmrc` pins 24), `nvm alias default 24`, then `npm install` |
+| Every page is a plain "Login isn't configured" message | `proxy.ts` needs `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Add them to `.env.local` (`docs/setup.md` step 5), restart `npm run dev` |
+| Signed in with Google but told "not invited" | The Google address differs from the invited one (dots, a different account), or the member was removed | Invite the exact address Google shows (`docs/features/auth.md`); PA can always fix his own with `npm run auth:invite` |
 | `CLAUDE.md` shows as modified after `npm run dev` | `next dev` appends the Next.js agent-rules block below | Expected — commit it |
 
 **Fast dev loop:** make the change → `npm run typecheck && npx eslint && npm test` once per chunk (tests run in < 1 s) →
-`curl` the pages through the running dev server → let Paul check in the browser. Money/settlement changes: update
+`curl` only confirms the redirect to `/login` (every page needs a login; no dev bypass) → let Paul check the signed-in
+pages in the browser. Money/settlement changes: update
 `lib/__fixtures__/august-2026.ts` expectations, which mirror the household sheet.
 
 <!-- BEGIN:nextjs-agent-rules -->

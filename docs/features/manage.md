@@ -10,7 +10,12 @@
   who shares an Auto equal column.
 - **Meralco points:** each member's points for the month.
 - **Housemates:** add (joins every open month) and remove (deactivated, never deleted; stays in
-  months where they have records or an unsettled balance).
+  months where they have records or an unsettled balance). Removing someone also takes their
+  login away.
+- **Login email** per housemate ([auth.md](auth.md)): typing one invites them (Google or an
+  emailed code); clearing it takes the login away. PA's own is changed with
+  `npm run auth:invite`.
+- The whole tab is PA's: anyone else is sent back to the month.
 - **Bill Inbox** card ([email-bills.md](email-bills.md)).
 
 ## How it's built
@@ -21,7 +26,8 @@
 - Actions (`app/periods/[year]/[month]/actions.ts`): `addBill`, `renameBill`, `deleteBill`,
   `updateBillPoints`, `addSharedColumn`, `setSharedColumnMode`, `updateSharedColumnMembers`,
   `renameSharedColumn`, `deleteSharedColumn`, `addMember`, `removeMember` (with
-  `resplitPeriodBills` and `hasRecordsIn`).
+  `resplitPeriodBills` and `hasRecordsIn`), `updateMemberEmail` (through `lib/invites.ts`).
+  All `run("admin", …)`.
 - Shares are written only through `computeBillShares` (`lib/settlement.ts`) and `writeShares`
   (`lib/bill-shares.ts`).
 - Household facts that aren't data (what the points are based on): `lib/household-config.ts`.

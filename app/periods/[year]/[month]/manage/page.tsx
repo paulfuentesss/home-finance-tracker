@@ -1,19 +1,25 @@
 import { asc, desc, eq } from "drizzle-orm";
+import { redirect } from "next/navigation";
 import { BillInbox } from "@/components/emailed-bills";
 import { ManageBills } from "@/components/manage-bills";
 import { ManageMembers } from "@/components/manage-members";
 import { ManageSharedColumns } from "@/components/manage-shared-columns";
 import { MeralcoPoints } from "@/components/meralco-points";
 import { billEmails, db, members } from "@/db";
+import { requireViewer } from "@/lib/auth";
 import { dateInManila } from "@/lib/format";
 import { memberDotClass } from "@/lib/members";
 import { toCentavos } from "@/lib/money";
+import { isAdmin } from "@/lib/permissions";
 import { getPeriodView } from "@/lib/periods";
 import { parsePeriodParams } from "../params";
 
-// Tab 4: Manage Columns & People.
+// Tab 4: Manage Columns & People. PA only — it reads the database directly (logins included),
+// so it checks the viewer itself instead of relying on getPeriodView.
 export default async function ManagePage({ params }: PageProps<"/periods/[year]/[month]/manage">) {
   const { year, month } = await parsePeriodParams(params);
+  const viewer = await requireViewer();
+  if (!isAdmin(viewer)) redirect(`/periods/${year}/${month}`);
   const view = (await getPeriodView(year, month))!;
   // Everyone currently in the household (not just this month's members).
   const active = await db.query.members.findMany({
@@ -50,7 +56,15 @@ export default async function ManagePage({ params }: PageProps<"/periods/[year]/
         />
         <MeralcoPoints view={view} />
         <ManageMembers
-          members={active.map((m) => ({ id: m.id, name: m.name, isCollector: m.isCollector, dotClass: memberDotClass(m.sortOrder - 1) }))}
+          viewerId={viewer.memberId}
+          members={active.map((m) => ({
+            id: m.id,
+            name: m.name,
+            isCollector: m.isCollector,
+            dotClass: memberDotClass(m.sortOrder - 1),
+            email: m.email,
+            linked: m.authUserId !== null,
+          }))}
         />
       </div>
     </div>

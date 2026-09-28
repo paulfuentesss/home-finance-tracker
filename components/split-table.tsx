@@ -18,6 +18,7 @@ import { dayLabel, monthLabel } from "@/lib/format";
 import { formatPHP, fromCentavos, sumCentavos } from "@/lib/money";
 import type { PeriodView, ViewBill, ViewColumn, ViewRow } from "@/lib/periods";
 import { cn } from "@/lib/utils";
+import { useCanEdit } from "@/components/viewer-context";
 
 const cellBase = "px-3 py-2.5 whitespace-nowrap";
 // Extra room under the Total row: macOS draws the horizontal scrollbar over the content.
@@ -25,7 +26,8 @@ const footCell = cn(cellBase, "pb-5");
 const headBright = "bg-amber-300 text-zinc-900";
 
 export function SplitTable({ view }: { view: PeriodView }) {
-  const editable = view.period.status === "open";
+  // PA in an open month; everyone else sees plain values.
+  const editable = useCanEdit(view.period.status);
   const { bills, columns, members } = view;
   const rowOf = new Map(view.rows.map((r) => [r.memberId, r]));
   const sum = (pick: (r: ViewRow) => number) => sumCentavos(view.rows.map(pick));

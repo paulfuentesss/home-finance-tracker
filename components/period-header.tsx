@@ -1,14 +1,15 @@
 import { CircleHelp, House, Info } from "lucide-react";
 import Link from "next/link";
+import { AccountMenu } from "@/components/account-menu";
 import { MonthPicker, TabNav } from "@/components/period-nav";
 import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatPHP, type Centavos } from "@/lib/money";
+import { isAdmin, type Viewer } from "@/lib/permissions";
 import type { PeriodView } from "@/lib/periods";
 import { cn } from "@/lib/utils";
 
 // The top of every month tab: the month on the left, its two headline totals on the right, then the tabs.
-export function PeriodHeader({ view }: { view: PeriodView }) {
+export function PeriodHeader({ view, viewer }: { view: PeriodView; viewer: Viewer }) {
   const { year, month, status } = view.period;
   const base = `/periods/${year}/${month}`;
   const pendingBills = view.bills.filter((b) => b.status === "pending");
@@ -23,7 +24,7 @@ export function PeriodHeader({ view }: { view: PeriodView }) {
           <div>
             <p className="px-1.5 text-sm font-semibold text-amber-700">My House</p>
             <div className="flex items-center gap-2">
-              <MonthPicker periods={view.periods} current={{ year, month }} canStartNext={view.isLatest} />
+              <MonthPicker periods={view.periods} current={{ year, month }} canStartNext={view.isLatest && isAdmin(viewer)} />
               {/* Open is the normal state, so only a locked month gets a badge. */}
               {status === "closed" && (
                 <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">Closed</span>
@@ -33,6 +34,32 @@ export function PeriodHeader({ view }: { view: PeriodView }) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* A popover like the stat cards' (hover or tap), with the link inside — a tooltip
+              never shows on a phone. */}
+          <Popover>
+            <PopoverTrigger
+              openOnHover
+              aria-label="How it works"
+              className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors outline-none hover:bg-zinc-100 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-popup-open:bg-zinc-100 data-popup-open:text-foreground"
+            >
+              <CircleHelp className="size-5" />
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-64">
+              <div>
+                <PopoverTitle>How it works</PopoverTitle>
+                <PopoverDescription className="text-xs">
+                  How bills and advances are split, what Month Final and Final mean, settling up, and who can
+                  change what.
+                </PopoverDescription>
+              </div>
+              <Link
+                href="/how-it-works"
+                className="text-xs font-medium text-amber-700 underline-offset-2 hover:underline"
+              >
+                Read how it works →
+              </Link>
+            </PopoverContent>
+          </Popover>
           <Stat
             label="Total core bills"
             value={view.stats.coreBills}
@@ -51,15 +78,9 @@ export function PeriodHeader({ view }: { view: PeriodView }) {
             lines={view.columns.map((c) => ({ id: c.id, label: c.name, amount: c.total }))}
             accent
           />
-          <Tooltip>
-            <TooltipTrigger
-              render={<Link href="/how-it-works" aria-label="How it works" />}
-              className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-zinc-100 hover:text-foreground"
-            >
-              <CircleHelp className="size-5" />
-            </TooltipTrigger>
-            <TooltipContent>How it works</TooltipContent>
-          </Tooltip>
+          <AccountMenu
+            dotClass={view.members.find((m) => m.id === viewer.memberId)?.dotClass ?? "bg-zinc-400"}
+          />
         </div>
       </div>
       <div className="mx-auto w-full max-w-7xl px-4">

@@ -11,8 +11,9 @@
 ## How it's built
 - Route: `app/periods/[year]/[month]/receipts/page.tsx` (tab 3) — layout only.
 - Schema already has `receipt_path` on `bill_items` and `advances`.
-- Planned: a **private** Supabase Storage bucket and upload flow. Needs login first, since the
-  files are household finances ([TODO.md](../TODO.md)).
+- Planned: a **private** Supabase Storage bucket and upload flow, served through the app so
+  the same login checks apply ([auth.md](auth.md)). Storage policies must never grant access
+  to every `authenticated` user.
 
 ## Rules
 [Receipts](../settlement-rules.md#receipts)

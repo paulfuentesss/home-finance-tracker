@@ -17,6 +17,7 @@ import {
   text,
   timestamp,
   uniqueIndex,
+  uuid,
 } from "drizzle-orm/pg-core";
 
 // ---------- Enums ----------
@@ -34,6 +35,9 @@ export const billEmailStatus = pgEnum("bill_email_status", ["imported", "unmatch
 // equal = split evenly; points = split by each member's points (Meralco);
 // manual = amounts typed per member, and the bill total is their sum.
 export const billSplitMode = pgEnum("bill_split_mode", ["equal", "points", "manual"]);
+// admin = PA: can change everything. member = sees everything (except Manage) and logs their
+// own advances in the default column (lib/permissions.ts).
+export const memberRole = pgEnum("member_role", ["admin", "member"]);
 
 // ---------- Shared column helpers ----------
 
@@ -57,9 +61,18 @@ export const members = pgTable(
     isCollector: boolean("is_collector").notNull().default(false),
     // Members are deactivated, never deleted, so history stays intact.
     active: boolean("active").notNull().default(true),
+    // Login (docs/features/auth.md). `email` is the invited address (lowercase); inviting
+    // creates a Supabase Auth user and stores its id in `auth_user_id`, which every request
+    // matches on. Both are null for someone who isn't invited. Never send these to the client.
+    email: text("email").unique(),
+    authUserId: uuid("auth_user_id").unique(),
+    role: memberRole("role").notNull().default("member"),
     createdAt: createdAt(),
   },
-  (t) => [uniqueIndex("members_single_collector").on(t.isCollector).where(sql`${t.isCollector}`)],
+  (t) => [
+    uniqueIndex("members_single_collector").on(t.isCollector).where(sql`${t.isCollector}`),
+    check("members_email_lowercase", sql`${t.email} = lower(${t.email})`),
+  ],
 ).enableRLS();
 
 export const billingPeriods = pgTable(
