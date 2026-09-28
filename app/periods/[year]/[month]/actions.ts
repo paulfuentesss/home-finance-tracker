@@ -1,14 +1,16 @@
 "use server";
 
 // Server Actions for the month pages. Every change goes through here, which is where the
-// rules are enforced: inputs are validated, closed months reject edits, and bill shares
-// always add up to the bill total (docs/settlement-rules.md).
+// rules are enforced: the caller must be signed in with the right role (run("admin" | "member",
+// …), docs/features/auth.md), inputs are validated, closed months reject edits, and bill
+// shares always add up to the bill total (docs/settlement-rules.md).
 //
-// ⚠️ There's no auth yet, so anyone who can reach the app can call these. Keep the app
-// local / unlisted until login exists.
+// Server Actions are public endpoints: anyone can call them with any arguments. Never skip
+// run(), and never trust ids or payers sent from the page — check them here.
 
 import { and, asc, desc, eq, gt, inArray, max, or, sql, type SQL } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import {
   advances,
@@ -23,11 +25,15 @@ import {
   sharedColumnMembers,
   sharedColumns,
 } from "@/db";
+import { getViewer } from "@/lib/auth";
 import { placeBill } from "@/lib/bill-import";
 import { pointsFor, pointsOf, writeShares, type Tx } from "@/lib/bill-shares";
+import { ActionError, isUniqueViolation } from "@/lib/errors";
 import { monthLabel } from "@/lib/format";
+import { inviteMember, uninviteMember } from "@/lib/invites";
 import { fromCentavos, parseMoneyInput, splitEqually, sumCentavos, toCentavos, type Centavos } from "@/lib/money";
 import { closeCheck, reopenCheck, vanishingBalances } from "@/lib/month-lock";
+import { canManageAdvance, isAdmin, type Role, type Viewer } from "@/lib/permissions";
 import { computePeriod, pendingBillNames, periodMembers } from "@/lib/periods";
 import {
   computeBillShares,
@@ -36,10 +42,9 @@ import {
   splitOrder,
   type MemberId,
 } from "@/lib/settlement";
+import { authAdmin } from "@/lib/supabase/admin-server";
 
 export type ActionState = { ok: true; redirectTo?: string } | { ok: false; error: string } | null;
-
-class ActionError extends Error {}
 
 const id = z.coerce.number().int().positive();
 // numeric(12,2) holds up to 9,999,999,999.99.
@@ -71,7 +76,7 @@ const DEFAULT_COLUMN_NAME = "Advances Shared";
 // ---------- Bills ----------
 
 export async function updateBillTotal(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  return run(z.object({ billId: id, total: moneyField(true) }), formData, async ({ billId, total }) => {
+  return run("admin", z.object({ billId: id, total: moneyField(true) }), formData, async ({ billId, total }) => {
     await db.transaction(async (tx) => {
       const { bill, order } = await loadBill(tx, billId);
       if (bill.splitMode === "manual") {
@@ -96,7 +101,7 @@ const pointsSchema = z.object({
 });
 
 export async function updateBillPoints(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  return run(pointsSchema, formData, async ({ billId, memberId, points }) => {
+  return run("admin", pointsSchema, formData, async ({ billId, memberId, points }) => {
     await db.transaction(async (tx) => {
       const { bill, order } = await loadBill(tx, billId);
       if (bill.splitMode !== "points") throw new ActionError(`${bill.name} isn't split by points.`);
@@ -111,7 +116,7 @@ export async function updateBillPoints(_prev: ActionState, formData: FormData): 
 
 export async function updateBillShare(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const schema = z.object({ billId: id, memberId: id, amount: moneyField(true) });
-  return run(schema, formData, async ({ billId, memberId, amount }) => {
+  return run("admin", schema, formData, async ({ billId, memberId, amount }) => {
     await db.transaction(async (tx) => {
       const { bill, order } = await loadBill(tx, billId);
       if (bill.splitMode !== "manual") throw new ActionError(`Switch ${bill.name} to Manual to edit shares.`);
@@ -131,7 +136,7 @@ export async function updateBillShare(_prev: ActionState, formData: FormData): P
 
 export async function updateBillDates(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const schema = z.object({ billId: id, field: z.enum(["dueDate", "paidOn"]), value: optionalDate });
-  return run(schema, formData, async ({ billId, field, value }) => {
+  return run("admin", schema, formData, async ({ billId, field, value }) => {
     await db.transaction(async (tx) => {
       await loadBill(tx, billId);
       await tx.update(billItems).set({ [field]: value }).where(eq(billItems.id, billId));
@@ -148,7 +153,7 @@ const addBillSchema = z.object({
 });
 
 export async function addBill(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  return run(addBillSchema, formData, async ({ periodId, name, total, paidById, splitMode }) => {
+  return run("admin", addBillSchema, formData, async ({ periodId, name, total, paidById, splitMode }) => {
     await db.transaction(async (tx) => {
       const { order } = await loadOpenPeriod(tx, periodId);
       if (!order.includes(paidById)) throw new ActionError("The payer isn't in this month.");
@@ -165,7 +170,7 @@ export async function addBill(_prev: ActionState, formData: FormData): Promise<A
 
 export async function renameBill(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const schema = z.object({ billId: id, name: z.string().trim().min(1, "Enter a bill name").max(60) });
-  return run(schema, formData, async ({ billId, name }) => {
+  return run("admin", schema, formData, async ({ billId, name }) => {
     await db.transaction(async (tx) => {
       await loadBill(tx, billId);
       await tx.update(billItems).set({ name }).where(eq(billItems.id, billId));
@@ -174,7 +179,7 @@ export async function renameBill(_prev: ActionState, formData: FormData): Promis
 }
 
 export async function deleteBill(billId: number): Promise<ActionState> {
-  return run(z.object({ billId: id }), { billId }, async ({ billId }) => {
+  return run("admin", z.object({ billId: id }), { billId }, async ({ billId }) => {
     await db.transaction(async (tx) => {
       await loadBill(tx, billId);
       // An email that filled this column goes back to the Bill inbox.
@@ -192,7 +197,7 @@ export async function deleteBill(billId: number): Promise<ActionState> {
 
 /** A pending (emailed) bill starts counting. */
 export async function confirmBill(billId: number): Promise<ActionState> {
-  return run(z.object({ billId: id }), { billId }, async ({ billId }) => {
+  return run("admin", z.object({ billId: id }), { billId }, async ({ billId }) => {
     await db.transaction(async (tx) => {
       const { bill } = await loadBill(tx, billId);
       if (bill.status !== "pending") throw new ActionError(`${bill.name} is already confirmed.`);
@@ -207,7 +212,7 @@ export async function confirmBill(billId: number): Promise<ActionState> {
 
 /** Undoes an emailed bill: the column goes back to ₱0 and the email is set aside for good. */
 export async function discardEmailBill(billId: number): Promise<ActionState> {
-  return run(z.object({ billId: id }), { billId }, async ({ billId }) => {
+  return run("admin", z.object({ billId: id }), { billId }, async ({ billId }) => {
     await db.transaction(async (tx) => {
       const { bill, order } = await loadBill(tx, billId);
       if (bill.status !== "pending") throw new ActionError(`${bill.name} is confirmed; change its amount instead.`);
@@ -229,7 +234,7 @@ export async function discardEmailBill(billId: number): Promise<ActionState> {
 
 /** Tries an inbox email again (e.g. after starting or reopening its month). */
 export async function retryBillEmail(emailId: number): Promise<ActionState> {
-  return run(z.object({ emailId: id }), { emailId }, async ({ emailId }) => {
+  return run("admin", z.object({ emailId: id }), { emailId }, async ({ emailId }) => {
     const outcome = await db.transaction(async (tx) => {
       const email = await tx.query.billEmails.findFirst({ where: eq(billEmails.id, emailId) });
       if (!email || email.status !== "unmatched") throw new ActionError("That email is no longer in the inbox.");
@@ -244,7 +249,7 @@ export async function retryBillEmail(emailId: number): Promise<ActionState> {
 }
 
 export async function dismissBillEmail(emailId: number): Promise<ActionState> {
-  return run(z.object({ emailId: id }), { emailId }, async ({ emailId }) => {
+  return run("admin", z.object({ emailId: id }), { emailId }, async ({ emailId }) => {
     const [email] = await db
       .update(billEmails)
       .set({ status: "dismissed" })
@@ -267,11 +272,23 @@ const addAdvanceSchema = z.object({
   spentOn: optionalDate,
 });
 
+// Members may add, edit and delete their own advances in the default column; PA, any advance
+// (lib/permissions.ts → canManageAdvance). For a member the payer and column are forced here,
+// whatever the form sent.
+
+/** A member's advances are always theirs and always in the default column (0). */
+function forMember<T extends { payerId: number; columnId: number }>(data: T, viewer: Viewer): T {
+  return isAdmin(viewer) ? data : { ...data, payerId: viewer.memberId, columnId: 0 };
+}
+
 export async function addAdvance(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  return run(addAdvanceSchema, formData, async (data) => {
+  return run("member", addAdvanceSchema, formData, async (input, viewer) => {
+    const data = forMember(input, viewer);
     await db.transaction(async (tx) => {
       const { order } = await loadOpenPeriod(tx, data.periodId);
-      if (!order.includes(data.payerId)) throw new ActionError("The payer isn't in this month.");
+      if (!order.includes(data.payerId)) {
+        throw new ActionError(isAdmin(viewer) ? "The payer isn't in this month." : "You're not in this month.");
+      }
       const columnId = await resolveColumn(tx, data.periodId, data.columnId, order);
       await tx.insert(advances).values({
         periodId: data.periodId,
@@ -290,14 +307,14 @@ export async function addAdvance(_prev: ActionState, formData: FormData): Promis
 const updateAdvanceSchema = addAdvanceSchema.omit({ periodId: true }).extend({ advanceId: id });
 
 export async function updateAdvance(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  return run(updateAdvanceSchema, formData, async ({ advanceId, ...data }) => {
+  return run("member", updateAdvanceSchema, formData, async ({ advanceId, ...input }, viewer) => {
+    const data = forMember(input, viewer);
     await db.transaction(async (tx) => {
-      const advance = await tx.query.advances.findFirst({ where: eq(advances.id, advanceId) });
-      if (!advance) throw new ActionError("That advance was deleted.");
+      const advance = await loadAdvanceFor(tx, advanceId, viewer, "That advance was deleted.");
       const { order } = await loadOpenPeriod(tx, advance.periodId);
       if (!order.includes(data.payerId)) throw new ActionError("The payer isn't in this month.");
       const columnId = await resolveColumn(tx, advance.periodId, data.columnId, order);
-      await tx
+      const [updated] = await tx
         .update(advances)
         .set({
           columnId,
@@ -307,20 +324,47 @@ export async function updateAdvance(_prev: ActionState, formData: FormData): Pro
           amount: fromCentavos(data.amount),
           spentOn: data.spentOn,
         })
-        .where(eq(advances.id, advanceId));
+        .where(and(eq(advances.id, advanceId), unchangedFor(viewer, advance)))
+        .returning({ id: advances.id });
+      if (!updated) throw new ActionError("That advance just changed. Refresh and try again.");
     });
   });
 }
 
 export async function deleteAdvance(advanceId: number): Promise<ActionState> {
-  return run(z.object({ advanceId: id }), { advanceId }, async ({ advanceId }) => {
+  return run("member", z.object({ advanceId: id }), { advanceId }, async ({ advanceId }, viewer) => {
     await db.transaction(async (tx) => {
-      const advance = await tx.query.advances.findFirst({ where: eq(advances.id, advanceId) });
-      if (!advance) throw new ActionError("That advance was already deleted.");
+      const advance = await loadAdvanceFor(tx, advanceId, viewer, "That advance was already deleted.");
       await loadOpenPeriod(tx, advance.periodId);
-      await tx.delete(advances).where(eq(advances.id, advanceId));
+      const [deleted] = await tx
+        .delete(advances)
+        .where(and(eq(advances.id, advanceId), unchangedFor(viewer, advance)))
+        .returning({ id: advances.id });
+      if (!deleted) throw new ActionError("That advance just changed. Refresh and try again.");
     });
   });
+}
+
+/** Loads an advance the viewer is allowed to change (with its column, to know if it's the default). */
+async function loadAdvanceFor(tx: Tx, advanceId: number, viewer: Viewer, missing: string) {
+  const advance = await tx.query.advances.findFirst({
+    where: eq(advances.id, advanceId),
+    with: { column: { columns: { isDefault: true } } },
+  });
+  if (!advance) throw new ActionError(missing);
+  if (!canManageAdvance(viewer, { payerId: advance.payerId, inDefaultColumn: advance.column.isDefault })) {
+    throw new ActionError("Only PA can change this advance.");
+  }
+  return advance;
+}
+
+/**
+ * For a member, the write only goes through if the advance is still theirs and still in the
+ * column it was checked in — so PA moving it at the same moment can't be undone.
+ */
+function unchangedFor(viewer: Viewer, advance: { payerId: number; columnId: number }): SQL | undefined {
+  if (isAdmin(viewer)) return undefined;
+  return and(eq(advances.payerId, viewer.memberId), eq(advances.columnId, advance.columnId));
 }
 
 // ---------- Payments ----------
@@ -349,7 +393,7 @@ function checkPaymentMembers(order: MemberId[], data: PaymentInput) {
 }
 
 export async function addPayment(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  return run(paymentSchema.extend({ periodId: id }), formData, async ({ periodId, ...data }) => {
+  return run("admin", paymentSchema.extend({ periodId: id }), formData, async ({ periodId, ...data }) => {
     await db.transaction(async (tx) => {
       const { order } = await loadOpenPeriod(tx, periodId);
       checkPaymentMembers(order, data);
@@ -359,7 +403,7 @@ export async function addPayment(_prev: ActionState, formData: FormData): Promis
 }
 
 export async function updatePayment(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  return run(paymentSchema.extend({ paymentId: id }), formData, async ({ paymentId, ...data }) => {
+  return run("admin", paymentSchema.extend({ paymentId: id }), formData, async ({ paymentId, ...data }) => {
     await db.transaction(async (tx) => {
       const payment = await tx.query.payments.findFirst({ where: eq(payments.id, paymentId) });
       if (!payment) throw new ActionError("That payment was deleted.");
@@ -374,7 +418,7 @@ export async function updatePayment(_prev: ActionState, formData: FormData): Pro
 }
 
 export async function deletePayment(paymentId: number): Promise<ActionState> {
-  return run(z.object({ paymentId: id }), { paymentId }, async ({ paymentId }) => {
+  return run("admin", z.object({ paymentId: id }), { paymentId }, async ({ paymentId }) => {
     await db.transaction(async (tx) => {
       const payment = await tx.query.payments.findFirst({ where: eq(payments.id, paymentId) });
       if (!payment) throw new ActionError("That payment was already deleted.");
@@ -396,7 +440,7 @@ const addSharedColumnSchema = z.object({
 
 export async function addSharedColumn(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const input = { ...Object.fromEntries(formData), excluded: formData.getAll("excluded") };
-  return run(addSharedColumnSchema, input, async ({ periodId, name, splitMode, sharedMode, excluded }) => {
+  return run("admin", addSharedColumnSchema, input, async ({ periodId, name, splitMode, sharedMode, excluded }) => {
     await db.transaction(async (tx) => {
       const { order } = await loadOpenPeriod(tx, periodId);
       const left = new Set(sharedMode === "except" ? excluded : []);
@@ -415,7 +459,7 @@ export async function addSharedColumn(_prev: ActionState, formData: FormData): P
 }
 
 export async function setSharedColumnMode(columnId: number, mode: "equal" | "manual"): Promise<ActionState> {
-  return run(z.object({ columnId: id, mode: userSplitMode }), { columnId, mode }, async ({ columnId, mode }) => {
+  return run("admin", z.object({ columnId: id, mode: userSplitMode }), { columnId, mode }, async ({ columnId, mode }) => {
     await db.transaction(async (tx) => {
       const { column, order } = await loadColumn(tx, columnId);
       if (column.splitMode === mode) return;
@@ -453,7 +497,7 @@ export async function setSharedColumnMode(columnId: number, mode: "equal" | "man
 export async function updateSharedColumnMembers(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const input = { columnId: formData.get("columnId"), included: formData.getAll("included") };
   const schema = z.object({ columnId: id, included: z.array(id).min(1, "At least one person has to share it.") });
-  return run(schema, input, async ({ columnId, included }) => {
+  return run("admin", schema, input, async ({ columnId, included }) => {
     await db.transaction(async (tx) => {
       const { order } = await loadColumn(tx, columnId);
       const chosen = new Set(included);
@@ -468,7 +512,7 @@ export async function updateSharedColumnMembers(_prev: ActionState, formData: Fo
 
 export async function updateSharedColumnAmount(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const schema = z.object({ columnId: id, memberId: id, amount: moneyField(true) });
-  return run(schema, formData, async ({ columnId, memberId, amount }) => {
+  return run("admin", schema, formData, async ({ columnId, memberId, amount }) => {
     await db.transaction(async (tx) => {
       const { column, order } = await loadColumn(tx, columnId);
       if (column.splitMode !== "manual") throw new ActionError(`Switch ${column.name} to Manual to type amounts.`);
@@ -480,7 +524,7 @@ export async function updateSharedColumnAmount(_prev: ActionState, formData: For
 
 export async function renameSharedColumn(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const schema = z.object({ columnId: id, name: z.string().trim().min(1, "Enter a column name").max(60) });
-  return run(schema, formData, async ({ columnId, name }) => {
+  return run("admin", schema, formData, async ({ columnId, name }) => {
     await db.transaction(async (tx) => {
       await loadColumn(tx, columnId);
       await tx.update(sharedColumns).set({ name }).where(eq(sharedColumns.id, columnId));
@@ -489,7 +533,7 @@ export async function renameSharedColumn(_prev: ActionState, formData: FormData)
 }
 
 export async function deleteSharedColumn(columnId: number): Promise<ActionState> {
-  return run(z.object({ columnId: id }), { columnId }, async ({ columnId }) => {
+  return run("admin", z.object({ columnId: id }), { columnId }, async ({ columnId }) => {
     await db.transaction(async (tx) => {
       const { column } = await loadColumn(tx, columnId);
       if (column.isDefault) throw new ActionError(`${column.name} is the main shared column and stays.`);
@@ -508,7 +552,7 @@ export async function deleteSharedColumn(columnId: number): Promise<ActionState>
 
 export async function addMember(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const schema = z.object({ name: z.string().trim().min(1, "Enter a name").max(40) });
-  return run(schema, formData, async ({ name }) => {
+  return run("admin", schema, formData, async ({ name }) => {
     await db.transaction(async (tx) => {
       const existing = await tx.query.members.findFirst({ where: eq(members.name, name) });
       let memberId: number;
@@ -543,16 +587,22 @@ export async function addMember(_prev: ActionState, formData: FormData): Promise
 }
 
 export async function removeMember(memberId: number): Promise<ActionState> {
-  return run(z.object({ memberId: id }), { memberId }, async ({ memberId }) => {
-    await db.transaction(async (tx) => {
-      const member = await tx.query.members.findFirst({ where: eq(members.id, memberId) });
+  return run("admin", z.object({ memberId: id }), { memberId }, async ({ memberId }) => {
+    // Returns the login they had, deleted below once the removal has committed.
+    const oldLogin = await db.transaction(async (tx) => {
+      // Locked, so an invite saved at the same moment can't leave a stale login behind.
+      const [member] = await tx.select().from(members).where(eq(members.id, memberId)).for("update");
       if (!member || !member.active) throw new ActionError("That person was already removed.");
       if (member.isCollector) throw new ActionError(`${member.name} is the collector and can't be removed.`);
       const active = await tx.select({ id: members.id }).from(members).where(eq(members.active, true));
       if (active.length <= 1) throw new ActionError("At least one person has to stay in the household.");
 
-      // Deactivated: left out of future months, history kept.
-      await tx.update(members).set({ active: false }).where(eq(members.id, memberId));
+      // Deactivated: left out of future months, history kept. Their login goes too, so
+      // someone re-added later needs a fresh invite.
+      await tx
+        .update(members)
+        .set({ active: false, email: null, authUserId: null })
+        .where(eq(members.id, memberId));
 
       const collector = await tx.query.members.findFirst({
         where: and(eq(members.isCollector, true), eq(members.active, true)),
@@ -611,14 +661,46 @@ export async function removeMember(memberId: number): Promise<ActionState> {
           .where(and(eq(periodBalances.periodId, period.id), eq(periodBalances.memberId, memberId)));
         await resplitPeriodBills(tx, period.id);
       }
+      return member.authUserId;
     });
+    // Best effort: they're already locked out (no member row matches the login any more).
+    if (oldLogin) await deleteLoginQuietly(oldLogin);
   });
+}
+
+/**
+ * Invites someone to log in (docs/features/auth.md), changes their login email, or — with an
+ * empty email — un-invites them. PA's own login is changed with `npm run auth:invite`, so a
+ * typo here can't lock him out.
+ */
+export async function updateMemberEmail(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const schema = z.object({ memberId: id, email: z.string().trim().toLowerCase().max(254) });
+  return run("admin", schema, formData, async ({ memberId, email }, viewer) => {
+    if (memberId === viewer.memberId) {
+      throw new ActionError("Change your own login with npm run auth:invite, so a typo can't lock you out.");
+    }
+    if (email === "") {
+      await uninviteMember(db, authAdmin(), memberId);
+    } else {
+      if (!z.email().safeParse(email).success) throw new ActionError("Enter an email like name@example.com");
+      await inviteMember(db, authAdmin(), memberId, email);
+    }
+  });
+}
+
+async function deleteLoginQuietly(authUserId: string) {
+  try {
+    const { error } = await authAdmin().deleteUser(authUserId);
+    if (error) console.error("Couldn't delete a removed member's login", error);
+  } catch (error) {
+    console.error("Couldn't delete a removed member's login", error);
+  }
 }
 
 // ---------- Months ----------
 
 export async function startNextMonth(): Promise<ActionState> {
-  return run(z.object({}), {}, async () => {
+  return run("admin", z.object({}), {}, async () => {
     let path = "";
     await db.transaction(async (tx) => {
       const latest = await tx.query.billingPeriods.findFirst({
@@ -693,7 +775,7 @@ export async function startNextMonth(): Promise<ActionState> {
  * exists, as its opening balance. Unpaid amounts carry over (docs/settlement-rules.md).
  */
 export async function closeMonth(periodId: number): Promise<ActionState> {
-  return run(z.object({ periodId: id }), { periodId }, async ({ periodId }) => {
+  return run("admin", z.object({ periodId: id }), { periodId }, async ({ periodId }) => {
     await db.transaction(async (tx) => {
       const target = await tx.query.billingPeriods.findFirst({ where: eq(billingPeriods.id, periodId) });
       if (!target) throw new ActionError("That month no longer exists.");
@@ -737,7 +819,7 @@ export async function closeMonth(periodId: number): Promise<ActionState> {
 
 /** Unlocks a month. The next month goes back to live carry-over on its own. */
 export async function reopenMonth(periodId: number): Promise<ActionState> {
-  return run(z.object({ periodId: id }), { periodId }, async ({ periodId }) => {
+  return run("admin", z.object({ periodId: id }), { periodId }, async ({ periodId }) => {
     await db.transaction(async (tx) => {
       const all = await tx.query.billingPeriods.findMany({
         orderBy: [asc(billingPeriods.year), asc(billingPeriods.month)],
@@ -815,10 +897,20 @@ async function ensureDefaultColumn(tx: Tx, periodId: number, order: MemberId[]):
     where: and(eq(sharedColumns.periodId, periodId), eq(sharedColumns.isDefault, true)),
   });
   if (existing) return existing.id;
+  // Two people adding the month's first advance at once: the second insert waits for the
+  // first, does nothing, and then finds the column the first one made.
   const [column] = await tx
     .insert(sharedColumns)
     .values({ periodId, name: DEFAULT_COLUMN_NAME, splitMode: "equal", isDefault: true })
+    .onConflictDoNothing()
     .returning({ id: sharedColumns.id });
+  if (!column) {
+    const created = await tx.query.sharedColumns.findFirst({
+      where: and(eq(sharedColumns.periodId, periodId), eq(sharedColumns.isDefault, true)),
+    });
+    if (created) return created.id;
+    throw new ActionError(`A column named ${DEFAULT_COLUMN_NAME} already exists — rename it in Manage.`);
+  }
   if (order.length) {
     await tx.insert(sharedColumnMembers).values(order.map((memberId) => ({ columnId: column.id, memberId })));
   }
@@ -909,18 +1001,29 @@ async function hasRecordsIn(tx: Tx, periodId: number, memberId: number): Promise
   return Boolean(advance || payment || paidBill || manualBillShare || manualAmount);
 }
 
-/** Validates input, runs the change, refreshes the pages, and turns errors into messages. */
+/**
+ * Checks who's calling, validates input, runs the change, refreshes the pages, and turns
+ * errors into messages. `access` is required: "admin" for PA-only changes, "member" for the
+ * few anyone signed in may make (the action then checks ownership itself).
+ */
 async function run<S extends z.ZodType>(
+  access: Role,
   schema: S,
   input: FormData | Record<string, unknown>,
-  fn: (data: z.output<S>) => Promise<string | void>,
+  fn: (data: z.output<S>, viewer: Viewer) => Promise<string | void>,
 ): Promise<ActionState> {
+  // First, and outside the try/catch below, so redirect() isn't swallowed. Strangers get no
+  // validation messages either.
+  const viewer = await getViewer();
+  if (!viewer) redirect("/login");
+  if (access === "admin" && !isAdmin(viewer)) return { ok: false, error: "Only PA can change this." };
+
   const parsed = schema.safeParse(input instanceof FormData ? Object.fromEntries(input) : input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
 
   let redirectTo: string | undefined;
   try {
-    redirectTo = (await fn(parsed.data)) || undefined;
+    redirectTo = (await fn(parsed.data, viewer)) || undefined;
   } catch (error) {
     if (error instanceof ActionError || error instanceof SettlementError) {
       return { ok: false, error: error.message };
@@ -932,10 +1035,4 @@ async function run<S extends z.ZodType>(
 
   revalidatePath("/", "layout");
   return { ok: true, redirectTo };
-}
-
-function isUniqueViolation(error: unknown): boolean {
-  // postgres-js errors carry the SQLSTATE code; Drizzle may wrap them in `cause`.
-  const code = (e: unknown) => (e as { code?: string } | null)?.code;
-  return code(error) === "23505" || code((error as { cause?: unknown } | null)?.cause) === "23505";
 }

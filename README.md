@@ -7,18 +7,19 @@ Bill emails (Meralco, Water, PLDT) come in as pending bills to confirm.
 **Stack:** Next.js 16 (App Router) · TypeScript · Tailwind CSS v4 · shadcn/ui · Lucide ·
 Drizzle ORM · PostgreSQL on Supabase · Vitest
 
-> ⚠️ There's no login yet. Don't deploy this publicly until auth is added: anyone
-> with the URL would see the household's finances.
+Everyone signs in with Google or an emailed code; only invited household members get in
+([docs/features/auth.md](docs/features/auth.md)).
 
-**Status:** runs locally against Supabase; not deployed. Feature by feature:
+**Status:** runs locally against Supabase; not deployed yet. Feature by feature:
 [docs/features](docs/features/README.md). What's next: [docs/TODO.md](docs/TODO.md).
 
 ## Quick start
 
 ```bash
 npm install
-cp .env.example .env.local   # then paste the two Supabase URLs (see docs/setup.md)
+cp .env.example .env.local   # then fill in the Supabase URLs and keys (see docs/setup.md)
 npm run db:migrate && npm run db:seed && npm run db:seed:august
+npm run auth:invite -- PA you@gmail.com   # after login setup (docs/setup.md step 5)
 npm run dev                  # http://localhost:3000
 ```
 

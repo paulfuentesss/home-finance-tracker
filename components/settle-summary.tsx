@@ -9,7 +9,8 @@ type Entry = { member: ViewMember; balance: Centavos };
 // Everyone settles with the collector (docs/settlement-rules.md), so the others are grouped
 // by direction (pays the collector / gets paid by the collector) and the collector's own
 // Final is shown last as the net of the two, not as one more debt.
-export function SettleSummary({ view }: { view: PeriodView }) {
+/** `canRecord`: the viewer can record payments (PA); everyone else gets a plain link to Settle Up. */
+export function SettleSummary({ view, canRecord }: { view: PeriodView; canRecord: boolean }) {
   if (view.issue || view.rows.length === 0) return null;
   const rowOf = new Map(view.rows.map((r) => [r.memberId, r]));
   const collector = view.members.find((m) => m.isCollector);
@@ -38,7 +39,7 @@ export function SettleSummary({ view }: { view: PeriodView }) {
           href={`/periods/${view.period.year}/${view.period.month}/settle`}
           className="text-xs font-medium text-amber-700 underline-offset-2 hover:underline"
         >
-          Record payments →
+          {canRecord ? "Record payments →" : "See Settle Up →"}
         </Link>
       </div>
       <p className="text-xs text-muted-foreground">

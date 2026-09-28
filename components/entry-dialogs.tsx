@@ -26,8 +26,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useViewer } from "@/components/viewer-context";
 import { CATEGORY_LABELS, todayInManila } from "@/lib/format";
 import { formatPHP, fromCentavos, parseMoneyInput, type Centavos } from "@/lib/money";
+import { isAdmin } from "@/lib/permissions";
 import type { PeriodView, ViewAdvance, ViewPayment } from "@/lib/periods";
 
 interface Props {
@@ -94,6 +96,10 @@ export function EditAdvanceDialog({
  * receipt.
  */
 function AdvanceForm({ view, advance, onDone }: Props & { advance?: ViewAdvance; onDone: () => void }) {
+  // Housemates log their own advances into the default column; only PA picks the payer and
+  // column. (The server forces the same, whatever this form sends.)
+  const viewer = useViewer();
+  const admin = isAdmin(viewer);
   const descriptionRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
   const [logged, setLogged] = useState<string | null>(null);
@@ -133,9 +139,18 @@ function AdvanceForm({ view, advance, onDone }: Props & { advance?: ViewAdvance;
           <input type="hidden" name="periodId" value={view.period.id} />
         )}
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Paid by" htmlFor="payerId">
-            <SelectField id="payerId" items={memberItems} defaultValue={advance ? String(advance.payerId) : collectorId} />
-          </Field>
+          {admin ? (
+            <Field label="Paid by" htmlFor="payerId">
+              <SelectField id="payerId" items={memberItems} defaultValue={advance ? String(advance.payerId) : collectorId} />
+            </Field>
+          ) : (
+            // A hidden field, not a disabled select: disabled fields aren't submitted.
+            <div className="grid gap-1.5">
+              <span className="text-sm font-medium">Paid by</span>
+              <span className="flex h-8 items-center text-sm">{viewer.name}</span>
+              <input type="hidden" name="payerId" value={viewer.memberId} />
+            </div>
+          )}
           <Field label="Category" htmlFor="category">
             <SelectField id="category" items={categoryItems} defaultValue={advance?.category ?? "grocery"} />
           </Field>
@@ -172,17 +187,25 @@ function AdvanceForm({ view, advance, onDone }: Props & { advance?: ViewAdvance;
             />
           </Field>
         </div>
-        <Field label="Column" htmlFor="columnId">
-          <SelectField
-            id="columnId"
-            items={columnItems}
-            defaultValue={String(advance?.columnId ?? defaultColumn?.id ?? 0)}
-          />
+        {admin ? (
+          <Field label="Column" htmlFor="columnId">
+            <SelectField
+              id="columnId"
+              items={columnItems}
+              defaultValue={String(advance?.columnId ?? defaultColumn?.id ?? 0)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Which shared column this goes into. Need a new one (e.g. someone away)? Add a shared column in Manage
+              first.
+            </p>
+          </Field>
+        ) : (
           <p className="text-xs text-muted-foreground">
-            Which shared column this goes into. Need a new one (e.g. someone away)? Add a shared column in Manage
-            first.
+            Goes into {defaultColumn?.name ?? "Advances Shared"}, split by everyone. If it should be split
+            differently, ask PA to move it.
+            <input type="hidden" name="columnId" value="0" />
           </p>
-        </Field>
+        )}
         {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
         {state?.ok && logged && <p className="text-sm text-emerald-700">{logged}</p>}
         <DialogFooter>

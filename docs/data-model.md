@@ -11,7 +11,7 @@ connects directly ([decisions.md](decisions.md)).
 
 | Table | One row is… | Used by |
 |---|---|---|
-| `members` | A household member. Deactivated, never deleted; at most one `is_collector` | [manage](features/manage.md) |
+| `members` | A household member. Deactivated, never deleted; at most one `is_collector`. Login: `email` (the invite, lowercase), `auth_user_id` (their Supabase login — what every request matches on), `role` (`admin` / `member`) | [manage](features/manage.md), [login](features/auth.md) |
 | `billing_periods` | A month (`year`, `month`), `open` or `closed` | [months](features/months.md) |
 | `period_balances` | A member in a month: that month's membership, opening and closing balance | [months](features/months.md), [split table](features/split-table.md) |
 | `bill_items` | A bill column in a month: total, payer, split mode, dates, `source` (manual / email), `status` (confirmed / pending) | [split table](features/split-table.md), [manage](features/manage.md), [email bills](features/email-bills.md) |
@@ -34,3 +34,7 @@ Add a line here with every new one.
 | `0002_shared-columns` | Shared columns and who shares them (replacing per-advance sharing); every advance belongs to a column |
 | `0003_bill-emails` | `bill_emails` (the Bill Inbox) and its enums |
 | `0004_bill-email-fees` | Payment fee and note on `bill_emails` |
+| `0005_member-logins` | `email`, `auth_user_id` and `role` on `members` (the `member_role` enum); the collector becomes `admin` |
+
+The logins themselves live in Supabase's `auth.users` (managed by Supabase, not by these
+migrations); `members.auth_user_id` points at one.

@@ -24,6 +24,8 @@ paid included, the collector like everyone else; the Finals sum to ₱0.00.
 ## 2026-09-27 — No public deploy until login
 **Decision:** the app runs locally only until login exists.
 **Why:** anyone with the URL would see the household's finances.
+*Superseded 2026-09-28: login exists; going online follows the checklist in
+[TODO.md](TODO.md#before-going-online).*
 
 ## 2026-09-27 — Schema changes: generate + migrate, never push
 **Decision:** `db:generate` writes versioned SQL, which is read before `db:migrate` applies it.
@@ -88,3 +90,38 @@ one file per topic: features (the only status list), TODO, decisions, rules, dat
 testing, setup, commands, operations.
 **Why:** as the project grows nothing gets forgotten, and nothing is written in two places
 that can drift apart.
+
+## 2026-09-28 — Login with Supabase Auth: Google or an emailed code
+**Decision:** everyone signs in through Supabase Auth, with Google or a 6-digit code sent to
+their email ([features/auth.md](features/auth.md)).
+**Why:** Supabase is already the database, so there's no new service or cost. A code covers a
+member without a Google account, with no password to forget.
+**Instead of:** email + password (a reset flow, forgotten passwords), or one shared household
+login (no way to tell who did what, or to remove one person).
+
+## 2026-09-28 — Invite-only: sign-ups off, the login made at invite
+**Decision:** Supabase sign-ups are off. Inviting a member creates their Supabase login (with
+the server-only secret key) and stores its id on the member; every request matches on that
+id, never on the email in the token.
+**Why:** with sign-ups on, anyone could use the public Supabase API to make the app email
+codes to any address through its Gmail. Matching on the id means changing a login's email
+can't make it someone else.
+
+## 2026-09-28 — Codes, not magic links
+**Decision:** the sign-in email carries a 6-digit code to type in.
+**Why:** a link opened from a phone's mail app often lands in a different browser than the
+one that asked for it, and the sign-in fails there.
+
+## 2026-09-28 — Two roles: PA edits, housemates log their own advances
+**Decision:** the admin (PA) can change everything. Members see everything except Manage, and
+can add, edit and delete only advances they paid, only in the month's default column, only
+in an open month.
+**Why:** PA is the collector and keeps the books; letting housemates log their own receipts
+saves him typing, and keeping them to the default column means they can't unbalance a
+Manual or situational column.
+
+## 2026-09-28 — A separate Gmail sends the codes
+**Decision:** the email codes go out through the app's own Gmail (Supabase custom SMTP), not
+PA's.
+**Why:** a Gmail App Password opens the whole mailbox, and PA's holds the providers' bill
+emails.

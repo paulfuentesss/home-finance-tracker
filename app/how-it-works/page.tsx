@@ -215,12 +215,30 @@ export default async function HowItWorksPage() {
       a: (
         <>
           <p>
-            Open the <strong>Settle Up</strong> tab. It lists who still owes whom — everyone settles with PA — and
-            &ldquo;Record payment&rdquo; fills in the amount. Change it if you only paid part.
+            Pay PA, and PA records it in the <strong>Settle Up</strong> tab, which lists who still owes whom — everyone
+            settles with PA. &ldquo;Record payment&rdquo; fills in the amount; PA changes it if you only paid part.
           </p>
           <p>
             A payment comes off the payer&apos;s Final and the receiver&apos;s, and shows in the Split Table&apos;s
             Payments column. Pay back ₱12,098.09 you owed and your Final goes to ₱0.00 — Settled.
+          </p>
+        </>
+      ),
+    },
+    {
+      id: "who-can-change-what",
+      q: "Who can change what?",
+      a: (
+        <>
+          <p>
+            Everyone in the household signs in with their own login — Google, or a code sent to their email — and can
+            see every month. Only emails PA has added can sign in.
+          </p>
+          <p>
+            You can log your own advances into <strong>Advances Shared</strong>, and edit or delete them while
+            they&apos;re there. Everything else — bills, points, other shared columns, payments, moving in and out,
+            closing months — is done by PA. If one of your advances should be split differently (say, not with
+            everyone), PA moves it to the right column; after that, it&apos;s PA&apos;s to change.
           </p>
         </>
       ),

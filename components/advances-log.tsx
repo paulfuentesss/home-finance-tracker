@@ -7,6 +7,7 @@ import { ConfirmDeleteButton } from "@/components/confirm-button";
 import { AddAdvanceDialog, EditAdvanceDialog } from "@/components/entry-dialogs";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useViewer } from "@/components/viewer-context";
 import {
   BILL_SPLIT,
   BILLS_COLOR,
@@ -20,6 +21,7 @@ import {
 } from "@/lib/advances-log";
 import { CATEGORY_LABELS, dayLabel } from "@/lib/format";
 import { formatPHP, sumCentavos } from "@/lib/money";
+import { canManageAdvance, isAdmin } from "@/lib/permissions";
 import type { PeriodView, ViewAdvance } from "@/lib/periods";
 import { cn } from "@/lib/utils";
 
@@ -37,7 +39,19 @@ const CATEGORY_PILLS: Record<LogRow["category"], { label: string; className: str
 // Everything each person paid this month, grouped by person: bills they paid to the provider
 // (read-only here, never stored as advances) plus their advances.
 export function AdvancesLog({ view }: { view: PeriodView }) {
-  const editable = view.period.status === "open";
+  const viewer = useViewer();
+  const open = view.period.status === "open";
+  // PA logs for anyone; everyone else logs their own, if they're in this month.
+  const canAdd = open && (isAdmin(viewer) || view.members.some((m) => m.id === viewer.memberId));
+  // Edit/delete: PA any advance; everyone else their own in the default column (lib/permissions.ts).
+  const canManage = (a: ViewAdvance) =>
+    open &&
+    canManageAdvance(viewer, {
+      payerId: a.payerId,
+      inDefaultColumn: view.columns.find((c) => c.id === a.columnId)?.isDefault === true,
+    });
+  // The actions column shows only if there's something the viewer can edit.
+  const editable = open && (isAdmin(viewer) || view.advances.some(canManage));
   const [search, setSearch] = useState("");
   const [payer, setPayer] = useState(ALL);
   const [category, setCategory] = useState(ALL);
@@ -134,7 +148,7 @@ export function AdvancesLog({ view }: { view: PeriodView }) {
           <h2 className="text-lg font-semibold">Advances &amp; Out-of-Pocket Expenses Log</h2>
           <p className="mt-1 text-sm text-muted-foreground">Everything each person paid this month, grouped by person.</p>
         </div>
-        {editable && <AddAdvanceDialog view={view} />}
+        {canAdd && <AddAdvanceDialog view={view} />}
       </div>
 
       <div className="space-y-2 border-b bg-zinc-50/60 px-5 py-3">
@@ -216,6 +230,10 @@ export function AdvancesLog({ view }: { view: PeriodView }) {
               collapsed={!isFiltered && !expanded.has(group.memberId)}
               onToggle={() => toggle(group.memberId)}
               editable={editable}
+              canManage={(advanceId) => {
+                const advance = advanceOf.get(advanceId);
+                return advance !== undefined && canManage(advance);
+              }}
               columnCount={columnCount}
               onEdit={(advanceId) => setEditing(advanceOf.get(advanceId) ?? null)}
             />
@@ -242,6 +260,7 @@ function PersonGroup({
   collapsed,
   onToggle,
   editable,
+  canManage,
   columnCount,
   onEdit,
 }: {
@@ -249,7 +268,10 @@ function PersonGroup({
   chipColor: (tag: LogRow["split"]) => string;
   collapsed: boolean;
   onToggle: () => void;
+  /** Whether the actions column is shown at all. */
   editable: boolean;
+  /** Whether this advance's edit/delete buttons are shown. */
+  canManage: (advanceId: number) => boolean;
   columnCount: number;
   onEdit: (advanceId: number) => void;
 }) {
@@ -292,7 +314,7 @@ function PersonGroup({
               </td>
               {editable && (
                 <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                  {row.advanceId !== null && (
+                  {row.advanceId !== null && canManage(row.advanceId) && (
                     <Button
                       variant="ghost"
                       size="icon-sm"
@@ -303,7 +325,7 @@ function PersonGroup({
                       <Pencil />
                     </Button>
                   )}
-                  {row.advanceId !== null && (
+                  {row.advanceId !== null && canManage(row.advanceId) && (
                     <ConfirmDeleteButton
                       label={`Delete ${row.description}`}
                       title="Delete this advance?"

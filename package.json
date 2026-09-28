@@ -2,6 +2,9 @@
   "name": "home-finance-tracker",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -17,10 +20,13 @@
     "db:seed:august": "tsx --env-file=.env.local scripts/seed-august.mts",
     "db:backup": "tsx --env-file=.env.local scripts/backup.mts",
     "bills:import": "tsx --env-file=.env.local scripts/import-email.mts",
+    "auth:invite": "tsx --env-file=.env.local scripts/invite.mts",
     "prepare": "husky"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.117.2",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",
     "drizzle-orm": "^0.45.3",

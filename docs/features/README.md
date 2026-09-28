@@ -13,7 +13,8 @@ begins, then it gets a page here.
 | Settle Up | ✅ | Who owes whom, one tap to record a payment | [settle-up.md](settle-up.md) |
 | Months | ✅ | Month picker, starting the next month, live carry-over, closing / reopening | [months.md](months.md) |
 | Manage Columns & People | ✅ | Bill and shared columns, Meralco points, housemates moving in and out | [manage.md](manage.md) |
-| Email-imported bills | 🚧 | Bill emails become Pending bills with the payment fee added; Bill Inbox. Missing: the inbox address (after login) | [email-bills.md](email-bills.md) |
+| Login | ✅ | Google or an emailed code; invite-only; PA edits everything, housemates log their own advances | [auth.md](auth.md) |
+| Email-imported bills | 🚧 | Bill emails become Pending bills with the payment fee added; Bill Inbox. Missing: the inbox address (once online) | [email-bills.md](email-bills.md) |
 | Receipts | 🚧 | Tab laid out; uploads not built | [receipts.md](receipts.md) |
 
 Also running, not features of the app itself:
@@ -31,6 +32,8 @@ Every feature page uses the same headings: **Status** · **What it does** · **H
 | Term | Meaning |
 |---|---|
 | **Collector** | The member who pays the core bills upfront and whom everyone settles with (PA). Absorbs leftover centavos. |
+| **Admin / member** | Login roles ([auth.md](auth.md)). The admin (PA) can change everything; members see everything and manage their own advances. |
+| **Invite** | A member's login email, set in Manage. Only invited emails can sign in. |
 | **Bill column** | A bill in the Split Table (Meralco, Water, PLDT Wifi, Helper, …), split equally, by points or manually. |
 | **Shared column** | A column of advances split among who shares it ("Advances Shared", "w/o PA", a Manual one). |
 | **Advance** | A household purchase one member paid for themselves; logged into a shared column. |

@@ -7,6 +7,7 @@ import { AddBillDialog } from "@/components/entry-dialogs";
 import { formatPHP } from "@/lib/money";
 import type { PeriodView, ViewBill } from "@/lib/periods";
 import { cn } from "@/lib/utils";
+import { useCanEdit } from "@/components/viewer-context";
 
 const MODE_PILLS = {
   equal: { label: "Auto equal", className: "bg-emerald-800 text-white" },
@@ -15,7 +16,8 @@ const MODE_PILLS = {
 } as const;
 
 export function ManageBills({ view }: { view: PeriodView }) {
-  const editable = view.period.status === "open";
+  // PA in an open month; everyone else sees plain values.
+  const editable = useCanEdit(view.period.status);
   return (
     <section className="rounded-xl border bg-white p-5 shadow-xs">
       <div className="flex flex-wrap items-start justify-between gap-3">

@@ -15,9 +15,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { formatPHP } from "@/lib/money";
 import type { PeriodView, ViewColumn } from "@/lib/periods";
 import { cn } from "@/lib/utils";
+import { useCanEdit } from "@/components/viewer-context";
 
 export function ManageSharedColumns({ view }: { view: PeriodView }) {
-  const editable = view.period.status === "open";
+  // PA in an open month; everyone else sees plain values.
+  const editable = useCanEdit(view.period.status);
   return (
     <section className="rounded-xl border bg-white p-5 shadow-xs">
       <div className="flex flex-wrap items-start justify-between gap-3">

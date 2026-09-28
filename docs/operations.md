@@ -21,7 +21,13 @@ Every table has RLS enabled with no policies ([decisions.md](decisions.md)); kee
 
 Supabase's free plan has **no automatic backups**, so run `npm run db:backup` after
 closing each month. Backups are saved in `backups/`, which is git-ignored because they
-contain real household data. Keep a copy somewhere safe outside the repo.
+contain real household data (login emails included). Keep a copy somewhere safe outside the
+repo.
+
+Logins live in Supabase's own `auth` schema, not in the backup. After restoring into a **new**
+Supabase project, every `members.auth_user_id` points at nothing: set up login again
+([setup.md](setup.md) step 5), then re-invite everyone (`npm run auth:invite -- PA …`, the
+rest from Manage).
 
 `db:backup` needs `pg_dump` (its version must be at least Supabase's Postgres version):
 
@@ -73,7 +79,9 @@ checklist for keeping the docs up to date.
 ## Project layout
 
 ```
-app/            Next.js routes: /periods/[year]/[month] (5 tabs) and /how-it-works
+proxy.ts        Runs before every page: refreshes the login, sends logged-out visitors to /login
+app/            Next.js routes: /periods/[year]/[month] (5 tabs), /how-it-works,
+                /login and /auth/callback (sign-in)
 .github/        Keep-alive workflow, PR template
 components/     App components (inline-input.tsx = the shared edit-in-place field)
 components/ui/  shadcn/ui components
@@ -82,8 +90,9 @@ drizzle/        Generated SQL migrations (committed)
 docs/           How things work: rules, features, decisions, TODO (this folder)
 hooks/          Client hooks (drag-to-scroll for the wide Split Table)
 lib/            Money, settlement, month-lock, advances log, bill emails (lib/bill-email/),
-                bill import — with their tests
-scripts/        Seed, backup and bill-email import scripts
+                bill import, login (auth.ts, permissions.ts, invites.ts, supabase/) —
+                with their tests
+scripts/        Seed, backup, bill-email import and invite scripts
 ```
 
 ## Services & accounts
@@ -93,16 +102,24 @@ secrets or a password manager.
 
 | Service | What it's for | Notes |
 |---|---|---|
-| Supabase (free plan, Singapore) | The Postgres database | Connection strings in `.env.local`; pauses after 7 idle days (above) |
+| Supabase (free plan, Singapore) | The Postgres database, and Auth (the logins) | Connection strings and keys in `.env.local`; pauses after 7 idle days (above); login settings in [setup.md](setup.md) step 5 |
+| Google Cloud (OAuth client) | "Continue with Google" | Consent screen in Testing mode; members using Google are its test users |
+| Sender Gmail (the app's own, not PA's) | Sends the email sign-in codes (Supabase custom SMTP) | 2-Step Verification on; its App Password is only in Supabase's SMTP settings |
 | GitHub `paulfuentesss/home-finance-tracker` | Code, PRs, the keep-alive job | **Public**; secret `DIRECT_URL` for the keep-alive job |
 | Gmail (PA's) | Where the providers' bill emails arrive | Will forward to the bill inbox address once it exists |
-| Inbound email provider, hosting | The bill inbox address; running the app online | Not chosen yet — after login ([TODO.md](TODO.md)) |
+| Inbound email provider, hosting | The bill inbox address; running the app online | Not chosen yet ([TODO.md](TODO.md)) |
 
 ## Privacy & security
 
 The app holds household finances, and **this repo is public**, so:
 
-- **No public deploy until login exists** — anyone with the URL would see everything.
+- **Login protects every page and change** ([features/auth.md](features/auth.md)). Go online
+  only through the checklist in [TODO.md → Before going online](TODO.md#before-going-online).
+- **`SUPABASE_SECRET_KEY` is server-only** — it can create and delete logins. Never give it
+  a `NEXT_PUBLIC_` name, never commit it; only `lib/supabase/admin-server.ts` and the invite
+  script read it (checked by `lib/actions-guard.test.ts`).
+- **File storage (receipts, member pictures):** private buckets, and policies must never grant
+  access to every `authenticated` user.
 - **Nothing personal in the repo:** no amounts, account numbers, card or payment details,
   phone numbers, or credentials in code, docs or commits. Household specifics go in
   `.private/NOTES.md`, which is git-ignored (keep your own copy of it elsewhere).

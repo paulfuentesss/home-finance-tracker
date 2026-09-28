@@ -8,25 +8,48 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
 
 ## Next
 
-- [ ] **Login / auth** — the gate for going online. Blocks the bill inbox address, receipt
-      uploads, going online at all, and the PWA. Choose a provider first.
+- [ ] **Finish testing login** ([testing.md → Login, start to finish](testing.md#trying-things-by-hand)).
+      Done on 2026-09-28: Google sign-in as PA, email-code sign-in as a housemate, the housemate
+      view (no Manage, own advances only, view-only Settle Up). Still to do:
+      - Replace the housemate's temporary login email (currently the app's sender Gmail) with
+        their real address in Manage, then check in Supabase → Authentication → Users that
+        the **old** login is gone and the new one matches `members.auth_user_id`.
+      - Clear an email → that person's next click goes to `/login`.
+      - A Google account that isn't invited → "not invited", no loop.
+      - Invite the other housemates.
+
+- [ ] **Go online** — hosting, the domain, and the checklist below. Blocks the bill inbox
+      address.
+
+- [ ] **Watch where sign-in emails land** ([auth](features/auth.md)): the first code went to
+      Promotions, a later one to Primary. If housemates' codes keep getting filed away, move to
+      a transactional email service (e.g. Resend) with an own domain once online.
 
 ## Later
 
-- [ ] **Bill inbox address** ([email-bills](features/email-bills.md)) — *waits for login + deploy.*
+- [ ] **Bill inbox address** ([email-bills](features/email-bills.md)) — *waits for deploy.*
       Pick an inbound-email provider that posts parsed mail to a webhook with a DKIM/SPF
       verdict; a long random address; a new `app/api/inbound-email/route.ts` verifies the signature,
       accepts only the providers' domains with DKIM pass (plus Gmail's forwarding-confirmation
       sender), then calls `importBillEmail(db, …)`; a Gmail filter forwards the three providers.
-- [ ] **Receipt uploads** ([receipts](features/receipts.md)) — *waits for login.* Private
-      Supabase Storage bucket; attach to bills, advances, payments.
+      The route is public: add it to `PUBLIC_PATHS` in `proxy.ts` and to the Route Handler
+      allowlist in `lib/actions-guard.test.ts`.
+- [ ] **Receipt uploads** ([receipts](features/receipts.md)). Private Supabase Storage bucket;
+      attach to bills, advances, payments.
 - [ ] **A picture (GIF) for each member** ([manage](features/manage.md)), shown wherever the
       member appears (Who owes what cards, Advances Log) — *needs file storage, like receipts.*
 - [ ] **PWA** — installable, polished on mobile, usable offline. Offline *viewing* (the last
       months loaded, cached by a service worker) first; offline *editing* needs a sync queue and
-      conflict handling. *Waits for login:* cached pages put household finances on the device.
+      conflict handling. Cached pages put household finances on the device, so signing out must
+      clear the cache.
 
 ## Ideas (not decided)
+
+- Google's consent screen says "Sign in to `<project-ref>.supabase.co`" ([auth](features/auth.md)).
+  Once there's an own domain: free options are Google's own sign-in button
+  (Google Identity Services → `signInWithIdToken`, shows the site's domain) and Google brand
+  verification (shows "My House"; needs a privacy policy page). Supabase's custom domain
+  does it too, but is paid.
 
 - Read payment-confirmation emails to fill "Date paid" automatically
   ([email-bills](features/email-bills.md)). Wouldn't catch every payment fee, since some
@@ -49,9 +72,17 @@ Work through this before the first public deploy.
 - [ ] Page titles and the favicon.
 
 **Operational**
-- [ ] Login protects every page and Server Action; only the inbound-email webhook stays open
-      (signature-checked).
-- [ ] Hosting chosen; environment variables set there (`DATABASE_URL`, and the webhook secret).
+- [x] Login protects every page and Server Action ([features/auth.md](features/auth.md)); only
+      the inbound-email webhook will stay open (signature-checked).
+- [ ] Hosting chosen; environment variables set there: `DATABASE_URL`,
+      `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`
+      (server-only), and the webhook secret.
 - [ ] Domain / URL decided; HTTPS.
+- [ ] Login knows the real URL: in Supabase → Authentication → URL Configuration set the
+      **Site URL** to it (not just the Redirect URLs — a refused redirect falls back to the
+      Site URL) and add `https://<domain>/**` to Redirect URLs. Keep the Google consent screen
+      in Testing (its test users are a second allowlist).
+- [ ] Sign in on the live site with Google and with an email code, and check a stranger's
+      Google account is refused.
 - [ ] Backups: the latest `npm run db:backup` taken and copied somewhere safe.
 - [ ] Review [operations.md → Privacy & security](operations.md#privacy--security).

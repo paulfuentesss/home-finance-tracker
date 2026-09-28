@@ -16,8 +16,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useCanEdit, useViewer } from "@/components/viewer-context";
 import { dateLabel, monthLabel } from "@/lib/format";
 import { formatPHP } from "@/lib/money";
+import { isAdmin } from "@/lib/permissions";
 import type { PeriodView, ViewMember, ViewPayment } from "@/lib/periods";
 import { suggestedPayments } from "@/lib/settlement";
 import { cn } from "@/lib/utils";
@@ -37,7 +39,8 @@ export function SettleUp({ view }: { view: PeriodView }) {
 }
 
 function WhoStillOwes({ view }: { view: PeriodView }) {
-  const editable = view.period.status === "open";
+  // Only PA records payments (in an open month).
+  const editable = useCanEdit(view.period.status);
   const memberOf = new Map(view.members.map((m) => [m.id, m]));
   const collector = view.members.find((m) => m.isCollector) ?? null;
   const balances = view.rows.map((r) => ({ memberId: r.memberId, balance: r.balance }));
@@ -51,8 +54,10 @@ function WhoStillOwes({ view }: { view: PeriodView }) {
         Who still owes
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Everyone settles with {collector?.name ?? "the collector"}. Record a payment when money changes hands; it comes
-        off both people&apos;s Final.
+        Everyone settles with {collector?.name ?? "the collector"}.{" "}
+        {editable
+          ? "Record a payment when money changes hands; it comes off both people's Final."
+          : `${collector?.name ?? "The collector"} records each payment when money changes hands; it comes off both people's Final.`}
       </p>
 
       {view.issue ? (
@@ -115,7 +120,8 @@ function WhoStillOwes({ view }: { view: PeriodView }) {
 }
 
 function PaymentsList({ view }: { view: PeriodView }) {
-  const editable = view.period.status === "open";
+  // Only PA records payments (in an open month).
+  const editable = useCanEdit(view.period.status);
   const [editing, setEditing] = useState<ViewPayment | null>(null);
   const memberOf = new Map(view.members.map((m) => [m.id, m]));
 
@@ -183,6 +189,8 @@ function MonthLock({ view }: { view: PeriodView }) {
   const label = monthLabel(year, month);
   const next = view.next ? monthLabel(view.next.year, view.next.month) : null;
   const nameOf = new Map(view.members.map((m) => [m.id, m.name]));
+  // Only PA closes and reopens months; everyone else sees where the month stands.
+  const admin = isAdmin(useViewer());
 
   if (status === "closed") {
     return (
@@ -196,24 +204,40 @@ function MonthLock({ view }: { view: PeriodView }) {
           Nothing in it can be changed, and everyone&apos;s Final is saved
           {next ? ` as ${next}'s Prev Month Unsettled` : " for next month"}.
         </p>
-        <p className="mt-3 rounded-lg bg-zinc-50 p-3 text-xs text-muted-foreground">
-          Back up the database after closing a month: <code className="font-mono">npm run db:backup</code>
+        {admin && (
+          <p className="mt-3 rounded-lg bg-zinc-50 p-3 text-xs text-muted-foreground">
+            Back up the database after closing a month: <code className="font-mono">npm run db:backup</code>
+          </p>
+        )}
+        {admin && (
+          <div className="mt-4">
+            <ConfirmAction
+              trigger={
+                <>
+                  <LockOpen />
+                  Reopen {label}
+                </>
+              }
+              check={view.canReopen}
+              title={`Reopen ${label}?`}
+              description={`It becomes editable again${next ? `, and ${next}'s Prev Month Unsettled follows it live again` : ""}.`}
+              confirmLabel={`Reopen ${label}`}
+              action={() => reopenMonth(view.period.id)}
+            />
+          </div>
+        )}
+      </section>
+    );
+  }
+
+  if (!admin) {
+    return (
+      <section className="rounded-xl border bg-white p-4 shadow-xs sm:p-5">
+        <h2 className="text-lg font-semibold">{label} is open</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          PA closes the month once it&apos;s settled. Anything still unpaid then carries over
+          {next ? ` to ${next}` : " to next month"} as Prev Month Unsettled.
         </p>
-        <div className="mt-4">
-          <ConfirmAction
-            trigger={
-              <>
-                <LockOpen />
-                Reopen {label}
-              </>
-            }
-            check={view.canReopen}
-            title={`Reopen ${label}?`}
-            description={`It becomes editable again${next ? `, and ${next}'s Prev Month Unsettled follows it live again` : ""}.`}
-            confirmLabel={`Reopen ${label}`}
-            action={() => reopenMonth(view.period.id)}
-          />
-        </div>
       </section>
     );
   }
