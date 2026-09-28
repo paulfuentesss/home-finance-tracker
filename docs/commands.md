@@ -56,7 +56,7 @@ The `db:` and `test:` prefixes are just a naming convention for grouping.
 | `npm run db:seed` | Adds the five household members (safe to run repeatedly) | First-time setup |
 | `npm run db:seed:august` | Loads August 2026 from the household sheet (bills, points, advances) as test data | First-time setup |
 | `npm run db:seed:august -- --replace` | Deletes August 2026 (and its bill emails) and loads it fresh; only touches that month | To reset the test data after experimenting |
-| `npm run db:backup` | Dumps the database to `backups/myhouse-YYYY-MM-DD.sql` | After closing each month |
+| `npm run db:backup` | Dumps the database to `backups/home-finance-tracker-YYYY-MM-DD.sql` | After closing each month |
 
 ## Email-imported bills
 

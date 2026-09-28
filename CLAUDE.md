@@ -1,4 +1,4 @@
-# MyHouse
+# My House
 
 Household expense tracker replacing a monthly Google Sheet. Next.js 16 App Router,
 shadcn/ui, Drizzle ORM on Supabase Postgres, Vitest.
@@ -8,7 +8,9 @@ The user (Paul, "PA" in the data) is both the developer and the household's
 learning these tools, so explain what each step does and why.
 
 GitHub: `paulfuentesss/home-finance-tracker` (**public**). Local folder:
-`~/Documents/GitHub/home-finance-tracker`. The app is still called "MyHouse".
+`~/Documents/GitHub/home-finance-tracker`. Internal names (repo, folder, `package.json`,
+backup files) are `home-finance-tracker`; what the household sees is **"My House"** — use that
+spelling in every user-facing string (header, tab title, pages) and in the docs.
 
 ## Docs map
 
