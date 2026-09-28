@@ -1,23 +1,49 @@
 # MyHouse
 
 Household expense tracker replacing a monthly Google Sheet. Next.js 16 App Router,
-shadcn/ui, Drizzle ORM on Supabase Postgres, Vitest. Commands are listed in README.md.
+shadcn/ui, Drizzle ORM on Supabase Postgres, Vitest.
 
 The user (Paul, "PA" in the data) is both the developer and the household's
 **collector**: he pays the core bills upfront and everyone settles with him. He is
 learning these tools, so explain what each step does and why.
 
-**Current status:** see "Current status" in README.md (what works, what isn't built yet).
-Keep that list up to date when a feature lands.
+GitHub: `paulfuentesss/home-finance-tracker` (**public**). Local folder:
+`~/Documents/GitHub/home-finance-tracker`. The app is still called "MyHouse".
 
-**Repo & folder:** renamed from `MyHouse` on 2026-09-28.
-- GitHub: `paulfuentesss/home-finance-tracker`
-  (`origin` = https://github.com/paulfuentesss/home-finance-tracker.git; the old
-  `MyHouse` URL only works through GitHub's redirect).
-- Local folder: `~/Documents/GitHub/home-finance-tracker`.
-- The app itself is still called "MyHouse" (README title, the "My House" header label,
-  `package.json` `"name": "myhouse"`). Renaming it in the app hasn't been decided yet.
-- After moving the folder, delete `.next/`: its build cache stores absolute paths.
+## Docs map
+
+README.md is the short front page for people; this file is the index for Claude.
+
+| Question | Where |
+|---|---|
+| What works, what's partly built, how each feature is built | `docs/features/README.md` (the only status list) → one page per feature |
+| What's not done yet; the going-online checklist | `docs/TODO.md` |
+| How the money is split (the math's source of truth) | `docs/settlement-rules.md` |
+| Why something is the way it is | `docs/decisions.md` |
+| Tables and migrations | `docs/data-model.md` |
+| Tests, fixtures, resetting test data | `docs/testing.md` |
+| Setup, commands, operations (backups, keep-alive, services, privacy) | `docs/setup.md`, `docs/commands.md`, `docs/operations.md` |
+| Household specifics (git-ignored, never committed) | `.private/NOTES.md` |
+
+## Keeping docs up to date
+
+Part of every change, in the same PR — not a separate chore.
+
+- **One home per topic.** Other docs link to it and never copy it: status only in the
+  features index, open items only in `TODO.md`, money rules only in `settlement-rules.md`,
+  config values only in code (docs name the setting, e.g. `BILL_PAYMENT_FEES`, not "₱15").
+- A feature lands or changes → its `docs/features/*.md` page and its row in the index.
+  A feature gets a page when work on it starts; until then it's a `TODO.md` line.
+- Something finished, deferred or newly noticed → `docs/TODO.md` (remove finished items; the
+  PR is the record).
+- A choice with a "why", including decisions from an approved plan (plans are saved outside
+  the repo, in `~/.claude/plans`) → `docs/decisions.md`.
+- A money rule changes → `docs/settlement-rules.md` **and** `app/how-it-works/page.tsx`.
+- New table or migration → `docs/data-model.md`. New command → `docs/commands.md`.
+- **The repo is public:** no amounts, account numbers, card or payment details, phone numbers
+  or credentials in code, docs or commits. Scrub email fixtures. Household specifics go in
+  `.private/NOTES.md`.
+- Keep the `BEGIN/END:nextjs-agent-rules` block at the end of this file (`next dev` re-adds it).
 
 ## Rules
 

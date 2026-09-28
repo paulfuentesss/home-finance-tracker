@@ -3,7 +3,8 @@
 How MyHouse splits household costs each month. This is the source of truth for
 `lib/settlement.ts`, `lib/money.ts` and `db/schema.ts`: change the rules here first, then
 the code. The household-facing version is the **How it works** page
-(`app/how-it-works/page.tsx`) — keep the two in sync.
+(`app/how-it-works/page.tsx`) — keep the two in sync. This file holds the rules only: what
+each feature does and how it's built is in [features/](features/README.md).
 
 The examples use the real **August 2026** numbers from the household Google Sheet, which
 are also the test fixture (`lib/__fixtures__/august-2026.ts`).
@@ -201,7 +202,6 @@ Rules (`lib/month-lock.ts`):
   that don't add up; none of them block closing. (A bill still at ₱0.00 may simply not have
   arrived: bills belong to the month they're for, which has usually ended when they arrive.)
 
-Back up the database after closing a month (`npm run db:backup`).
 
 ## Adding and removing members
 
@@ -235,13 +235,12 @@ Meralco, Water (Manila Water) and PLDT email their bills. Each email is read
   `BILL_EMAIL_COLUMNS` in `lib/household-config.ts`) with `source = 'email'`,
   `status = 'pending'` and its due date. Shares are computed as usual (Meralco by points), so
   confirming only flips the status.
-- **Payment fee:** the fixed fee of the way PA pays each bill is added on top
-  (`BILL_PAYMENT_FEES` in `lib/household-config.ts`): Meralco ₱15.00 (Bayad app convenience
-  fee), Water ₱7.00 (Dragonpay fee on the Manila Water QR), PLDT ₱0. It's part of the bill, so
-  **everyone shares it**, and the column notes it ("Emailed bill ₱15,448.59 + ₱15.00 Bayad app
-  convenience fee"). August 2026 with the fees = the sheet exactly: Meralco ₱15,463.59, Water
-  ₱2,173.63. Change the setting when the way of paying changes; bills already imported keep
-  the fee they came in with (`bill_emails.fee`).
+- **Payment fee:** the fixed fee of the way PA pays each bill (a payment app's convenience
+  fee, say) is added on top. The amounts are a setting, `BILL_PAYMENT_FEES` in
+  `lib/household-config.ts`, changed when the way of paying changes. The fee is part of the
+  bill, so **everyone shares it**, and the column notes it ("Emailed bill ₱… + ₱… <what the
+  fee is>"). With the fees, August 2026 imports at exactly the sheet's amounts. Bills already
+  imported keep the fee they came in with (`bill_emails.fee`).
 - **Pending is ignored by the settlement** until someone confirms it. Before confirming, the
   amount can still be changed. **Discard** sets the column back to ₱0.00 (split and points
   unchanged) and sets the email aside for good.
@@ -252,11 +251,7 @@ Meralco, Water (Manila Water) and PLDT email their bills. Each email is read
 - **Each email counts once:** the same Message-ID is ignored, and so is a second email for
   the same provider and month (a reminder) while the first isn't dismissed.
 
-Try it locally with `npm run bills:import -- meralco water pldt` (the real August 2026
-emails, `lib/bill-email/__fixtures__/`). Receiving forwarded emails needs a public address,
-so it comes after login.
-
 ## Receipts
 
-`receipt_path` on bills and advances will hold a screenshot (MariBank, Bayad, Maya, GCash)
-in a private Supabase Storage bucket — the Receipts tab is laid out and uploads come next.
+A receipt is proof attached to a bill or an advance (`receipt_path`). It never changes the
+math. Not built yet: [features/receipts.md](features/receipts.md).
