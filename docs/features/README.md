@@ -1,6 +1,6 @@
 # Features
 
-Where MyHouse stands. **This table is the only status list**: when a feature lands or changes,
+Where My House stands. **This table is the only status list**: when a feature lands or changes,
 update its row and its page. Not started yet? It's a line in [TODO.md](../TODO.md) until work
 begins, then it gets a page here.
 

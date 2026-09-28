@@ -1,6 +1,6 @@
 # Decisions
 
-Choices that shaped MyHouse, and why. Add one whenever a choice has a "why" worth
+Choices that shaped My House, and why. Add one whenever a choice has a "why" worth
 remembering — including those made in an approved Claude plan (plans are kept outside the
 repo). Newest at the bottom. Money rules themselves live in [settlement-rules.md](settlement-rules.md).
 
@@ -45,8 +45,7 @@ paid included, the collector like everyone else; the Finals sum to ₱0.00.
 
 ## 2026-09-28 — Repo and folder renamed to `home-finance-tracker`
 **Decision:** GitHub repo `paulfuentesss/home-finance-tracker` (the old `MyHouse` URL still
-redirects), local folder `~/Documents/GitHub/home-finance-tracker`. The app is still called
-"MyHouse"; renaming the app is undecided ([TODO.md](TODO.md)).
+redirects), local folder `~/Documents/GitHub/home-finance-tracker`.
 
 ## 2026-09-28 — Bills go in the month the provider names
 **Decision:** an emailed bill goes into the month named in the email ("Meralco bill for August
@@ -72,6 +71,16 @@ storing them per email keeps old months stable.
 **Decision:** the repo stays public. Docs are generic; household specifics go in a git-ignored
 `.private/NOTES.md`. What's already public (the August fixture) stays as it is.
 **Instead of:** making the repo private.
+
+## 2026-09-28 — The app is "My House"; the code is `home-finance-tracker`
+**Decision:** what the household sees (header, browser tab, pages, later the home-screen icon)
+is **"My House"**, spelled that way everywhere. Internal names — repo, folder, `package.json`,
+backup files — are `home-finance-tracker`.
+**Instead of:** "MyHouse" (was used alongside "My House"), "My House App", or renaming the app
+to match the repo.
+**Why:** internal names describe the code; the app name should be short and friendly and fit a
+phone header and an icon label (iPhone cuts those at about 12 characters). "App" adds nothing
+inside the app itself.
 
 ## 2026-09-28 — Docs organized by topic, one home each
 **Decision:** README is the short front page, CLAUDE.md is Claude's index, and `docs/` holds

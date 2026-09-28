@@ -1,4 +1,4 @@
-# MyHouse
+# My House
 
 A household's own finance tracker, replacing a monthly Google Sheet: utility bills split
 across the household, a shared advances log, and a monthly settlement with carry-over.

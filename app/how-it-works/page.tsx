@@ -254,7 +254,7 @@ export default async function HowItWorksPage() {
             </div>
             <div>
               <h1 className="text-xl font-semibold tracking-tight">How it works</h1>
-              <p className="text-sm text-muted-foreground">How MyHouse splits the house costs</p>
+              <p className="text-sm text-muted-foreground">How My House splits the house costs</p>
             </div>
           </div>
           <Link href={back} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">

@@ -1,4 +1,4 @@
-// Dumps the app's tables to backups/myhouse-YYYY-MM-DD.sql. Supabase's free tier has no
+// Dumps the app's tables to backups/home-finance-tracker-YYYY-MM-DD.sql. Supabase's free tier has no
 // automatic backups, so run this after closing each month.
 // Needs pg_dump: brew install libpq (its version must be >= Supabase's Postgres version).
 // Run: npm run db:backup
@@ -12,7 +12,7 @@ if (!url) throw new Error("DIRECT_URL is not set — fill in .env.local first.")
 
 const dir = join(process.cwd(), "backups");
 mkdirSync(dir, { recursive: true });
-const file = join(dir, `myhouse-${new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" })}.sql`);
+const file = join(dir, `home-finance-tracker-${new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" })}.sql`);
 
 // public = app tables, drizzle = migration history.
 const result = spawnSync(
