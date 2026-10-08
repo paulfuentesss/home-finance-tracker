@@ -148,6 +148,16 @@ math and for privacy in a public repo.
 connected, so they'd edit the same files and spend most of their time re-learning the project.
 Truly separate features can run as separate sessions in their own git worktrees.
 
+## 2026-10-08 — One worktree per session, and a startup check
+**Decision:** each parallel Claude session works in its own git worktree. A SessionStart hook
+(`.claude/hooks/checkout-status.sh`) shows every session the folder's branch, uncommitted
+changes, worktrees and open PRs before it starts.
+**Why:** two sessions shared one folder; one switched branches mid-task and the other's commit
+landed on the wrong branch. Git can't tell whether another session is open, but the traces one
+leaves (a feature branch, uncommitted files) can be shown up front.
+**Instead of:** blocking `git switch` with a hook — the report plus the CLAUDE.md rule covers
+it without getting in the way of normal branch work.
+
 ## 2026-10-08 — Receipts: a private bucket, opened through the app
 **Decision:** receipt files go in a private Supabase Storage bucket that only the server
 reaches (secret key). Pages link to `/receipts/<id>`, which checks the login and redirects to
