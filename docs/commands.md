@@ -71,6 +71,21 @@ The `db:` and `test:` prefixes are just a naming convention for grouping.
 | `npm run auth:invite -- PA you@gmail.com` | Gives a member a login for that email (Google or an emailed code), replacing any login they had — the same as typing it in Manage | Once for PA's own login during setup; to change PA's login email; to get back in if it's wrong ([features/auth.md](features/auth.md)) |
 | `npm run auth:invite -- <name> --remove` | Takes a member's login away | Rarely — clearing the email in Manage does the same for everyone but PA |
 
+## Working in parallel (git worktrees)
+
+One folder can only be on one branch. To run a second Claude session at the same time, give it
+its own folder (a **worktree**): same git history, separate files and branch. Or ask Claude at
+the start of a session to "work in a new worktree".
+
+| Command | What it does | When to run it |
+|---|---|---|
+| `git worktree add ../home-finance-tracker-<task> -b <branch> origin/main` | Makes a new folder next to this one, on a new branch from the latest `main` | Before starting a second session; open the new folder in its own VS Code window |
+| `cp ../home-finance-tracker/.env.local . && npm install` | Copies the settings git ignores, installs dependencies | Once, inside the new folder |
+| `git worktree list` | Shows every folder and the branch it's on | Any time |
+| `git worktree remove ../home-finance-tracker-<task>` | Deletes the folder (the branch stays) | After its PR is merged |
+
+All folders share one database, and the second `npm run dev` gets port 3001.
+
 ## Automatic (you never run these)
 
 | Script | What it does | When it runs |
