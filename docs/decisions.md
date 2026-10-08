@@ -135,3 +135,15 @@ doesn't document what counts as activity, so the job now does both kinds of thin
 does.
 **Instead of:** a paid plan (no pausing) — overkill for a household app while restoring loses
 no data.
+
+## 2026-10-08 — CI checks, and subagents that review rather than build
+**Decision:** a GitHub Actions workflow runs typecheck, lint and tests on every PR. Two Claude
+Code subagents (`.claude/agents/`) review before a PR: `money-reviewer` checks money and schema
+changes against `settlement-rules.md`; `docs-keeper` checks the docs were updated and nothing
+private slipped in. Both are read-only; the main session makes every edit.
+**Why:** the checks used to run only when someone remembered. A reviewer that starts fresh
+doesn't share the blind spots of whoever wrote the change, which matters most for the money
+math and for privacy in a public repo.
+**Instead of:** subagents building features in parallel — the codebase is small and tightly
+connected, so they'd edit the same files and spend most of their time re-learning the project.
+Truly separate features can run as separate sessions in their own git worktrees.

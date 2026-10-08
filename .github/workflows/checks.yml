@@ -1,0 +1,45 @@
+# Runs the pre-PR checks on every pull request and every push to main, so a broken type,
+# lint error or failing test shows up as a red ✗ on the PR instead of relying on memory.
+#
+# No secrets needed: the tests never touch the database (docs/testing.md). Keep it that way —
+# this repo is public, and so are its Actions logs.
+
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# A new push to the same PR cancels the run still going for the old one.
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HUSKY: "0" # no git hooks on the CI machine
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test

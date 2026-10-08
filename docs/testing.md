@@ -7,6 +7,10 @@ database or React: the money math and rules are pure code in `lib/`. Two excepti
 still offline: `invites.test.ts` runs `lib/invites.ts` against a fake database and a fake
 Supabase, and `actions-guard.test.ts` reads the source files.
 
+**CI:** GitHub Actions runs `npm run typecheck`, `npm run lint` and `npm test` on every pull
+request and every push to main (`.github/workflows/checks.yml`); a failure shows as a red ✗
+on the PR. It needs no secrets because no test touches the database — keep it that way.
+
 | Test file | Covers |
 |---|---|
 | `lib/money.test.ts` | Centavo conversion, parsing typed amounts, equal and weighted splits |

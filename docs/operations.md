@@ -94,7 +94,8 @@ checklist for keeping the docs up to date.
 proxy.ts        Runs before every page: refreshes the login, sends logged-out visitors to /login
 app/            Next.js routes: /periods/[year]/[month] (5 tabs), /how-it-works,
                 /login and /auth/callback (sign-in)
-.github/        Keep-alive workflow, PR template
+.claude/agents/ Review agents for Claude Code (money-reviewer, docs-keeper)
+.github/        Workflows (checks on every PR, keep-alive), PR template
 components/     App components (inline-input.tsx = the shared edit-in-place field)
 components/ui/  shadcn/ui components
 db/             Drizzle schema (schema.ts) and database clients
