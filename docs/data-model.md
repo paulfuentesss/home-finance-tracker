@@ -21,6 +21,7 @@ connects directly ([decisions.md](decisions.md)).
 | `advances` | A purchase a member paid for the household, in one shared column | [advances](features/advances.md) |
 | `payments` | Money changing hands to settle up | [settle up](features/settle-up.md) |
 | `bill_emails` | A bill email received: parsed values, payment fee, status (imported / unmatched / dismissed), the bill it filled | [email bills](features/email-bills.md) |
+| `keep_alive` | One row: when the keep-alive job last wrote. Not used by the app | [operations](operations.md#supabase-free-plan-the-project-goes-to-sleep) |
 
 ## Migrations
 
@@ -35,6 +36,7 @@ Add a line here with every new one.
 | `0003_bill-emails` | `bill_emails` (the Bill Inbox) and its enums |
 | `0004_bill-email-fees` | Payment fee and note on `bill_emails` |
 | `0005_member-logins` | `email`, `auth_user_id` and `role` on `members` (the `member_role` enum); the collector becomes `admin` |
+| `0006_keep-alive` | `keep_alive`, the one-row table the keep-alive job writes to |
 
 The logins themselves live in Supabase's `auth.users` (managed by Supabase, not by these
 migrations); `members.auth_user_id` points at one.

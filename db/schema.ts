@@ -302,6 +302,17 @@ export const periodBalances = pgTable(
   (t) => [primaryKey({ columns: [t.periodId, t.memberId] })],
 ).enableRLS();
 
+// Written by the keep-alive job (.github/workflows/keep-alive.yml), never by the app: a real
+// write, because a read alone didn't stop the free Supabase project from pausing. One row.
+export const keepAlive = pgTable(
+  "keep_alive",
+  {
+    id: integer("id").primaryKey().default(1),
+    pingedAt: timestamp("pinged_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check("keep_alive_single_row", sql`${t.id} = 1`)],
+).enableRLS();
+
 // ---------- Relations (for typed db.query.* joins) ----------
 
 export const membersRelations = relations(members, ({ many }) => ({

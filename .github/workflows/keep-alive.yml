@@ -1,12 +1,20 @@
 # Keeps the free Supabase project awake: free projects pause after 7 days without activity,
-# and this app is mostly used around month-end. Twice a week it reads one small table.
+# and this app is mostly used around month-end.
 #
-# Setup (once): add the session-pooler URL from .env.local as a repository secret:
-#   gh secret set DIRECT_URL
+# A read alone wasn't enough: in October 2026 the project paused although this job had read
+# the database twice that week. So twice a week it now does what real use does:
+#   1. writes to the database (stamps the one-row keep_alive table), and
+#   2. calls Supabase's API over HTTPS with the publishable key, like the app's login.
+# Supabase doesn't document what counts as activity; see docs/operations.md.
+#
+# Setup (once) — repository secrets, from .env.local:
+#   gh secret set DIRECT_URL                # the session-pooler URL
+#   gh secret set SUPABASE_URL              # NEXT_PUBLIC_SUPABASE_URL
+#   gh secret set SUPABASE_PUBLISHABLE_KEY  # NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 # Scheduled runs only happen from the default branch (main). Run it by hand from the
 # Actions tab → Keep Supabase awake → Run workflow.
 #
-# If the project is already paused, the query fails and GitHub emails you about the failed
+# If the project is already paused, a step fails and GitHub emails you about the failed
 # run — a heads-up to click "Restore project" in the Supabase dashboard.
 
 name: Keep Supabase awake
@@ -23,15 +31,33 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    env:
+      DIRECT_URL: ${{ secrets.DIRECT_URL }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
     steps:
-      - name: Read from the database
-        env:
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+      - name: Check the secrets are set
         run: |
-          if [ -z "$DIRECT_URL" ]; then
-            echo "::error::The DIRECT_URL secret isn't set. Run: gh secret set DIRECT_URL"
-            exit 1
-          fi
-          # Output is discarded: this repo is public, so the logs are too.
-          psql "$DIRECT_URL" -qtAc "select count(*) from members" > /dev/null
-          echo "Database reached."
+          missing=0
+          for name in DIRECT_URL SUPABASE_URL SUPABASE_PUBLISHABLE_KEY; do
+            if [ -z "${!name}" ]; then
+              echo "::error::The $name secret isn't set. Run: gh secret set $name"
+              missing=1
+            fi
+          done
+          exit $missing
+
+      # Output is discarded in both steps: this repo is public, so the logs are too.
+      - name: Write to the database
+        run: |
+          psql "$DIRECT_URL" -v ON_ERROR_STOP=1 -qtAc \
+            "insert into keep_alive (id, pinged_at) values (1, now())
+             on conflict (id) do update set pinged_at = excluded.pinged_at" > /dev/null
+          echo "Database written."
+
+      - name: Call the Supabase API
+        run: |
+          curl --fail --silent --show-error --max-time 30 -o /dev/null \
+            -H "apikey: $SUPABASE_PUBLISHABLE_KEY" \
+            "$SUPABASE_URL/auth/v1/health"
+          echo "Supabase API reached."

@@ -125,3 +125,13 @@ Manual or situational column.
 PA's.
 **Why:** a Gmail App Password opens the whole mailbox, and PA's holds the providers' bill
 emails.
+
+## 2026-10-08 — Keep-alive writes and calls the API, not just a read
+**Decision:** the keep-alive job stamps a one-row `keep_alive` table and calls Supabase's API
+over HTTPS with the publishable key, twice a week.
+**Why:** the project paused in early October although the job had read a table on 1 and
+5 October — about 7–10 days after the last real use, as if the reads didn't count. Supabase
+doesn't document what counts as activity, so the job now does both kinds of thing real use
+does.
+**Instead of:** a paid plan (no pausing) — overkill for a household app while restoring loses
+no data.
