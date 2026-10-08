@@ -39,24 +39,35 @@ brew link --force libpq
 ## Supabase free plan: the project goes to sleep
 
 Free Supabase projects **pause after 7 days without activity**. When the app can't reach
-the database, open the Supabase dashboard and click **Restore project**. No data is lost.
+the database (the error mentions "tenant/user … not found"), open the Supabase dashboard
+and click **Restore project**. It's back within a few minutes and no data is lost — then
+take a backup (`npm run db:backup`).
 
 **Keep-alive job** (`.github/workflows/keep-alive.yml`): every Monday and Thursday at
-09:00 Manila, GitHub Actions reads one small table so the project never sits idle for 7
-days. Setup, once:
+09:00 Manila, GitHub Actions does what real use does, so the project never sits idle for
+7 days:
+1. **writes** to the database — stamps the one-row `keep_alive` table, and
+2. **calls Supabase's API** over HTTPS with the publishable key (`/auth/v1/health`).
+
+Until October 2026 it only read a table, and the project paused anyway — a read through
+the pooler didn't count as activity ([decisions.md](decisions.md)). Supabase doesn't document
+what counts, so if it pauses again despite this, the fallback is Restore + a paid plan
+decision.
+
+Setup, once — three repository secrets, from `.env.local`:
 
 ```bash
-gh secret set DIRECT_URL   # paste the DIRECT_URL value from .env.local
+gh secret set DIRECT_URL                # the DIRECT_URL value
+gh secret set SUPABASE_URL              # the NEXT_PUBLIC_SUPABASE_URL value
+gh secret set SUPABASE_PUBLISHABLE_KEY  # the NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY value
 ```
 
-- It only runs from the **`main`** branch. To run it by hand: GitHub → **Actions → Keep
-  Supabase awake → Run workflow**.
+- It only runs on schedule from the **`main`** branch. To run it by hand: GitHub →
+  **Actions → Keep Supabase awake → Run workflow** (or `gh workflow run keep-alive.yml`).
 - If the project is already paused, the run fails and GitHub emails you — your cue to click
   **Restore project**.
 - GitHub turns off scheduled jobs in public repos after 60 days without commits. It emails
   a warning first; one click re-enables it.
-- Supabase doesn't document exactly what counts as activity. If a "your project will be
-  paused" email still arrives, the job needs to do more than a read.
 
 ## Commit conventions
 
