@@ -87,7 +87,10 @@ Part of every change, in the same PR — not a separate chore.
   `components/entry-dialogs.tsx`. Both use `onSubmit` + `startTransition` instead of
   `<form action>`, because React resets a form after every action — even a failed one —
   which wipes what was typed.
-- Pre-PR: `npm run typecheck`, `npm run lint`, `npm test`.
+- Pre-PR: `npm run typecheck`, `npm run lint`, `npm test` (CI runs the same three on every PR:
+  `.github/workflows/checks.yml`). Then the review agents in `.claude/agents/`: **docs-keeper**
+  always, **money-reviewer** when money files or the schema changed. They only report; fix what
+  they find before committing.
 
 ## Known pitfalls (hit during development — check here first)
 

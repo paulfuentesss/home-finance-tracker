@@ -4,7 +4,8 @@
 
 ## Test plan
 
-- [ ] `npm run typecheck`, `npm run lint`, `npm test`
+- [ ] `npm run typecheck`, `npm run lint`, `npm test` (CI runs these too)
+- [ ] docs-keeper agent; money-reviewer agent if money files or the schema changed
 - [ ] Checked in the browser
 
 ## Docs (see "Keeping docs up to date" in CLAUDE.md)
