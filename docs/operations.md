@@ -73,7 +73,8 @@ gh secret set SUPABASE_PUBLISHABLE_KEY  # the NEXT_PUBLIC_SUPABASE_PUBLISHABLE_K
 
 Commits must follow [Conventional Commits](https://www.conventionalcommits.org/)
 (`feat:`, `fix:`, `chore:`, `docs:` …). This is enforced by a commitlint hook. A
-pre-commit hook runs ESLint, so lint errors block the commit.
+pre-commit hook runs ESLint on the whole project (`.husky/pre-commit`, root files like
+`proxy.ts` included), so lint errors block the commit.
 
 Before a PR: `npm run typecheck`, `npm run lint`, `npm test`. The PR template has a
 checklist for keeping the docs up to date.
