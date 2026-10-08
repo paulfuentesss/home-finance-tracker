@@ -15,7 +15,7 @@ begins, then it gets a page here.
 | Manage Columns & People | ✅ | Bill and shared columns, Meralco points, housemates moving in and out | [manage.md](manage.md) |
 | Login | ✅ | Google or an emailed code; invite-only; PA edits everything, housemates log their own advances | [auth.md](auth.md) |
 | Email-imported bills | 🚧 | Bill emails become Pending bills with the payment fee added; Bill Inbox. Missing: the inbox address (once online) | [email-bills.md](email-bills.md) |
-| Receipts | 🚧 | Tab laid out; uploads not built | [receipts.md](receipts.md) |
+| Receipts | ✅ | Proof (screenshots) on each bill and payment, in a private bucket; PA attaches | [receipts.md](receipts.md) |
 
 Also running, not features of the app itself:
 - **How it works page** (`/how-it-works`) — the household-facing explanation of the rules;

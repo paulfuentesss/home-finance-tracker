@@ -72,7 +72,7 @@ function BillRow({ bill, editable }: { bill: ViewBill; editable: boolean }) {
         <ConfirmDeleteButton
           label={`Delete ${bill.name}`}
           title={`Delete the ${bill.name} column?`}
-          description="Its amounts are removed from this month and everyone's totals are recalculated. Other months keep their own copy."
+          description="Its amounts are removed from this month and everyone's totals are recalculated. Any proof attached to it is deleted too. Other months keep their own copy."
           onConfirm={() => deleteBill(bill.id)}
         />
       )}

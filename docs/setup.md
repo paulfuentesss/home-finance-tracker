@@ -24,6 +24,7 @@ Getting My House running on a new machine. Afterwards, day to day you only need
    ```bash
    npm run db:migrate
    npm run db:seed
+   npm run storage:setup   # the private bucket for receipts
    ```
    Then load the August 2026 test data with `npm run db:seed:august` ([testing.md](testing.md)).
 5. **Set up login** (once per Supabase project — how login works: [features/auth.md](features/auth.md)).

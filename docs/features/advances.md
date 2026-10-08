@@ -32,7 +32,7 @@
 ["Never log a bill as an advance"](../settlement-rules.md#the-full-ledger-month-final)
 
 ## Open items
-Attaching a receipt to an advance: [receipts.md](receipts.md).
+Attaching a receipt to an advance ([TODO.md](../TODO.md)).
 
 ## Built in
 Early commits on `main` (advances log, grouping by person, editing advances, per-person report).

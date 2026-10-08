@@ -3,9 +3,10 @@
 //   npm run db:seed:august              # load it if August 2026 doesn't exist yet
 //   npm run db:seed:august -- --replace # delete August 2026 and load it fresh (resets test data)
 //
-// Only ever touches the 2026-08 period. Run `npm run db:seed` first (members).
+// Only ever touches the 2026-08 period (and, with --replace, its receipt files). Run
+// `npm run db:seed` first (members).
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, or } from "drizzle-orm";
 import { createDb } from "../db/client";
 import {
   advances,
@@ -16,18 +17,23 @@ import {
   members,
   payments,
   periodBalances,
+  receipts,
   sharedColumnMembers,
   sharedColumns,
 } from "../db/schema";
 import { AUGUST_2026, DEFAULT_COLUMN, type MemberName } from "../lib/__fixtures__/august-2026";
 import { fromCentavos, toCentavos } from "../lib/money";
+import { RECEIPTS_BUCKET } from "../lib/receipts";
 import { computeBillShares, splitOrder } from "../lib/settlement";
+import { createAdminClient } from "../lib/supabase/admin";
 
 const url = process.env.DIRECT_URL;
 if (!url) throw new Error("DIRECT_URL is not set — fill in .env.local first.");
 const replace = process.argv.includes("--replace");
 
 const { db, client } = createDb(url, { max: 1 });
+// Files of receipts deleted with the old August, removed from Storage once the reset commits.
+let receiptFiles: string[] = [];
 
 try {
   await db.transaction(async (tx) => {
@@ -41,6 +47,15 @@ try {
     if (existing) {
       // Child rows first: the foreign keys are ON DELETE RESTRICT to protect history.
       const billIds = (await tx.select({ id: billItems.id }).from(billItems).where(eq(billItems.periodId, existing.id))).map((b) => b.id);
+      // Receipt rows go with their bill or payment (ON DELETE CASCADE); keep the file names.
+      receiptFiles = (
+        await tx
+          .select({ path: receipts.storagePath })
+          .from(receipts)
+          .leftJoin(billItems, eq(billItems.id, receipts.billItemId))
+          .leftJoin(payments, eq(payments.id, receipts.paymentId))
+          .where(or(eq(billItems.periodId, existing.id), eq(payments.periodId, existing.id)))
+      ).map((r) => r.path);
       await tx.delete(advances).where(eq(advances.periodId, existing.id));
       // shared_column_members rows go with their column (ON DELETE CASCADE).
       await tx.delete(sharedColumns).where(eq(sharedColumns.periodId, existing.id));
@@ -132,6 +147,18 @@ try {
     }
     console.log(`Loaded August 2026: ${AUGUST_2026.bills.length} bills, ${AUGUST_2026.advances.length} advances.`);
   });
+  if (receiptFiles.length) await removeReceiptFiles(receiptFiles);
 } finally {
   await client.end();
+}
+
+async function removeReceiptFiles(paths: string[]) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const secretKey = process.env.SUPABASE_SECRET_KEY;
+  const { error } =
+    supabaseUrl && secretKey
+      ? await createAdminClient(supabaseUrl, secretKey).storage.from(RECEIPTS_BUCKET).remove(paths)
+      : { error: { message: "NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SECRET_KEY isn't set" } };
+  if (error) console.warn(`Couldn't remove ${paths.length} old receipt file(s) from Storage: ${error.message}`);
+  else console.log(`Removed ${paths.length} old receipt file(s) from Storage.`);
 }

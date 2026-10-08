@@ -18,7 +18,7 @@ each one gets a shortcut or two:
 | ESLint | Catches mistakes and style issues | `lint` |
 | Vitest | Unit tests | `test`, `test:watch` |
 | Drizzle Kit | Database schema and migrations | `db:generate`, `db:migrate`, `db:studio` |
-| tsx + `scripts/` | Runs our own one-off TypeScript scripts | `db:seed`, `db:seed:august`, `db:backup`, `bills:import`, `auth:invite` |
+| tsx + `scripts/` | Runs our own one-off TypeScript scripts | `db:seed`, `db:seed:august`, `db:backup`, `bills:import`, `auth:invite`, `storage:setup`, `storage:backup` |
 | Husky | Git hooks | `prepare` (runs automatically) |
 
 The `db:` and `test:` prefixes are just a naming convention for grouping.
@@ -55,8 +55,15 @@ The `db:` and `test:` prefixes are just a naming convention for grouping.
 | `npm run db:studio` | Opens Drizzle Studio, a browser UI for viewing and editing the data | To inspect or fix data by hand |
 | `npm run db:seed` | Adds the five household members (safe to run repeatedly) | First-time setup |
 | `npm run db:seed:august` | Loads August 2026 from the household sheet (bills, points, advances) as test data | First-time setup |
-| `npm run db:seed:august -- --replace` | Deletes August 2026 (and its bill emails) and loads it fresh; only touches that month | To reset the test data after experimenting |
+| `npm run db:seed:august -- --replace` | Deletes August 2026 (its bill emails and receipt files too) and loads it fresh; only touches that month | To reset the test data after experimenting |
 | `npm run db:backup` | Dumps the database to `backups/home-finance-tracker-YYYY-MM-DD.sql` | After closing each month |
+
+## Receipt files
+
+| Command | What it does | When to run it |
+|---|---|---|
+| `npm run storage:setup` | Creates the private `receipts` Storage bucket, or puts its settings back (private, size limit, allowed types). Safe to run again | First-time setup, or after changing `MAX_RECEIPT_BYTES` / `RECEIPT_TYPES` in `lib/receipts.ts` ([features/receipts.md](features/receipts.md)) |
+| `npm run storage:backup` | Copies receipt files not backed up yet to `backups/receipts/` | With `db:backup`, after closing each month |
 
 ## Email-imported bills
 

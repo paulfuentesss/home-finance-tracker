@@ -24,7 +24,8 @@
 [Payments (Settle Up)](../settlement-rules.md#payments-settle-up)
 
 ## Open items
-Attaching proof of payment: [receipts.md](receipts.md).
+Housemates sending their payment with proof, for PA to confirm ([TODO.md](../TODO.md)).
+Proof for payments PA records is on the Receipts tab ([receipts.md](receipts.md)).
 
 ## Built in
 #1 (settle-up tab, closing / reopening months, keep-alive).

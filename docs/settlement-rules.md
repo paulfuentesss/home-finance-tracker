@@ -253,5 +253,7 @@ Meralco, Water (Manila Water) and PLDT email their bills. Each email is read
 
 ## Receipts
 
-A receipt is proof attached to a bill or an advance (`receipt_path`). It never changes the
-math. Not built yet: [features/receipts.md](features/receipts.md).
+A receipt is proof — a screenshot or photo — attached to a bill or a payment
+([features/receipts.md](features/receipts.md)). It **never changes the math**: a bill counts
+whether or not its proof is attached. Like everything else, proofs can only be attached or
+deleted while the month is open; deleting a bill or payment deletes its proofs.

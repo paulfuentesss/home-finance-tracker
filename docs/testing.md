@@ -20,7 +20,8 @@ on the PR. It needs no secrets because no test touches the database — keep it 
 | `lib/bill-email/parse.test.ts` | Reading the real August bill emails; refusing other senders; bill month; dates |
 | `lib/bill-email/fees.test.ts` | The payment fee setting matches the August receipts |
 | `lib/permissions.test.ts` | Who may change which advance; `safeNext` blocking open redirects after sign-in |
-| `lib/actions-guard.test.ts` | Every Server Action goes through `run("admin" \| "member", …)`; only the three advance actions are open to members; no unknown Route Handlers; the secret key and admin client stay out of the browser |
+| `lib/actions-guard.test.ts` | Every Server Action goes through `run("admin" \| "member", …)`; only the three advance actions are open to members; no unknown Route Handlers, and `/receipts/[id]` checks the login first; the secret key and admin client stay out of the browser |
+| `lib/receipts.test.ts` | Which receipt files are accepted (real type from the first bytes, size limit), their names in the bucket, resizing long screenshots |
 | `lib/invites.test.ts` | Inviting / un-inviting: the order of the database and Supabase calls, rolling back a new login, never reusing a leftover one |
 
 Money or rule changes: update the expectations in `lib/__fixtures__/august-2026.ts`, which
@@ -70,6 +71,21 @@ browser. There's no dev bypass.
    gone and the new one is there — the one check a fake can't make (`invites.test.ts`).
 6. Clear their email: their next click goes to `/login`.
 7. A Google account that isn't invited: "not invited", no loop.
+
+**Receipts, start to finish** (after `npm run storage:setup`):
+1. As PA, Receipts tab → a bill → **Attach proof** → a phone screenshot. It shows on the card;
+   in Supabase → Storage → `receipts` the file is a few hundred KB, under `YYYY/MM/`.
+2. Attach a second screenshot to the same bill: a small thumbnail below. Tap one: the viewer
+   opens; **Open original** opens it in a new tab. Keep attaching: at the limit
+   (`MAX_RECEIPTS_PER_ITEM`) Attach turns into a note, and picking more files than are left
+   attaches none.
+3. Record a payment on Settle Up; attach its proof in the Payments section.
+4. Try a file that isn't an image (a PDF, or a `.txt` renamed `.png`): refused with a message.
+5. Delete a proof from the viewer; then delete a bill or payment that has proof. Its files are
+   gone from the bucket.
+6. As a housemate: proofs are visible, no Attach or Delete. Signed out, `/receipts/<id>` goes
+   to `/login`.
+7. Close the month: Attach and Delete disappear; reopen it.
 
 **Email-imported bills, start to finish:**
 1. `npm run db:seed:august -- --replace`, then `npm run bills:import -- meralco water pldt` —
