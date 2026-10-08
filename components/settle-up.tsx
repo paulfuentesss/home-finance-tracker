@@ -168,7 +168,7 @@ function PaymentsList({ view }: { view: PeriodView }) {
                       <ConfirmDeleteButton
                         label="Delete payment"
                         title="Delete this payment?"
-                        description={`${from?.name} → ${to?.name}, ${formatPHP(p.amount)}. Both Finals go back to what they were before it.`}
+                        description={`${from?.name} → ${to?.name}, ${formatPHP(p.amount)}. Both Finals go back to what they were before it, and any proof attached to it is deleted.`}
                         onConfirm={() => deletePayment(p.id)}
                       />
                     </>

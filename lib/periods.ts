@@ -2,9 +2,9 @@
 // Everything returned is plain JSON (no Maps) so it can be passed to Client Components.
 
 import "server-only";
-import { asc, desc } from "drizzle-orm";
+import { asc, desc, eq, or } from "drizzle-orm";
 import { cache } from "react";
-import { billingPeriods, db } from "@/db";
+import { billingPeriods, billItems, db, payments, receipts } from "@/db";
 import type { Database } from "@/db/client";
 import { requireViewer } from "@/lib/auth";
 import { dateInManila } from "@/lib/format";
@@ -326,6 +326,36 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
     issue,
   };
 });
+
+export interface ViewReceipt {
+  id: number;
+  /** Exactly one of these is set. */
+  billItemId: number | null;
+  paymentId: number | null;
+  contentType: string;
+  originalName: string | null;
+}
+
+/**
+ * A month's receipts (bills and payments), oldest first. Separate from getPeriodView, whose
+ * query loads every month: only the Receipts tab needs these.
+ */
+export async function getPeriodReceipts(periodId: number): Promise<ViewReceipt[]> {
+  await requireViewer();
+  return db
+    .select({
+      id: receipts.id,
+      billItemId: receipts.billItemId,
+      paymentId: receipts.paymentId,
+      contentType: receipts.contentType,
+      originalName: receipts.originalName,
+    })
+    .from(receipts)
+    .leftJoin(billItems, eq(billItems.id, receipts.billItemId))
+    .leftJoin(payments, eq(payments.id, receipts.paymentId))
+    .where(or(eq(billItems.periodId, periodId), eq(payments.periodId, periodId)))
+    .orderBy(asc(receipts.id));
+}
 
 /** Points-mode bills in the latest month, for the "How it works" page. */
 export async function getLatestPointsBills() {

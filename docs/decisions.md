@@ -147,3 +147,32 @@ math and for privacy in a public repo.
 **Instead of:** subagents building features in parallel — the codebase is small and tightly
 connected, so they'd edit the same files and spend most of their time re-learning the project.
 Truly separate features can run as separate sessions in their own git worktrees.
+
+## 2026-10-08 — Receipts: a private bucket, opened through the app
+**Decision:** receipt files go in a private Supabase Storage bucket that only the server
+reaches (secret key). Pages link to `/receipts/<id>`, which checks the login and redirects to
+a link to the file that works for one minute.
+**Why:** payment screenshots carry names and account numbers. With no Storage policies, nothing
+but the app can read them, and the app's own login rules decide who sees what. A link in the
+page that expired would break in a tab left open; the redirect is always fresh.
+**Instead of:** a public bucket (anyone with the link), or Storage policies for `authenticated`
+users (any Supabase login, not just household members).
+
+## 2026-10-08 — Receipts: shrink images in the browser, check the type on the server
+**Decision:** images are redrawn as JPEG in the browser before upload (width capped, height
+not); the server accepts only JPEG, PNG and WebP images, judged by the file's first bytes.
+**Why:** phone screenshots are 1–3 MB and the free plan has 1 GB; redrawing also drops photo
+location data. Capping only the width keeps long screenshots readable. The type the browser
+reports can be faked, so the server reads the file itself; the bucket refuses other types too.
+**Instead of:** PDFs as well (e.g. e-bills) — dropped to keep it simple: a phone screenshot is
+enough proof, and browsers can't reliably show a PDF inside the viewer.
+
+## 2026-10-08 — Receipts: own table, a few per bill or payment; closed months locked
+**Decision:** a `receipts` table where each row belongs to exactly one bill or payment
+(replacing the unused `receipt_path` columns), with a small cap per bill or payment
+(`MAX_RECEIPTS_PER_ITEM`). Proofs follow the month lock: attach or delete
+only while the month is open.
+**Why:** a bill can need more than one screenshot (e.g. a split payment), and payments are the
+"Payment Proofs" the tab is named after. The cap stops a mis-tap from attaching a whole camera
+roll, which matters once housemates upload too. Following the lock keeps one rule for everything
+in a month.

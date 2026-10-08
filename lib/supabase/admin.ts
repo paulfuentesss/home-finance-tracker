@@ -1,6 +1,7 @@
 // A Supabase client with the secret key, for creating and deleting invited logins
-// (lib/invites.ts). It holds no secret itself, so scripts can use it; the app gets it only
-// through admin-server.ts, which is server-only. Never import this from a Client Component.
+// (lib/invites.ts) and for the private receipts bucket. It holds no secret itself, so scripts
+// can use it; the app gets it only through admin-server.ts, which is server-only. Never import
+// this from a Client Component.
 
 import { createClient } from "@supabase/supabase-js";
 

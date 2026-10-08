@@ -9,6 +9,7 @@ import {
   boolean,
   check,
   date,
+  index,
   integer,
   numeric,
   pgEnum,
@@ -108,7 +109,6 @@ export const billItems = pgTable(
     splitMode: billSplitMode("split_mode").notNull().default("equal"),
     dueDate: date("due_date", { mode: "string" }),
     paidOn: date("paid_on", { mode: "string" }),
-    receiptPath: text("receipt_path"),
     source: billSource("source").notNull().default("manual"),
     status: billStatus("status").notNull().default("confirmed"),
     createdAt: createdAt(),
@@ -211,7 +211,6 @@ export const advances = pgTable(
     amount: money("amount").notNull(),
     // Optional: some sheet entries were logged without a date.
     spentOn: date("spent_on", { mode: "string" }),
-    receiptPath: text("receipt_path"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -302,6 +301,35 @@ export const periodBalances = pgTable(
   (t) => [primaryKey({ columns: [t.periodId, t.memberId] })],
 ).enableRLS();
 
+// Proof attached to a bill or a payment (docs/features/receipts.md): a screenshot or photo in
+// the private "receipts" Storage bucket. Never changes the math. Deleting the bill or payment
+// deletes its rows (the app removes the files after the delete commits).
+export const receipts = pgTable(
+  "receipts",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    // The object's name in the bucket: YYYY/MM/<uuid>.<ext> (lib/receipts.ts).
+    storagePath: text("storage_path").notNull().unique(),
+    // Checked from the file's first bytes on upload, not taken from the browser.
+    contentType: text("content_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    originalName: text("original_name"),
+    // Exactly one of these is set (the check below).
+    billItemId: integer("bill_item_id").references(() => billItems.id, { onDelete: "cascade" }),
+    paymentId: integer("payment_id").references(() => payments.id, { onDelete: "cascade" }),
+    uploadedById: integer("uploaded_by_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "restrict" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    check("receipts_one_owner", sql`num_nonnulls(${t.billItemId}, ${t.paymentId}) = 1`),
+    check("receipts_size_positive", sql`${t.sizeBytes} > 0`),
+    index("receipts_bill_item_id").on(t.billItemId),
+    index("receipts_payment_id").on(t.paymentId),
+  ],
+).enableRLS();
+
 // Written by the keep-alive job (.github/workflows/keep-alive.yml), never by the app: a real
 // write, because a read alone didn't stop the free Supabase project from pausing. One row.
 export const keepAlive = pgTable(
@@ -334,6 +362,7 @@ export const billItemsRelations = relations(billItems, ({ one, many }) => ({
   paidBy: one(members, { fields: [billItems.paidById], references: [members.id] }),
   shares: many(billItemShares),
   emails: many(billEmails),
+  receipts: many(receipts),
 }));
 
 export const billItemSharesRelations = relations(billItemShares, ({ one }) => ({
@@ -362,10 +391,17 @@ export const billEmailsRelations = relations(billEmails, ({ one }) => ({
   billItem: one(billItems, { fields: [billEmails.billItemId], references: [billItems.id] }),
 }));
 
-export const paymentsRelations = relations(payments, ({ one }) => ({
+export const paymentsRelations = relations(payments, ({ one, many }) => ({
   period: one(billingPeriods, { fields: [payments.periodId], references: [billingPeriods.id] }),
   from: one(members, { fields: [payments.fromMemberId], references: [members.id] }),
   to: one(members, { fields: [payments.toMemberId], references: [members.id] }),
+  receipts: many(receipts),
+}));
+
+export const receiptsRelations = relations(receipts, ({ one }) => ({
+  billItem: one(billItems, { fields: [receipts.billItemId], references: [billItems.id] }),
+  payment: one(payments, { fields: [receipts.paymentId], references: [payments.id] }),
+  uploadedBy: one(members, { fields: [receipts.uploadedById], references: [members.id] }),
 }));
 
 export const periodBalancesRelations = relations(periodBalances, ({ one }) => ({
@@ -387,4 +423,5 @@ export type SharedColumn = typeof sharedColumns.$inferSelect;
 export type SharedColumnMember = typeof sharedColumnMembers.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
 export type BillEmailRow = typeof billEmails.$inferSelect;
+export type Receipt = typeof receipts.$inferSelect;
 export type PeriodBalance = typeof periodBalances.$inferSelect;

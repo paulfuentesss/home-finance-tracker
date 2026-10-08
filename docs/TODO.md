@@ -18,6 +18,13 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
       - A Google account that isn't invited → "not invited", no loop.
       - Invite the other housemates.
 
+- [ ] **Housemates send their payment with proof** ([settle-up](features/settle-up.md),
+      [receipts](features/receipts.md)). On Settle Up a housemate taps "I paid", types the amount
+      and attaches the bank-transfer screenshot. It shows as **Waiting for PA** and doesn't count
+      until PA checks his bank and taps **Confirm** (or rejects it); a month can't close while one
+      waits — like pending bills. Needs `payments.status`, member actions in the guard test, and
+      the settlement ignoring pending payments.
+
 - [ ] **Go online** — hosting, the domain, and the checklist below. Blocks the bill inbox
       address.
 
@@ -34,10 +41,15 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
       sender), then calls `importBillEmail(db, …)`; a Gmail filter forwards the three providers.
       The route is public: add it to `PUBLIC_PATHS` in `proxy.ts` and to the Route Handler
       allowlist in `lib/actions-guard.test.ts`.
-- [ ] **Receipt uploads** ([receipts](features/receipts.md)). Private Supabase Storage bucket;
-      attach to bills, advances, payments.
+- [ ] **Proof for advances** ([receipts](features/receipts.md)) — attach a receipt to an advance,
+      ideally right in "Log new advance". Needs an `advance_id` on `receipts` (and in its
+      one-owner check).
+- [ ] **Clean up stray receipt files** ([receipts](features/receipts.md)) — a script listing files
+      in the bucket with no `receipts` row (left if a removal after a delete failed), deleting
+      them only with `--delete`. Rare; only if the bucket grows unexpectedly.
 - [ ] **A picture (GIF) for each member** ([manage](features/manage.md)), shown wherever the
-      member appears (Who owes what cards, Advances Log) — *needs file storage, like receipts.*
+      member appears (Who owes what cards, Advances Log) — *file storage exists now (the receipts
+      bucket); pictures would get their own bucket.*
 - [ ] **PWA** — installable, polished on mobile, usable offline. Offline *viewing* (the last
       months loaded, cached by a service worker) first; offline *editing* needs a sync queue and
       conflict handling. Cached pages put household finances on the device, so signing out must
@@ -84,5 +96,6 @@ Work through this before the first public deploy.
       in Testing (its test users are a second allowlist).
 - [ ] Sign in on the live site with Google and with an email code, and check a stranger's
       Google account is refused.
-- [ ] Backups: the latest `npm run db:backup` taken and copied somewhere safe.
+- [ ] Backups: the latest `npm run db:backup` and `npm run storage:backup` taken and copied
+      somewhere safe.
 - [ ] Review [operations.md → Privacy & security](operations.md#privacy--security).

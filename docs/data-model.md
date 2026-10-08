@@ -20,6 +20,7 @@ connects directly ([decisions.md](decisions.md)).
 | `shared_column_members` | Who shares an Auto equal column, or a member's typed amount in a Manual one | [advances](features/advances.md), [manage](features/manage.md) |
 | `advances` | A purchase a member paid for the household, in one shared column | [advances](features/advances.md) |
 | `payments` | Money changing hands to settle up | [settle up](features/settle-up.md) |
+| `receipts` | A proof image (screenshot or photo) for exactly one bill or payment: its name in the private `receipts` Storage bucket, type, size, who uploaded it | [receipts](features/receipts.md) |
 | `bill_emails` | A bill email received: parsed values, payment fee, status (imported / unmatched / dismissed), the bill it filled | [email bills](features/email-bills.md) |
 | `keep_alive` | One row: when the keep-alive job last wrote. Not used by the app | [operations](operations.md#supabase-free-plan-the-project-goes-to-sleep) |
 
@@ -37,6 +38,10 @@ Add a line here with every new one.
 | `0004_bill-email-fees` | Payment fee and note on `bill_emails` |
 | `0005_member-logins` | `email`, `auth_user_id` and `role` on `members` (the `member_role` enum); the collector becomes `admin` |
 | `0006_keep-alive` | `keep_alive`, the one-row table the keep-alive job writes to |
+| `0007_receipts` | `receipts` (proof for bills and payments); drops the never-used `receipt_path` columns on `bill_items` and `advances` |
+
+The receipt files themselves live in Supabase Storage (the private `receipts` bucket), not in
+the database; `receipts.storage_path` names one.
 
 The logins themselves live in Supabase's `auth.users` (managed by Supabase, not by these
 migrations); `members.auth_user_id` points at one.

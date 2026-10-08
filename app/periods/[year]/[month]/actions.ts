@@ -8,6 +8,7 @@
 // Server Actions are public endpoints: anyone can call them with any arguments. Never skip
 // run(), and never trust ids or payers sent from the page — check them here.
 
+import { randomUUID } from "node:crypto";
 import { and, asc, desc, eq, gt, inArray, max, or, sql, type SQL } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -22,6 +23,7 @@ import {
   members,
   payments,
   periodBalances,
+  receipts,
   sharedColumnMembers,
   sharedColumns,
 } from "@/db";
@@ -36,13 +38,20 @@ import { closeCheck, reopenCheck, vanishingBalances } from "@/lib/month-lock";
 import { canManageAdvance, isAdmin, type Role, type Viewer } from "@/lib/permissions";
 import { computePeriod, pendingBillNames, periodMembers } from "@/lib/periods";
 import {
+  checkReceiptFile,
+  cleanFileName,
+  MAX_RECEIPTS_PER_ITEM,
+  receiptObjectPath,
+  receiptsLeft,
+} from "@/lib/receipts";
+import {
   computeBillShares,
   openingBalancesFrom,
   SettlementError,
   splitOrder,
   type MemberId,
 } from "@/lib/settlement";
-import { authAdmin } from "@/lib/supabase/admin-server";
+import { authAdmin, receiptStorage } from "@/lib/supabase/admin-server";
 
 export type ActionState = { ok: true; redirectTo?: string } | { ok: false; error: string } | null;
 
@@ -180,16 +189,19 @@ export async function renameBill(_prev: ActionState, formData: FormData): Promis
 
 export async function deleteBill(billId: number): Promise<ActionState> {
   return run("admin", z.object({ billId: id }), { billId }, async ({ billId }) => {
-    await db.transaction(async (tx) => {
+    const files = await db.transaction(async (tx) => {
       await loadBill(tx, billId);
       // An email that filled this column goes back to the Bill inbox.
       await tx
         .update(billEmails)
         .set({ status: "unmatched", reason: "Its bill column was deleted.", billItemId: null })
         .where(eq(billEmails.billItemId, billId));
-      // bill_item_shares rows go with it (ON DELETE CASCADE).
+      const files = await receiptFilesOf(tx, eq(receipts.billItemId, billId));
+      // bill_item_shares and receipts rows go with it (ON DELETE CASCADE).
       await tx.delete(billItems).where(eq(billItems.id, billId));
+      return files;
     });
+    await removeReceiptFilesQuietly(files);
   });
 }
 
@@ -419,13 +431,133 @@ export async function updatePayment(_prev: ActionState, formData: FormData): Pro
 
 export async function deletePayment(paymentId: number): Promise<ActionState> {
   return run("admin", z.object({ paymentId: id }), { paymentId }, async ({ paymentId }) => {
-    await db.transaction(async (tx) => {
+    const files = await db.transaction(async (tx) => {
       const payment = await tx.query.payments.findFirst({ where: eq(payments.id, paymentId) });
       if (!payment) throw new ActionError("That payment was already deleted.");
       await loadOpenPeriod(tx, payment.periodId);
+      const files = await receiptFilesOf(tx, eq(receipts.paymentId, paymentId));
+      // Its receipts rows go with it (ON DELETE CASCADE).
       await tx.delete(payments).where(eq(payments.id, paymentId));
+      return files;
     });
+    await removeReceiptFilesQuietly(files);
   });
+}
+
+// ---------- Receipts (docs/features/receipts.md) ----------
+
+// Proof attached to a bill or a payment. PA only for now; closed months are read-only, like
+// everything else. Postgres and Storage can't share a transaction, so the file is uploaded
+// first and removed again if saving its row fails — and removed after a delete commits.
+
+const receiptOwner = z.object({ ownerType: z.enum(["bill", "payment"]), ownerId: id });
+type ReceiptOwner = z.output<typeof receiptOwner>;
+
+export async function uploadReceipt(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const schema = receiptOwner.extend({ file: z.instanceof(File, { message: "Choose a file to attach." }) });
+  return run("admin", schema, formData, async ({ file, ...owner }, viewer) => {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const checked = checkReceiptFile(bytes);
+    if (!checked.ok) throw new ActionError(checked.error);
+    // Checked before uploading too, so a refused file never goes up.
+    const { period } = await db.transaction(async (tx) => {
+      const loaded = await loadReceiptOwner(tx, owner);
+      await checkReceiptRoom(tx, owner, false);
+      return loaded;
+    });
+
+    // Uploaded outside any transaction: one held open during an upload would hold its locks.
+    const path = receiptObjectPath(period.year, period.month, randomUUID(), checked.contentType);
+    const { error } = await receiptStorage().upload(path, bytes, { contentType: checked.contentType, upsert: false });
+    if (error) {
+      console.error("Receipt upload failed", error);
+      throw new ActionError("Couldn't upload that file. Please try again.");
+    }
+    try {
+      await db.transaction(async (tx) => {
+        // Again: the bill, payment or month may have changed during the upload.
+        await loadReceiptOwner(tx, owner);
+        await checkReceiptRoom(tx, owner, true);
+        await tx.insert(receipts).values({
+          storagePath: path,
+          contentType: checked.contentType,
+          sizeBytes: bytes.length,
+          originalName: cleanFileName(file.name),
+          billItemId: owner.ownerType === "bill" ? owner.ownerId : null,
+          paymentId: owner.ownerType === "payment" ? owner.ownerId : null,
+          uploadedById: viewer.memberId,
+        });
+      });
+    } catch (error) {
+      await removeReceiptFilesQuietly([path]);
+      throw error;
+    }
+  });
+}
+
+export async function deleteReceipt(receiptId: number): Promise<ActionState> {
+  return run("admin", z.object({ receiptId: id }), { receiptId }, async ({ receiptId }) => {
+    const path = await db.transaction(async (tx) => {
+      const receipt = await tx.query.receipts.findFirst({ where: eq(receipts.id, receiptId) });
+      if (!receipt) throw new ActionError("That receipt was already deleted.");
+      await loadReceiptOwner(
+        tx,
+        receipt.billItemId !== null
+          ? { ownerType: "bill", ownerId: receipt.billItemId }
+          : { ownerType: "payment", ownerId: receipt.paymentId! },
+      );
+      await tx.delete(receipts).where(eq(receipts.id, receiptId));
+      return receipt.storagePath;
+    });
+    await removeReceiptFilesQuietly([path]);
+  });
+}
+
+/** The bill or payment a receipt belongs to, in an open month. */
+async function loadReceiptOwner(tx: Tx, { ownerType, ownerId }: ReceiptOwner) {
+  const owner =
+    ownerType === "bill"
+      ? await tx.query.billItems.findFirst({ where: eq(billItems.id, ownerId), columns: { periodId: true } })
+      : await tx.query.payments.findFirst({ where: eq(payments.id, ownerId), columns: { periodId: true } });
+  if (!owner) throw new ActionError(ownerType === "bill" ? "That bill no longer exists." : "That payment was deleted.");
+  return loadOpenPeriod(tx, owner.periodId);
+}
+
+/**
+ * Refuses a proof beyond MAX_RECEIPTS_PER_ITEM. With `lock`, the bill or payment row is locked
+ * first, so two uploads at the same moment can't both slip in as the fifth.
+ */
+async function checkReceiptRoom(tx: Tx, { ownerType, ownerId }: ReceiptOwner, lock: boolean) {
+  if (lock) {
+    const table = ownerType === "bill" ? billItems : payments;
+    await tx.select({ id: table.id }).from(table).where(eq(table.id, ownerId)).for("update");
+  }
+  const [{ count }] = await tx
+    .select({ count: sql<number>`count(*)::int` })
+    .from(receipts)
+    .where(ownerType === "bill" ? eq(receipts.billItemId, ownerId) : eq(receipts.paymentId, ownerId));
+  if (receiptsLeft(count) === 0) {
+    throw new ActionError(`That already has ${MAX_RECEIPTS_PER_ITEM} proofs, the most it can have. Delete one first.`);
+  }
+}
+
+async function receiptFilesOf(tx: Tx, where: SQL): Promise<string[]> {
+  const rows = await tx.select({ path: receipts.storagePath }).from(receipts).where(where);
+  return rows.map((r) => r.path);
+}
+
+/**
+ * Best effort, after the database change has committed: the rows are already gone, so a file
+ * left behind is invisible to everyone and only takes up space.
+ */
+async function removeReceiptFilesQuietly(paths: string[]) {
+  if (paths.length === 0) return;
+  try {
+    const { error } = await receiptStorage().remove(paths);
+    if (error) console.error("Couldn't remove receipt files", paths, error);
+  } catch (error) {
+    console.error("Couldn't remove receipt files", paths, error);
+  }
 }
 
 // ---------- Shared columns ----------

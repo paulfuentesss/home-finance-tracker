@@ -236,8 +236,8 @@ export default async function HowItWorksPage() {
           </p>
           <p>
             You can log your own advances into <strong>Advances Shared</strong>, and edit or delete them while
-            they&apos;re there. Everything else — bills, points, other shared columns, payments, moving in and out,
-            closing months — is done by PA. If one of your advances should be split differently (say, not with
+            they&apos;re there. Everything else — bills, points, other shared columns, payments, attaching proof of
+            payment (Receipts), moving in and out, closing months — is done by PA. If one of your advances should be split differently (say, not with
             everyone), PA moves it to the right column; after that, it&apos;s PA&apos;s to change.
           </p>
         </>
@@ -250,7 +250,7 @@ export default async function HowItWorksPage() {
         <>
           <p>
             Once a month is done, PA <strong>closes</strong> it in Settle Up. A closed month is locked: nothing in it
-            can be changed, and everyone&apos;s Final is saved as next month&apos;s Prev Month Unsettled. Unpaid
+            can be changed (its proofs of payment included), and everyone&apos;s Final is saved as next month&apos;s Prev Month Unsettled. Unpaid
             amounts simply carry over.
           </p>
           <p>

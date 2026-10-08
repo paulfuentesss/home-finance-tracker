@@ -21,6 +21,8 @@
     "db:backup": "tsx --env-file=.env.local scripts/backup.mts",
     "bills:import": "tsx --env-file=.env.local scripts/import-email.mts",
     "auth:invite": "tsx --env-file=.env.local scripts/invite.mts",
+    "storage:setup": "tsx --env-file=.env.local scripts/storage-setup.mts",
+    "storage:backup": "tsx --env-file=.env.local scripts/storage-backup.mts",
     "prepare": "husky"
   },
   "dependencies": {
