@@ -91,6 +91,15 @@ Part of every change, in the same PR — not a separate chore.
   `.github/workflows/checks.yml`). Then the review agents in `.claude/agents/`: **docs-keeper**
   always, **money-reviewer** when money files or the schema changed. They only report; fix what
   they find before committing.
+- **Parallel sessions.** Paul often runs several Claude sessions at once; one folder can only be
+  on one branch, so each session needs its own git worktree (`docs/commands.md` → Working in
+  parallel). Every session starts with a "Startup check" report from
+  `.claude/hooks/checkout-status.sh` (branch, uncommitted changes, worktrees, open PRs):
+  - Folder not on `main`, or has changes you didn't make → another session may be using it.
+    Don't switch branches, stash, reset or commit its files here; tell Paul and offer a new
+    worktree.
+  - Right before committing, `git status -sb` again; commit only your own files, on your branch.
+  - All worktrees share one database: only one schema-changing feature at a time.
 
 ## Known pitfalls (hit during development — check here first)
 
