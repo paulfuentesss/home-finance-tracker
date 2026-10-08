@@ -8,15 +8,9 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
 
 ## Next
 
-- [ ] **Finish testing login** ([testing.md → Login, start to finish](testing.md#trying-things-by-hand)).
-      Done on 2026-09-28: Google sign-in as PA, email-code sign-in as a housemate, the housemate
-      view (no Manage, own advances only, view-only Settle Up). Still to do:
-      - Replace the housemate's temporary login email (currently the app's sender Gmail) with
-        their real address in Manage, then check in Supabase → Authentication → Users that
-        the **old** login is gone and the new one matches `members.auth_user_id`.
-      - Clear an email → that person's next click goes to `/login`.
-      - A Google account that isn't invited → "not invited", no loop.
-      - Invite the other housemates.
+- [ ] **Invite the housemates** ([auth](features/auth.md)). Login testing is finished
+      (2026-10-09). A test housemate still has a `+` alias of PA's Gmail; swap in their real
+      address. Anyone signing in with Google also needs to be a test user on the consent screen.
 
 - [ ] **Housemates send their payment with proof** ([settle-up](features/settle-up.md),
       [receipts](features/receipts.md)). On Settle Up a housemate taps "I paid", types the amount

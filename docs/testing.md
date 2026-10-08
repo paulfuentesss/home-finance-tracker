@@ -57,7 +57,11 @@ pages in the browser with `npm run dev` running. Every page needs a login, so `c
 confirms the redirect to `/login`; the pages themselves are checked signed in, in the
 browser. There's no dev bypass.
 
-**Login, start to finish** (after [setup.md](setup.md) step 5):
+**Login, start to finish** (after [setup.md](setup.md) step 5). No real housemates needed: Gmail
+ignores anything after a `+`, so `<your gmail>+house1@gmail.com`, `+house2`, … all land in
+PA's inbox but are separate logins. Type your own address — not a placeholder like
+`yourname+…`, whose codes would go to a stranger. Sign in as the housemate in a private window,
+so PA stays signed in in the main one.
 1. Signed out, open any page: you land on `/login`.
 2. **Continue with Google** as PA: everything works as before, and the header shows PA.
 3. Manage → Manage Housemates: type a test email for a housemate. On the login page, **Get a
@@ -69,8 +73,10 @@ browser. There's no dev bypass.
    "Only PA can change this.", and nothing changes.
 5. Change their email in Manage. In Supabase → Authentication → Users the **old** login is
    gone and the new one is there — the one check a fake can't make (`invites.test.ts`).
-6. Clear their email: their next click goes to `/login`.
-7. A Google account that isn't invited: "not invited", no loop.
+6. Clear their email while they're signed in: their next click goes to `/login`.
+7. A Google account that isn't invited: "not invited", no loop. The sender Gmail works once no
+   member uses it. It must be a test user on the Google consent screen, or Google blocks it
+   before the app is reached ("Access blocked") and the app's check isn't tested.
 
 **Receipts, start to finish** (after `npm run storage:setup`):
 1. As PA, Receipts tab → a bill → **Attach proof** → a phone screenshot. It shows on the card;
