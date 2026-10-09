@@ -1,7 +1,10 @@
 import { AdvancesLog } from "@/components/advances-log";
 import { AdvancesReport } from "@/components/advances-report";
 import { getPeriodView } from "@/lib/periods";
-import { parsePeriodParams } from "../params";
+import { parsePeriodParams, tabMetadata } from "../params";
+
+export const generateMetadata = ({ params }: PageProps<"/periods/[year]/[month]/advances">) =>
+  tabMetadata(params, "Advances");
 
 // Tab 2: Advances Log & Report.
 export default async function AdvancesPage({ params }: PageProps<"/periods/[year]/[month]/advances">) {

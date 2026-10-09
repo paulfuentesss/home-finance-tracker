@@ -43,7 +43,7 @@ export function ReceiptsCard({ badge, children, ...props }: Props & { badge?: Re
             <ReceiptThumb receipt={first} label={label} className="size-full object-cover object-top" />
           </button>
         ) : (
-          <div className="flex size-full flex-col items-center justify-center gap-2 text-zinc-400">
+          <div className="flex size-full flex-col items-center justify-center gap-2 text-zinc-500">
             <ImageOff className="size-8" />
             <span className="text-sm">No proof attached yet</span>
           </div>

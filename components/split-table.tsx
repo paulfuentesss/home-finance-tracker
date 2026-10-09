@@ -128,7 +128,7 @@ export function SplitTable({ view }: { view: PeriodView }) {
                     </span>
                   </th>
                   {bills.map((bill) => (
-                    <td key={bill.id} className={cn(cellBase, "text-center", bill.status === "pending" && "text-zinc-400")}>
+                    <td key={bill.id} className={cn(cellBase, "text-center", bill.status === "pending" && "text-zinc-500")}>
                       <BillShareCell bill={bill} memberId={member.id} editable={editable} />
                     </td>
                   ))}
@@ -142,10 +142,10 @@ export function SplitTable({ view }: { view: PeriodView }) {
                     {row ? formatPHP(row.ownAdvances + row.billsPaid) : "—"}
                   </td>
                   <td className={cn(cellBase, "text-center text-zinc-700")}>{row ? formatPHP(row.monthFinal) : "—"}</td>
-                  <td className={cn(cellBase, "text-center", row?.opening ? "text-zinc-700" : "text-zinc-400")}>
+                  <td className={cn(cellBase, "text-center", row?.opening ? "text-zinc-700" : "text-zinc-500")}>
                     {row ? formatPHP(row.opening) : "—"}
                   </td>
-                  <td className={cn(cellBase, "text-center", row && paymentsOf(row) ? "text-zinc-700" : "text-zinc-400")}>
+                  <td className={cn(cellBase, "text-center", row && paymentsOf(row) ? "text-zinc-700" : "text-zinc-500")}>
                     {row ? signedPHP(paymentsOf(row)) : "—"}
                   </td>
                   <td className={cn(cellBase, "text-center")}>{row ? <Balance amount={row.balance} /> : "—"}</td>
@@ -260,7 +260,7 @@ function ColumnShareCell({
     );
   }
   const share = row?.columnShares[String(column.id)];
-  if (!column.includedIds.includes(memberId)) return <span className="text-zinc-400">—</span>;
+  if (!column.includedIds.includes(memberId)) return <span className="text-zinc-500">—</span>;
   return <span>{formatPHP(share ?? 0)}</span>;
 }
 

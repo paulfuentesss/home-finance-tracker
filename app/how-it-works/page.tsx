@@ -126,7 +126,7 @@ export default async function HowItWorksPage() {
               <span className="font-medium text-rose-600">To pay</span> — pay this amount to PA.
             </li>
             <li>
-              <span className="font-medium text-emerald-600">To receive</span> — PA pays this amount back to you.
+              <span className="font-medium text-emerald-700">To receive</span> — PA pays this amount back to you.
             </li>
             <li>
               <span className="font-medium text-zinc-600">Settled</span> — ₱0.00, nothing to do.

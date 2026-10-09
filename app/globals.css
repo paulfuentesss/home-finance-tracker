@@ -57,6 +57,7 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.21 0.006 285.885);
   --primary: oklch(0.666 0.179 58.318); /* amber-600: the one accent */
+  /* White on amber-600 is 3.2:1, under WCAG's 4.5:1 — kept on purpose (docs/decisions.md). */
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.967 0.001 286.375); /* zinc-100 */
   --secondary-foreground: oklch(0.205 0 0);

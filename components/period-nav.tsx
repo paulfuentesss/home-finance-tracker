@@ -51,7 +51,7 @@ export function TabNav({ base }: { base: string }) {
             href={`${base}${href}`}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors",
+              "flex shrink-0 items-center gap-2 rounded-t-md border-b-2 px-3 py-2.5 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
               active
                 ? "border-amber-600 text-amber-700"
                 : "border-transparent text-muted-foreground hover:border-zinc-300 hover:text-foreground",

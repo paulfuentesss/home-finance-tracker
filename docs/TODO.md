@@ -76,14 +76,16 @@ Work through this before the first public deploy.
 
 **Content & UX**
 - [ ] Mobile check of every tab.
-- [ ] Accessibility: alt text on images, real heading order, color contrast, keyboard-only
-      navigation of the tabs, dialogs and inline inputs.
-- [ ] Branded 404 and error pages still match the app (`app/not-found.tsx`, `app/error.tsx`).
+- [x] Accessibility in the code: alt text, a heading per page, labels on every field and icon
+      button, color contrast (the amber buttons are a chosen exception: [decisions.md](decisions.md)),
+      visible keyboard focus on the tabs.
+- [ ] Accessibility by hand: use the app with the keyboard only (Tab, Enter, Escape) through
+      the tabs, the dialogs and the inline inputs.
+- [x] Branded 404 and error pages (`app/not-found.tsx`, `app/error.tsx`).
 
 **Discoverability**
-- [ ] Keep it out of search engines: `noindex` metadata and a `robots.txt` that disallows all
-      (it's a private household app).
-- [ ] Page titles and the favicon.
+- [x] Kept out of search engines: `noindex` metadata and a `robots.txt` that disallows all.
+- [x] Page titles (one per tab) and the app icons.
 
 **Operational**
 - [x] Login protects every page and Server Action ([features/auth.md](features/auth.md)); only

@@ -70,7 +70,7 @@ export function SettleSummary({ view, canRecord }: { view: PeriodView; canRecord
                 <span
                   className={cn(
                     "font-mono font-semibold tabular-nums",
-                    collectorNet > 0 ? "text-emerald-600" : "text-rose-600",
+                    collectorNet > 0 ? "text-emerald-700" : "text-rose-600",
                   )}
                 >
                   {formatPHP(Math.abs(collectorNet))}
@@ -107,7 +107,7 @@ function Group({
   tone: "owes" | "gets";
   entries: Entry[];
 }) {
-  const color = tone === "owes" ? "text-rose-600" : "text-emerald-600";
+  const color = tone === "owes" ? "text-rose-600" : "text-emerald-700";
   return (
     <div>
       <div className="flex items-baseline justify-between gap-2 px-2">
