@@ -19,6 +19,10 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
       waits — like pending bills. Needs `payments.status`, member actions in the guard test, and
       the settlement ignoring pending payments.
 
+- [ ] **Bills to the My House Gmail** ([email-bills](features/email-bills.md)). Change the billing
+      email in the Meralco, Manila Water and PLDT accounts; remove this once a bill from each has
+      arrived there. Steps in [setup.md](setup.md) step 5b.
+
 - [ ] **Go online** — hosting, the domain, and the checklist below. Blocks the bill inbox
       address.
 
@@ -32,7 +36,8 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
       Pick an inbound-email provider that posts parsed mail to a webhook with a DKIM/SPF
       verdict; a long random address; a new `app/api/inbound-email/route.ts` verifies the signature,
       accepts only the providers' domains with DKIM pass (plus Gmail's forwarding-confirmation
-      sender), then calls `importBillEmail(db, …)`; a Gmail filter forwards the three providers.
+      sender), then calls `importBillEmail(db, …)`; a filter in the My House Gmail forwards the
+      three providers.
       The route is public: add it to `PUBLIC_PATHS` in `proxy.ts` and to the Route Handler
       allowlist in `lib/actions-guard.test.ts`.
 - [ ] **Proof for advances** ([receipts](features/receipts.md)) — attach a receipt to an advance,
@@ -56,6 +61,9 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
   (Google Identity Services → `signInWithIdToken`, shows the site's domain) and Google brand
   verification (shows "My House"; needs a privacy policy page). Supabase's custom domain
   does it too, but is paid.
+
+- Billing reminders (a bill due soon, a housemate who hasn't paid), sent from the My House Gmail
+  — or from a transactional service if sign-in emails move to one.
 
 - Read payment-confirmation emails to fill "Date paid" automatically
   ([email-bills](features/email-bills.md)). Wouldn't catch every payment fee, since some

@@ -120,7 +120,7 @@ in an open month.
 saves him typing, and keeping them to the default column means they can't unbalance a
 Manual or situational column.
 
-## 2026-09-28 — A separate Gmail sends the codes
+## 2026-09-28 — A separate Gmail sends the codes (partly replaced 2026-10-09)
 **Decision:** the email codes go out through the app's own Gmail (Supabase custom SMTP), not
 PA's.
 **Why:** a Gmail App Password opens the whole mailbox, and PA's holds the providers' bill
@@ -204,3 +204,12 @@ short. White on amber-600 is 3.2:1, also short, but it's the app's look and PA p
 known exception, not an oversight. Icons and borders only need 3:1, which amber-600 meets.
 **Instead of:** amber-700 buttons with white text (5:1), or near-black text on amber-600 (5.5:1) —
 both tried; PA preferred the original.
+
+## 2026-10-09 — One household Gmail: codes out, bills in
+**Decision:** the My House Gmail, a new account replacing the first sender Gmail, both sends
+the sign-in codes and receives the Meralco, Manila Water and PLDT bills (and would send
+reminders, if those get built).
+**Why:** the bills stop depending on PA's personal inbox, and the household has one account
+to hand over. The 2026-09-28 worry was the App Password in Supabase opening PA's personal
+mailbox; this one holds only household bills. Payment apps stay on PA's accounts (they're
+tied to his card and bank), so their receipts still go to him.
