@@ -23,6 +23,7 @@
     "auth:invite": "tsx --env-file=.env.local scripts/invite.mts",
     "storage:setup": "tsx --env-file=.env.local scripts/storage-setup.mts",
     "storage:backup": "tsx --env-file=.env.local scripts/storage-backup.mts",
+    "worktrees:clean": "bash scripts/worktrees-clean.sh",
     "prepare": "husky"
   },
   "dependencies": {

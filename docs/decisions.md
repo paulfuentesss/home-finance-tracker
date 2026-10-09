@@ -242,9 +242,10 @@ change this." — never PA by name. "PA" still appears where it's a member's nam
 
 ## 2026-10-10 — "Preview as a housemate": display only, changes refused
 **Decision:** PA can preview the month tabs as a housemate from the account menu. The choice is
-a plain browser cookie (`lib/preview.ts`, `lib/preview-browser.ts`); the server honours it only when the real signed-in
-member is the admin, and only for what's *shown*: access checks keep using the real viewer, and
-`run()` refuses every change while a preview is on (save buttons are off too).
+a plain browser cookie (`lib/preview.ts`, `lib/preview-browser.ts`); the server honours it
+only when the real signed-in member is the admin, and only for what's *shown*: access checks
+keep using the real viewer, and `run()` refuses every change while a preview is on (save
+buttons are off too).
 **Why:** PA needs to check what housemates see without a second login; the test `+` alias stops
 working once real addresses are invited. Refusing changes keeps a click in preview from quietly
 saving real data as PA (an advance "for" the housemate is something PA is allowed to log). A
@@ -253,3 +254,14 @@ nothing — and it leaves the Server Action list (and its guard test) unchanged.
 **Instead of:** "sign in as" impersonation (real member permissions, but a riskier feature for
 an admin-only convenience), or a client-only switch (the server-rendered parts — banners,
 Manage — wouldn't follow).
+
+## 2026-10-10 — Finished worktrees are removed by one command
+**Decision:** `npm run worktrees:clean` (`scripts/worktrees-clean.sh`) removes a worktree and its
+branch only when its PR is merged at the folder's current commit, it has no uncommitted changes,
+and no process has it as its working folder. The startup check runs the same rules in a
+read-only `--check` mode and says how many are finished. Paul runs it; sessions only suggest it.
+**Why:** with a session per worktree, finished folders pile up (four at once by the time this was
+added), and deleting them in Finder leaves git's records behind. Checking the merged PR's commit,
+not "is the branch merged into main", works with GitHub's merge commits and catches work
+committed after the merge. The running-process check keeps it from pulling a folder out from
+under an open VS Code window, dev server or another session.
