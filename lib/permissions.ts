@@ -27,6 +27,21 @@ export function canManageAdvance(viewer: Viewer, advance: { payerId: number; inD
 }
 
 /**
+ * Who the admin is previewing as ("Preview as…" in the account menu), shaped like that
+ * housemate's own login, or null for no preview. Only the admin may preview, and only an active
+ * member who isn't an admin. The preview changes what's shown, never what's allowed: the server
+ * refuses every change while it's on (run() in actions.ts).
+ */
+export function previewViewer(
+  real: Viewer,
+  target: { memberId: number; name: string; role: Role; email: string | null; active: boolean } | null,
+): Viewer | null {
+  if (!isAdmin(real) || !target || !target.active || target.role !== "member") return null;
+  if (target.memberId === real.memberId) return null;
+  return { memberId: target.memberId, name: target.name, role: "member", email: target.email };
+}
+
+/**
  * Where to send someone after signing in: a path on this site, or "/". Blocks open redirects
  * such as "//evil.com", "/\evil.com", "/.//evil.com" (which normalizes to "//evil.com") and
  * "@evil.com" (which would turn `${origin}${path}` into a login to evil.com). Returns the

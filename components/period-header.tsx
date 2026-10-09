@@ -3,6 +3,7 @@ import Link from "next/link";
 import { AccountMenu } from "@/components/account-menu";
 import { HouseBadge } from "@/components/house-badge";
 import { MonthPicker, TabNav } from "@/components/period-nav";
+import type { PreviewChoice } from "@/lib/preview";
 import { monthLabel } from "@/lib/format";
 import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { formatPHP, type Centavos } from "@/lib/money";
@@ -11,7 +12,17 @@ import type { PeriodView } from "@/lib/periods";
 import { cn } from "@/lib/utils";
 
 // The top of every month tab: the month on the left, its two headline totals on the right, then the tabs.
-export function PeriodHeader({ view, viewer }: { view: PeriodView; viewer: Viewer }) {
+// `viewer` is who the page is drawn for: the signed-in member, or the housemate PA is
+// previewing as (lib/preview.ts). `previewChoices` is empty for everyone but PA.
+export function PeriodHeader({
+  view,
+  viewer,
+  previewChoices,
+}: {
+  view: PeriodView;
+  viewer: Viewer;
+  previewChoices: PreviewChoice[];
+}) {
   const { year, month, status } = view.period;
   const base = `/periods/${year}/${month}`;
   const pendingBills = view.bills.filter((b) => b.status === "pending");
@@ -81,7 +92,10 @@ export function PeriodHeader({ view, viewer }: { view: PeriodView; viewer: Viewe
             accent
           />
           <AccountMenu
-            dotClass={view.members.find((m) => m.id === viewer.memberId)?.dotClass ?? "bg-zinc-400"}
+            dotClass={
+              [...view.members, ...previewChoices].find((m) => m.id === viewer.memberId)?.dotClass ?? "bg-zinc-400"
+            }
+            previewChoices={previewChoices}
           />
         </div>
       </div>

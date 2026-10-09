@@ -1,10 +1,8 @@
 import { ShieldCheck } from "lucide-react";
-import { ReceiptsCard, ReceiptsRow } from "@/components/receipts";
-import { getViewer } from "@/lib/auth";
+import { ReceiptsCard, ReceiptsNote, ReceiptsRow } from "@/components/receipts";
 import { dateLabel } from "@/lib/format";
 import { formatPHP } from "@/lib/money";
 import { getPeriodReceipts, getPeriodView, type ViewReceipt } from "@/lib/periods";
-import { isAdmin } from "@/lib/permissions";
 import { parsePeriodParams, tabMetadata } from "../params";
 
 export const generateMetadata = ({ params }: PageProps<"/periods/[year]/[month]/receipts">) =>
@@ -15,25 +13,18 @@ export const generateMetadata = ({ params }: PageProps<"/periods/[year]/[month]/
 export default async function ReceiptsPage({ params }: PageProps<"/periods/[year]/[month]/receipts">) {
   const { year, month } = await parsePeriodParams(params);
   const view = (await getPeriodView(year, month))!;
-  const [all, viewer] = await Promise.all([getPeriodReceipts(view.period.id), getViewer()]);
+  const all = await getPeriodReceipts(view.period.id);
   const nameOf = new Map(view.members.map((m) => [m.id, m.name]));
   const status = view.period.status;
   const forBill = groupBy(all, (r) => r.billItemId);
   const forPayment = groupBy(all, (r) => r.paymentId);
-
-  const note =
-    status === "closed"
-      ? "This month is closed, so its proofs can't change. Reopen it on Settle Up to attach or delete one."
-      : viewer && isAdmin(viewer)
-        ? "Attach a screenshot to each bill and payment. They're made smaller before upload."
-        : "The admin attaches the proofs. Tap one to see it full size.";
 
   return (
     <div className="space-y-6">
       <section className="rounded-xl border bg-white p-5 shadow-xs">
         <h2 className="text-lg font-semibold">Payment Proofs &amp; Receipts</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Screenshots of bank transfers and bill payments (MariBank, Maya, Bayad, GCash). {note}
+          Screenshots of bank transfers and bill payments (MariBank, Maya, Bayad, GCash). <ReceiptsNote status={status} />
         </p>
       </section>
 

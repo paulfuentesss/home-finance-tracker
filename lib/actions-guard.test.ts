@@ -76,6 +76,18 @@ describe("Server Actions check who's calling", () => {
   });
 });
 
+describe("Preview as a housemate", () => {
+  it("run() refuses every change while PA previews, before anything is parsed or saved", () => {
+    const source = read(join(ROOT, "app/periods/[year]/[month]/actions.ts"));
+    const run = source.slice(source.indexOf("async function run<"));
+    const parsing = run.indexOf("schema.safeParse(");
+    expect(parsing).toBeGreaterThan(-1);
+    const beforeParsing = run.slice(0, parsing);
+    expect(beforeParsing).toMatch(/await previewFor\(viewer\)/);
+    expect(beforeParsing).toMatch(/Exit preview/);
+  });
+});
+
 describe("Route Handlers", () => {
   it("are only the known ones, each with its own auth", () => {
     const routes = files.filter((f) => /\/route\.ts$/.test(f)).map(rel);

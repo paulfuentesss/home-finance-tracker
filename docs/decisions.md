@@ -239,3 +239,17 @@ skipped the production deploy as well (the variable evidently isn't `production`
 change this." — never PA by name. "PA" still appears where it's a member's name in the data
 (e.g. the "Advances Shared w/o PA" example).
 **Why:** PA prefers it, and the text stays right if someone else ever becomes the admin.
+
+## 2026-10-10 — "Preview as a housemate": display only, changes refused
+**Decision:** PA can preview the month tabs as a housemate from the account menu. The choice is
+a plain browser cookie (`lib/preview.ts`, `lib/preview-browser.ts`); the server honours it only when the real signed-in
+member is the admin, and only for what's *shown*: access checks keep using the real viewer, and
+`run()` refuses every change while a preview is on (save buttons are off too).
+**Why:** PA needs to check what housemates see without a second login; the test `+` alias stops
+working once real addresses are invited. Refusing changes keeps a click in preview from quietly
+saving real data as PA (an advance "for" the housemate is something PA is allowed to log). A
+cookie rather than a Server Action because it grants nothing — a member who sets it gets
+nothing — and it leaves the Server Action list (and its guard test) unchanged.
+**Instead of:** "sign in as" impersonation (real member permissions, but a riskier feature for
+an admin-only convenience), or a client-only switch (the server-rendered parts — banners,
+Manage — wouldn't follow).

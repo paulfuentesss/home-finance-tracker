@@ -6,9 +6,9 @@ import { ManageMembers } from "@/components/manage-members";
 import { ManageSharedColumns } from "@/components/manage-shared-columns";
 import { MeralcoPoints } from "@/components/meralco-points";
 import { billEmails, db, members } from "@/db";
-import { requireViewer } from "@/lib/auth";
+import { getPreview, requireViewer } from "@/lib/auth";
 import { dateInManila } from "@/lib/format";
-import { memberDotClass } from "@/lib/members";
+import { dotClassOf } from "@/lib/members";
 import { toCentavos } from "@/lib/money";
 import { isAdmin } from "@/lib/permissions";
 import { getPeriodView } from "@/lib/periods";
@@ -18,12 +18,15 @@ export const generateMetadata = ({ params }: PageProps<"/periods/[year]/[month]/
   tabMetadata(params, "Manage");
 
 // Tab 4: Manage Columns & People. PA only — it reads the database directly (logins included),
-// so it checks the viewer itself instead of relying on getPeriodView.
+// so it checks the viewer itself instead of relying on getPeriodView. While PA previews as a
+// housemate it bounces like it would for them.
 export default async function ManagePage({ params }: PageProps<"/periods/[year]/[month]/manage">) {
   const { year, month } = await parsePeriodParams(params);
   const viewer = await requireViewer();
   if (!isAdmin(viewer)) redirect(`/periods/${year}/${month}`);
-  const view = (await getPeriodView(year, month))!;
+  const [preview, period] = await Promise.all([getPreview(), getPeriodView(year, month)]);
+  if (preview) redirect(`/periods/${year}/${month}`);
+  const view = period!; // the layout already 404s a missing month
   // Everyone currently in the household (not just this month's members).
   const active = await db.query.members.findMany({
     where: eq(members.active, true),
@@ -64,7 +67,7 @@ export default async function ManagePage({ params }: PageProps<"/periods/[year]/
             id: m.id,
             name: m.name,
             isCollector: m.isCollector,
-            dotClass: memberDotClass(m.sortOrder - 1),
+            dotClass: dotClassOf(m),
             email: m.email,
             linked: m.authUserId !== null,
           }))}

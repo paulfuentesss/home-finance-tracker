@@ -6,7 +6,8 @@ import { deleteReceipt, uploadReceipt } from "@/app/periods/[year]/[month]/actio
 import { ConfirmDeleteButton } from "@/components/confirm-button";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useCanEdit } from "@/components/viewer-context";
+import { useCanEdit, useViewer } from "@/components/viewer-context";
+import { isAdmin } from "@/lib/permissions";
 import type { ViewReceipt } from "@/lib/periods";
 import { prepareReceiptFile } from "@/lib/receipt-image";
 import { MAX_RECEIPT_BYTES, MAX_RECEIPTS_PER_ITEM, receiptsLeft } from "@/lib/receipts";
@@ -23,6 +24,19 @@ interface Props {
 }
 
 const receiptUrl = (id: number) => `/receipts/${id}`;
+
+/** The Receipts tab's intro: what the viewer can do with proofs this month. */
+export function ReceiptsNote({ status }: { status: "open" | "closed" }) {
+  const admin = isAdmin(useViewer());
+  if (status === "closed") {
+    return admin
+      ? "This month is closed, so its proofs can't change. Reopen it on Settle Up to attach or delete one."
+      : "This month is closed, so its proofs can't change.";
+  }
+  return admin
+    ? "Attach a screenshot to each bill and payment. They're made smaller before upload."
+    : "The admin attaches the proofs. Tap one to see it full size.";
+}
 
 /** A bill's card: the first proof large on top, the rest as small thumbnails below. */
 export function ReceiptsCard({ badge, children, ...props }: Props & { badge?: React.ReactNode; children: React.ReactNode }) {

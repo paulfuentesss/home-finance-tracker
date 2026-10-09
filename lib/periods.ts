@@ -8,7 +8,7 @@ import { billingPeriods, billItems, db, payments, receipts } from "@/db";
 import type { Database } from "@/db/client";
 import { requireViewer } from "@/lib/auth";
 import { dateInManila } from "@/lib/format";
-import { memberDotClass } from "@/lib/members";
+import { dotClassOf } from "@/lib/members";
 import { closeCheck, reopenCheck, type LockCheck } from "@/lib/month-lock";
 import { sumCentavos, toCentavos, type Centavos } from "@/lib/money";
 import {
@@ -216,7 +216,7 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
     name: m.name,
     sortOrder: m.sortOrder,
     isCollector: m.isCollector,
-    dotClass: memberDotClass(m.sortOrder - 1),
+    dotClass: dotClassOf(m),
   }));
   const summaries = all.map(({ id, year, month }) => ({ id, year, month }));
 
