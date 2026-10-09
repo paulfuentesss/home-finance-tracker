@@ -10,7 +10,7 @@ Drizzle ORM · PostgreSQL on Supabase · Vitest
 Everyone signs in with Google or an emailed code; only invited household members get in
 ([docs/features/auth.md](docs/features/auth.md)).
 
-**Status:** runs locally against Supabase; not deployed yet. Feature by feature:
+**Status:** online on Vercel (invite-only; [docs/operations.md](docs/operations.md#hosting-vercel)). Feature by feature:
 [docs/features](docs/features/README.md). What's next: [docs/TODO.md](docs/TODO.md).
 
 ## Quick start

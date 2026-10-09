@@ -1,8 +1,8 @@
 # Login
 
 ## Status
-✅ Working (locally). Going online still needs the steps in
-[TODO.md → Before going online](../TODO.md#before-going-online).
+✅ Working, online ([operations.md → Hosting](../operations.md#hosting-vercel)). What's left:
+[TODO.md → Going online](../TODO.md#going-online).
 
 ## What it does
 - Every page needs a signed-in household member. Two ways in, both through **Supabase Auth**:
@@ -76,7 +76,7 @@
   him out.
 
 ## Open items
-Going online: [TODO.md → Before going online](../TODO.md#before-going-online).
+Going online: [TODO.md → Going online](../TODO.md#going-online).
 
 ## Built in
 `feat/auth`.

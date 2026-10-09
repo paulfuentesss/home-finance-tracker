@@ -23,9 +23,6 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
       email in the Meralco, Manila Water and PLDT accounts; remove this once a bill from each has
       arrived there. Steps in [setup.md](setup.md) step 5b.
 
-- [ ] **Go online** — hosting, the domain, and the checklist below. Blocks the bill inbox
-      address.
-
 - [ ] **Watch where sign-in emails land** ([auth](features/auth.md)): the first code went to
       Promotions, a later one to Primary. If housemates' codes keep getting filed away, move to
       a transactional email service (e.g. Resend) with an own domain once online.
@@ -70,9 +67,9 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
   providers only report what they received.
 - Show the How it works page's example numbers from the latest month instead of August.
 
-## Before going online
+## Going online
 
-Work through this before the first public deploy.
+Live on Vercel since 2026-10-10 ([operations.md → Hosting](operations.md#hosting-vercel)).
 
 **Content & UX**
 - [ ] Mobile check of every tab.
@@ -90,16 +87,13 @@ Work through this before the first public deploy.
 **Operational**
 - [x] Login protects every page and Server Action ([features/auth.md](features/auth.md)); only
       the inbound-email webhook will stay open (signature-checked).
-- [ ] Hosting chosen; environment variables set there: `DATABASE_URL`,
-      `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`
-      (server-only), and the webhook secret.
-- [ ] Domain / URL decided; HTTPS.
-- [ ] Login knows the real URL: in Supabase → Authentication → URL Configuration set the
-      **Site URL** to it (not just the Redirect URLs — a refused redirect falls back to the
-      Site URL) and add `https://<domain>/**` to Redirect URLs. Keep the Google consent screen
-      in Testing (its test users are a second allowlist).
-- [ ] Sign in on the live site with Google and with an email code, and check a stranger's
-      Google account is refused.
-- [ ] Backups: the latest `npm run db:backup` and `npm run storage:backup` taken and copied
-      somewhere safe.
+- [x] Hosting: Vercel, its environment variables set (the bill inbox's webhook secret joins
+      them when that's built).
+- [x] Address: a free `*.vercel.app` one, HTTPS by default. An own domain can come later.
+- [x] Login knows the real URL (Supabase Site URL and Redirect URLs). Keep the Google consent
+      screen in Testing (its test users are a second allowlist).
+- [x] Signed in on the live site with Google and with an email code; a Google account that
+      isn't invited is refused.
+- [x] Backups taken before the first deploy (`npm run db:backup`, `npm run storage:backup`).
+- [ ] Copy `backups/` somewhere off the laptop (cloud drive).
 - [ ] Review [operations.md → Privacy & security](operations.md#privacy--security).

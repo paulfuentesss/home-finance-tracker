@@ -25,7 +25,7 @@ paid included, the collector like everyone else; the Finals sum to ₱0.00.
 **Decision:** the app runs locally only until login exists.
 **Why:** anyone with the URL would see the household's finances.
 *Superseded 2026-09-28: login exists; going online follows the checklist in
-[TODO.md](TODO.md#before-going-online).*
+[TODO.md](TODO.md#going-online).*
 
 ## 2026-09-27 — Schema changes: generate + migrate, never push
 **Decision:** `db:generate` writes versioned SQL, which is read before `db:migrate` applies it.
@@ -213,6 +213,26 @@ reminders, if those get built).
 to hand over. The 2026-09-28 worry was the App Password in Supabase opening PA's personal
 mailbox; this one holds only household bills. Payment apps stay on PA's accounts (they're
 tied to his card and bank), so their receipts still go to him.
+
+## 2026-10-10 — Hosting on Vercel's free plan, a vercel.app address
+**Decision:** the app runs on Vercel (Hobby), deploying every merge to `main`, at a free
+`*.vercel.app` address. Its environment variables are Production only; preview builds are off
+and the functions run in the database's region, both set in `vercel.json` rather than the
+dashboard (versioned and reviewed like code). No Vercel–Supabase integration.
+**Why:** Vercel builds Next.js with no configuration, and Hobby is meant for personal,
+non-commercial use, which a household app is. An own domain isn't needed to launch; it can
+come with Resend or the bill inbox. Production-only variables mean a branch build can never
+reach the real database, so preview builds would only fail. Running next to the database
+avoids a trans-Pacific round trip per query. The integration would add its own variables over
+ours for a Supabase project that's already wired up.
+**Instead of:** `myhouse.vercel.app`, which was taken; the address is in `.private/NOTES.md`.
+
+## 2026-10-10 — Only `main` deploys, by branch name
+**Decision:** `vercel.json` turns deployments on for `main` only (`git.deploymentEnabled`).
+**Why:** branch builds have no environment variables, so they'd only fail. Matching the branch
+name is Vercel's own switch for this and depends on nothing at build time.
+**Instead of:** an `ignoreCommand` of `[ "$VERCEL_ENV" != production ]` — tried first, and it
+skipped the production deploy as well (the variable evidently isn't `production` at that step).
 
 ## 2026-10-10 — The app says "the admin", not "PA"
 **Decision:** household-facing text names the role — "Ask the admin…", "Only the admin can
