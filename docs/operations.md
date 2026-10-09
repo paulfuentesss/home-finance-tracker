@@ -124,9 +124,8 @@ secrets or a password manager.
 |---|---|---|
 | Supabase (free plan, Singapore) | The Postgres database, Auth (the logins), and Storage (receipt files, private `receipts` bucket; 1 GB on the free plan) | Connection strings and keys in `.env.local`; pauses after 7 idle days (above); login settings in [setup.md](setup.md) step 5 |
 | Google Cloud (OAuth client) | "Continue with Google" | Consent screen in Testing mode; members using Google are its test users |
-| Sender Gmail (the app's own, not PA's) | Sends the email sign-in codes (Supabase custom SMTP) | 2-Step Verification on; its App Password is only in Supabase's SMTP settings |
+| My House Gmail (the household's own, not PA's) | Sends the email sign-in codes (Supabase custom SMTP); Meralco, Manila Water and PLDT bills go to it (switching over: [TODO.md](TODO.md)) | 2-Step Verification on; its App Password is only in Supabase's SMTP settings; will forward the bills to the bill inbox address once it exists. Changing it: [setup.md](setup.md) step 5b |
 | GitHub `paulfuentesss/home-finance-tracker` | Code, PRs, the keep-alive job | **Public**; secret `DIRECT_URL` for the keep-alive job |
-| Gmail (PA's) | Where the providers' bill emails arrive | Will forward to the bill inbox address once it exists |
 | Inbound email provider, hosting | The bill inbox address; running the app online | Not chosen yet ([TODO.md](TODO.md)) |
 
 ## Privacy & security

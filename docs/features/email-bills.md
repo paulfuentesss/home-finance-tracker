@@ -43,6 +43,8 @@ webhook and from `scripts/import-email.mts`. Test emails: [testing.md](../testin
 - The bill inbox address (webhook) — after deploy ([TODO.md](../TODO.md)). Its Route Handler
   is public, so it checks the provider's signature itself and joins `PUBLIC_PATHS` in
   `proxy.ts` and the allowlist in `lib/actions-guard.test.ts` ([auth.md](auth.md)).
+- The providers' bills are moving to the My House Gmail ([TODO.md](../TODO.md));
+  the forwarding filter to the inbox address will live there.
 - Idea: read payment-confirmation emails to fill "Date paid" ([TODO.md](../TODO.md)).
 
 ## Built in

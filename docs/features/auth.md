@@ -61,7 +61,7 @@
   Route Handler appears, or if anything besides the three advance actions is opened to members.
 - Tables: `members` (`email`, `auth_user_id`, `role`). Supabase keeps the logins themselves in
   its own `auth.users`.
-- Setup (Google, the sender Gmail, Supabase settings, keys): [setup.md](../setup.md) step 5.
+- Setup (Google, the My House Gmail, Supabase settings, keys): [setup.md](../setup.md) step 5.
 
 ## Rules
 - Server Actions and Route Handlers are public endpoints: every action goes through

@@ -65,7 +65,7 @@ so PA stays signed in in the main one.
 1. Signed out, open any page: you land on `/login`.
 2. **Continue with Google** as PA: everything works as before, and the header shows PA.
 3. Manage → Manage Housemates: type a test email for a housemate. On the login page, **Get a
-   code by email** with it; the code arrives from the sender Gmail. Signed in as them:
+   code by email** with it; the code arrives from the My House Gmail. Signed in as them:
    no Manage tab, no edit controls except their own advances in Advances Shared.
    A wrong code shows an error; an email that isn't invited gets the same "on its way"
    message, and nothing is sent.
@@ -74,7 +74,7 @@ so PA stays signed in in the main one.
 5. Change their email in Manage. In Supabase → Authentication → Users the **old** login is
    gone and the new one is there — the one check a fake can't make (`invites.test.ts`).
 6. Clear their email while they're signed in: their next click goes to `/login`.
-7. A Google account that isn't invited: "not invited", no loop. The sender Gmail works once no
+7. A Google account that isn't invited: "not invited", no loop. The My House Gmail works once no
    member uses it. It must be a test user on the Google consent screen, or Google blocks it
    before the app is reached ("Access blocked") and the app's check isn't tested.
 

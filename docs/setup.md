@@ -40,16 +40,22 @@ Getting My House running on a new machine. Afterwards, day to day you only need
      `https://<project-ref>.supabase.co/auth/v1/callback`. Keep the client ID and secret for
      step c.
 
-   **b. A sender Gmail for the email codes.** Create a separate Gmail for the app (e.g. "My
-   House") — not your main one: an App Password opens the whole mailbox. Turn on 2-Step
+   **b. The My House Gmail.** Create a separate Gmail for the household — not your main one:
+   an App Password opens the whole mailbox. It sends the email codes, and the providers send
+   their bills to it ([features/email-bills.md](features/email-bills.md)). Turn on 2-Step
    Verification, then create an **App Password** (Google Account → Security → App passwords).
    Supabase's built-in mailer only sends to the project's own team, so it can't be used.
+
+   *Changing it later:* Supabase SMTP settings (username, password, sender email — step c),
+   the support email on the Google consent screen (step a) if it was this Gmail, and the
+   billing email in each provider's account. Send yourself a code to check, then revoke the
+   old Gmail's App Password.
 
    **c. Supabase → Authentication:**
    - **Sign In / Providers:** turn **off** "Allow new users to sign up" (invite-only). Turn on
      **Google** with the client ID and secret. Keep **Email** on, with "Confirm email" and
      "Secure email change" on; Email OTP expiry `600` seconds, length `6`.
-   - **Emails → SMTP settings:** custom SMTP — host `smtp.gmail.com`, port `587`, the sender
+   - **Emails → SMTP settings:** custom SMTP — host `smtp.gmail.com`, port `587`, the My House
      Gmail and its App Password, sender name "My House".
    - **Emails → Templates → Magic Link** (used for sign-in codes). Subject — the code first, so
      it can be read from a phone notification:
@@ -65,7 +71,7 @@ Getting My House running on a new machine. Afterwards, day to day you only need
        <p style="margin:0;font-size:12px;color:#a1a1aa">My House · household bills, settled monthly</p>
      </div>
      ```
-     Optional: give the sender Gmail's Google profile the name "My House" and a house picture,
+     Optional: give the My House Gmail's Google profile the name "My House" and a house picture,
      so the emails show that instead of a letter.
      A code, not a link: a link opened from a phone's mail app lands in a different browser,
      and the sign-in fails.
