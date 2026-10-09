@@ -73,6 +73,11 @@ Part of every change, in the same PR — not a separate chore.
     actions are `"member"`, and they check ownership with `canManageAdvance`.
   - Page reads go through `lib/auth.ts` (`requireViewer` in `lib/periods.ts`); a page that
     queries `db` directly checks the viewer itself (see the Manage page).
+  - "Preview as a housemate" (`getPreview`) is for drawing pages only: the month layout picks who
+    the page is drawn for, and tabs show/hide through the context (`useViewer`, `useCanEdit`);
+    the Manage page also uses it to bounce a preview. Access checks always
+    use the real viewer (`requireViewer` / `getViewer`), and `run()` refuses changes while a
+    preview is on.
   - Permission rules live in `lib/permissions.ts` (pure, tested). Members match on
     `auth_user_id` only — never the email in the token. Never spread member rows into what
     goes to the browser.

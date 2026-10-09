@@ -26,7 +26,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useViewer } from "@/components/viewer-context";
+import { useIsPreviewing, useViewer } from "@/components/viewer-context";
 import { CATEGORY_LABELS, todayInManila } from "@/lib/format";
 import { formatPHP, fromCentavos, parseMoneyInput, type Centavos } from "@/lib/money";
 import { isAdmin } from "@/lib/permissions";
@@ -52,12 +52,15 @@ function useDialogForm(action: Action, onSuccess: (formData: FormData) => void) 
     if (result?.ok) onSuccess(formData);
     return result;
   }, null);
+  // While PA previews as a housemate the form can be looked at, not sent.
+  const previewing = useIsPreviewing();
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (previewing) return;
     const formData = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter);
     startTransition(() => dispatch(formData));
   };
-  return { state, pending, onSubmit };
+  return { state, pending, previewing, onSubmit };
 }
 
 export function AddAdvanceDialog({ view }: Props) {
@@ -103,7 +106,7 @@ function AdvanceForm({ view, advance, onDone }: Props & { advance?: ViewAdvance;
   const descriptionRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
   const [logged, setLogged] = useState<string | null>(null);
-  const { state, pending, onSubmit } = useDialogForm(advance ? updateAdvance : addAdvance, (formData) => {
+  const { state, pending, previewing, onSubmit } = useDialogForm(advance ? updateAdvance : addAdvance, (formData) => {
     if (formData.get("intent") !== "another") return onDone();
     const amount = parseMoneyInput(String(formData.get("amount")));
     setLogged(`Logged ${formData.get("description")}${amount === null ? "" : ` · ${formatPHP(amount)}`}`);
@@ -208,14 +211,15 @@ function AdvanceForm({ view, advance, onDone }: Props & { advance?: ViewAdvance;
         )}
         {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
         {state?.ok && logged && <p className="text-sm text-emerald-700">{logged}</p>}
+        {previewing && <p className="text-sm text-sky-800">You&apos;re previewing, so saving is off.</p>}
         <DialogFooter>
           <DialogClose render={<Button variant="outline" type="button" />}>{logged ? "Done" : "Cancel"}</DialogClose>
           {/* First submit button in the markup = what Enter does, so the main action comes first. */}
-          <Button type="submit" disabled={pending} className="sm:order-last">
+          <Button type="submit" disabled={pending || previewing} className="sm:order-last">
             {pending ? "Saving…" : advance ? "Save changes" : "Log advance"}
           </Button>
           {!advance && (
-            <Button type="submit" name="intent" value="another" variant="outline" disabled={pending}>
+            <Button type="submit" name="intent" value="another" variant="outline" disabled={pending || previewing}>
               Save &amp; add another
             </Button>
           )}
@@ -283,7 +287,7 @@ function PaymentForm({
   prefill,
   onDone,
 }: Props & { payment?: ViewPayment; prefill?: PaymentPrefill; onDone: () => void }) {
-  const { state, pending, onSubmit } = useDialogForm(payment ? updatePayment : addPayment, onDone);
+  const { state, pending, previewing, onSubmit } = useDialogForm(payment ? updatePayment : addPayment, onDone);
   const [typed, setTyped] = useState(prefill ? fromCentavos(prefill.amount) : "");
   const typedAmount = parseMoneyInput(typed);
   const nameOf = new Map(view.members.map((m) => [m.id, m.name]));
@@ -345,7 +349,7 @@ function PaymentForm({
         {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
         <DialogFooter>
           <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
-          <Button type="submit" disabled={pending}>
+          <Button type="submit" disabled={pending || previewing}>
             {pending ? "Saving…" : payment ? "Save changes" : "Record payment"}
           </Button>
         </DialogFooter>
@@ -370,7 +374,7 @@ export function AddBillDialog({ view, label = "Add bill column" }: Props & { lab
 }
 
 function AddBillForm({ view, onDone }: Props & { onDone: () => void }) {
-  const { state, pending, onSubmit } = useDialogForm(addBill, onDone);
+  const { state, pending, previewing, onSubmit } = useDialogForm(addBill, onDone);
   const [splitMode, setSplitMode] = useState<"equal" | "manual">("equal");
   const memberItems = view.members.map((m) => ({ value: String(m.id), label: m.name }));
   const collectorId = String(view.members.find((m) => m.isCollector)?.id ?? view.members[0]?.id);
@@ -405,7 +409,7 @@ function AddBillForm({ view, onDone }: Props & { onDone: () => void }) {
         {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
         <DialogFooter>
           <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
-          <Button type="submit" disabled={pending}>
+          <Button type="submit" disabled={pending || previewing}>
             {pending ? "Saving…" : "Add bill"}
           </Button>
         </DialogFooter>
@@ -430,7 +434,7 @@ export function AddMemberDialog() {
 }
 
 function AddMemberForm({ onDone }: { onDone: () => void }) {
-  const { state, pending, onSubmit } = useDialogForm(addMember, onDone);
+  const { state, pending, previewing, onSubmit } = useDialogForm(addMember, onDone);
   return (
     <>
       <DialogHeader>
@@ -447,7 +451,7 @@ function AddMemberForm({ onDone }: { onDone: () => void }) {
         {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
         <DialogFooter>
           <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
-          <Button type="submit" disabled={pending}>
+          <Button type="submit" disabled={pending || previewing}>
             {pending ? "Adding…" : "Add housemate"}
           </Button>
         </DialogFooter>
@@ -472,7 +476,7 @@ export function AddSharedColumnDialog({ view }: Props) {
 }
 
 function AddSharedColumnForm({ view, onDone }: Props & { onDone: () => void }) {
-  const { state, pending, onSubmit } = useDialogForm(addSharedColumn, onDone);
+  const { state, pending, previewing, onSubmit } = useDialogForm(addSharedColumn, onDone);
   const [splitMode, setSplitMode] = useState<"equal" | "manual">("equal");
   const [sharedMode, setSharedMode] = useState<"all" | "except">("all");
 
@@ -529,7 +533,7 @@ function AddSharedColumnForm({ view, onDone }: Props & { onDone: () => void }) {
         {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
         <DialogFooter>
           <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
-          <Button type="submit" disabled={pending}>
+          <Button type="submit" disabled={pending || previewing}>
             {pending ? "Adding…" : "Add column"}
           </Button>
         </DialogFooter>

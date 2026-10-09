@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canManageAdvance, isAdmin, safeNext, type Viewer } from "./permissions";
+import { canManageAdvance, isAdmin, previewViewer, safeNext, type Viewer } from "./permissions";
 
 const pa: Viewer = { memberId: 5, name: "PA", role: "admin", email: null };
 const housemate: Viewer = { memberId: 3, name: "Housemate", role: "member", email: null };
@@ -27,6 +27,25 @@ describe("canManageAdvance", () => {
 
   it("doesn't let a member change their own advance once PA moved it to another column", () => {
     expect(canManageAdvance(housemate, { payerId: 3, inDefaultColumn: false })).toBe(false);
+  });
+});
+
+describe("previewViewer", () => {
+  const target = { memberId: 3, name: "Housemate", role: "member" as const, email: "h@example.com", active: true };
+
+  it("lets the admin preview as an active member, shaped like their own login", () => {
+    expect(previewViewer(pa, target)).toEqual({ memberId: 3, name: "Housemate", role: "member", email: "h@example.com" });
+  });
+
+  it("ignores a preview for a member", () => {
+    expect(previewViewer(housemate, { ...target, memberId: 4 })).toBeNull();
+  });
+
+  it("ignores a missing, removed or admin target, or the admin themselves", () => {
+    expect(previewViewer(pa, null)).toBeNull();
+    expect(previewViewer(pa, { ...target, active: false })).toBeNull();
+    expect(previewViewer(pa, { ...target, role: "admin" })).toBeNull();
+    expect(previewViewer(pa, { ...target, memberId: 5 })).toBeNull();
   });
 });
 

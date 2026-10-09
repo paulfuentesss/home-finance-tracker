@@ -14,6 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useIsPreviewing } from "@/components/viewer-context";
 
 /**
  * A trash button that asks for confirmation, then runs a Server Action and shows its error.
@@ -35,6 +36,8 @@ export function ConfirmDeleteButton({
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  // While PA previews as a housemate, the dialog shows but can't delete.
+  const previewing = useIsPreviewing();
 
   return (
     <Dialog
@@ -57,12 +60,13 @@ export function ConfirmDeleteButton({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         {error && <p className="text-sm text-destructive">{error}</p>}
+        {previewing && onConfirm && <p className="text-sm text-sky-800">You&apos;re previewing, so deleting is off.</p>}
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>{onConfirm ? "Cancel" : "OK"}</DialogClose>
           {onConfirm && (
             <Button
               variant="destructive"
-              disabled={pending}
+              disabled={pending || previewing}
               onClick={() =>
                 startTransition(async () => {
                   const result = await onConfirm();

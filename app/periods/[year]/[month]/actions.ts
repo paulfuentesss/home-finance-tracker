@@ -27,7 +27,7 @@ import {
   sharedColumnMembers,
   sharedColumns,
 } from "@/db";
-import { getViewer } from "@/lib/auth";
+import { getViewer, previewFor } from "@/lib/auth";
 import { placeBill } from "@/lib/bill-import";
 import { pointsFor, pointsOf, writeShares, type Tx } from "@/lib/bill-shares";
 import { ActionError, isUniqueViolation } from "@/lib/errors";
@@ -1149,6 +1149,15 @@ async function run<S extends z.ZodType>(
   const viewer = await getViewer();
   if (!viewer) redirect("/login");
   if (access === "admin" && !isAdmin(viewer)) return { ok: false, error: "Only the admin can change this." };
+  // "Preview as a housemate" only changes what's shown; saving anything would act as the admin.
+  // The preview may have started in another tab, which this one doesn't show yet.
+  const preview = await previewFor(viewer);
+  if (preview) {
+    return {
+      ok: false,
+      error: `Preview as ${preview.name} is on (maybe in another tab). Exit preview, or reload this page, to make changes.`,
+    };
+  }
 
   const parsed = schema.safeParse(input instanceof FormData ? Object.fromEntries(input) : input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };

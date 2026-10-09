@@ -3,8 +3,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PeriodHeader } from "@/components/period-header";
+import { PreviewBanner } from "@/components/preview-banner";
 import { ViewerProvider } from "@/components/viewer-context";
-import { requireViewer } from "@/lib/auth";
+import { getPreview, getPreviewChoices, requireViewer } from "@/lib/auth";
 import { monthLabel } from "@/lib/format";
 import { isAdmin } from "@/lib/permissions";
 import { getPeriodView } from "@/lib/periods";
@@ -19,17 +20,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 // Shared by all four tabs: the header (month, stats, tabs) and the data-problem banner.
 // The viewer is provided to the tabs only to show or hide controls; getPeriodView and the
-// Server Actions check it themselves.
+// Server Actions check it themselves. While PA previews as a housemate, everything here is
+// drawn for that housemate under a banner saying so.
 export default async function PeriodLayout({ params, children }: Props) {
   const { year, month } = await parsePeriodParams(params);
-  const viewer = await requireViewer();
-  const view = await getPeriodView(year, month);
+  const [real, preview, view, previewChoices] = await Promise.all([
+    requireViewer(),
+    getPreview(),
+    getPeriodView(year, month),
+    getPreviewChoices(),
+  ]);
   if (!view) notFound();
+  // Who the page is drawn for. Only this layout decides; the tabs read it from the context.
+  const viewer = preview ?? real;
+  const previewBy = preview ? real : null;
   const admin = isAdmin(viewer);
 
   return (
-    <ViewerProvider viewer={viewer}>
-      <PeriodHeader view={view} viewer={viewer} />
+    <ViewerProvider viewer={viewer} previewBy={previewBy}>
+      <PreviewBanner />
+      <PeriodHeader view={view} viewer={viewer} previewChoices={previewChoices} />
       <main className="mx-auto w-full max-w-7xl space-y-6 px-4 py-8">
         {view.period.status === "closed" && (
           <div className="flex items-start gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700">

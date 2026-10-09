@@ -3,9 +3,11 @@
 // member. Supabase refuses strangers itself (sign-ups are off) and says so with
 // `error_code=signup_disabled`.
 
+import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { memberForLogin } from "@/lib/auth";
 import { safeNext } from "@/lib/permissions";
+import { PREVIEW_COOKIE } from "@/lib/preview";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
@@ -27,5 +29,6 @@ export async function GET(request: NextRequest) {
     await supabase.auth.signOut({ scope: "local" });
     return toLogin("not-invited");
   }
+  (await cookies()).delete(PREVIEW_COOKIE); // a fresh sign-in starts in PA's own view
   return NextResponse.redirect(`${origin}${safeNext(searchParams.get("next"), origin)}`);
 }

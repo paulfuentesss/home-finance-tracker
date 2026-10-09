@@ -4,6 +4,8 @@
 
 const DOT_CLASSES = ["bg-rose-500", "bg-violet-500", "bg-indigo-500", "bg-amber-500", "bg-emerald-500"] as const;
 
-export function memberDotClass(index: number): string {
+/** A member's dot, from their sort_order (1-based). */
+export function dotClassOf(member: { sortOrder: number }): string {
+  const index = member.sortOrder - 1;
   return DOT_CLASSES[((index % DOT_CLASSES.length) + DOT_CLASSES.length) % DOT_CLASSES.length];
 }

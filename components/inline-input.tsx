@@ -3,6 +3,7 @@
 import { Check } from "lucide-react";
 import { startTransition, useActionState, useId } from "react";
 import type { ActionState } from "@/app/periods/[year]/[month]/actions";
+import { useIsPreviewing } from "@/components/viewer-context";
 import { cn } from "@/lib/utils";
 
 export type FormAction = (prev: ActionState, formData: FormData) => Promise<ActionState>;
@@ -18,6 +19,7 @@ export type FormAction = (prev: ActionState, formData: FormData) => Promise<Acti
  * - Submits through onSubmit rather than <form action>: React resets a form after every
  *   `action`, even a failed one, which would wipe a mistyped value next to its error.
  * - A small "Saved" check fades out after each successful save.
+ * - Read-only while PA previews as a housemate (nothing can be saved then).
  *
  * The field shows `value` until the server sends a new one (the input is keyed on it).
  */
@@ -60,12 +62,14 @@ export function InlineInput({
     { result: null, saves: 0 },
   );
   const error = state.result?.ok === false ? state.result.error : null;
+  const previewing = useIsPreviewing();
 
   return (
     <form
       className={cn("inline-block", className)}
       onSubmit={(e) => {
         e.preventDefault();
+        if (previewing) return;
         const formData = new FormData(e.currentTarget);
         startTransition(() => dispatch(formData));
       }}
@@ -84,7 +88,7 @@ export function InlineInput({
           aria-label={label}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
-          readOnly={pending}
+          readOnly={pending || previewing}
           className={cn(
             "rounded-md border border-input bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none read-only:opacity-50 aria-invalid:border-rose-500",
             prefix && "pl-5",

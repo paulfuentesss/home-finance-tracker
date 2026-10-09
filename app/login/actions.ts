@@ -4,11 +4,12 @@
 // can't use run(), which requires someone signed in — so each one validates its own input and
 // never reveals data. Sign-ups are off in Supabase: only invited emails have a login.
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { memberForLogin } from "@/lib/auth";
 import { safeNext } from "@/lib/permissions";
+import { PREVIEW_COOKIE } from "@/lib/preview";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type LoginState = { ok: true; message?: string } | { ok: false; error: string };
@@ -89,13 +90,15 @@ export async function verifyEmailCode(rawEmail: string, rawCode: string, next: s
     await supabase.auth.signOut({ scope: "local" });
     return { ok: false, error: NOT_INVITED };
   }
+  (await cookies()).delete(PREVIEW_COOKIE); // a fresh sign-in starts in PA's own view
   const origin = await requestOrigin();
   redirect(`${origin}${safeNext(next, origin)}`);
 }
 
-/** Signs out on this device only. */
+/** Signs out on this device only, ending any "Preview as a housemate" too. */
 export async function signOut(): Promise<void> {
   const supabase = await createSupabaseServerClient();
   await supabase.auth.signOut({ scope: "local" });
+  (await cookies()).delete(PREVIEW_COOKIE);
   redirect("/login");
 }
