@@ -226,3 +226,10 @@ reach the real database, so preview builds would only fail. Running next to the 
 avoids a trans-Pacific round trip per query. The integration would add its own variables over
 ours for a Supabase project that's already wired up.
 **Instead of:** `myhouse.vercel.app`, which was taken; the address is in `.private/NOTES.md`.
+
+## 2026-10-10 — Only `main` deploys, by branch name
+**Decision:** `vercel.json` turns deployments on for `main` only (`git.deploymentEnabled`).
+**Why:** branch builds have no environment variables, so they'd only fail. Matching the branch
+name is Vercel's own switch for this and depends on nothing at build time.
+**Instead of:** an `ignoreCommand` of `[ "$VERCEL_ENV" != production ]` — tried first, and it
+skipped the production deploy as well (the variable evidently isn't `production` at that step).

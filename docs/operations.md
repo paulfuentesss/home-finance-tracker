@@ -135,8 +135,9 @@ secrets or a password manager.
   can't drift in the dashboard:
   - `regions`: the functions run in Seoul (`icn1`), the database's region, so each query
     doesn't cross an ocean.
-  - `ignoreCommand`: only production builds (exit 0 = skip). Branch and PR builds would have
-    no environment variables, so they'd fail or show nothing; Vercel lists them as canceled.
+  - `git.deploymentEnabled`: only `main` deploys (`*` and `**` cover every other branch name,
+    with or without a `/`; when rules overlap, one `true` wins). Branch and PR builds would have
+    no environment variables, so they'd fail or show nothing.
 - **Deploys:** every merge to `main` goes live by itself in a minute or two.
 - **Environment variables** (Settings → Environment Variables), Production only and marked
   Sensitive: `DATABASE_URL` (the pooler, port 6543), `NEXT_PUBLIC_SUPABASE_URL`,
