@@ -106,6 +106,8 @@ Part of every change, in the same PR — not a separate chore.
     worktree.
   - Right before committing, `git status -sb` again; commit only your own files, on your branch.
   - All worktrees share one database: only one schema-changing feature at a time.
+  - When the startup check lists finished worktrees, suggest `npm run worktrees:clean` to Paul
+    (removing folders is his to run); for a new task, create a fresh worktree from `origin/main`.
 
 ## Known pitfalls (hit during development — check here first)
 

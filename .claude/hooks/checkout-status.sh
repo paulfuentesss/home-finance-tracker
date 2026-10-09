@@ -31,6 +31,8 @@ fi
 echo
 echo "Worktrees (one folder per session):"
 git worktree list
+# Finished ones (PR merged, nothing left in them); the same rules as npm run worktrees:clean.
+"$PWD/scripts/worktrees-clean.sh" --check 2> /dev/null
 
 # Last, so a slow or offline GitHub only delays the end of the report.
 echo
