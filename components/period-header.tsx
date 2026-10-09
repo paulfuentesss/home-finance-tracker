@@ -1,7 +1,9 @@
-import { CircleHelp, House, Info } from "lucide-react";
+import { CircleHelp, Info } from "lucide-react";
 import Link from "next/link";
 import { AccountMenu } from "@/components/account-menu";
+import { HouseBadge } from "@/components/house-badge";
 import { MonthPicker, TabNav } from "@/components/period-nav";
+import { monthLabel } from "@/lib/format";
 import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { formatPHP, type Centavos } from "@/lib/money";
 import { isAdmin, type Viewer } from "@/lib/permissions";
@@ -16,11 +18,11 @@ export function PeriodHeader({ view, viewer }: { view: PeriodView; viewer: Viewe
 
   return (
     <header className="border-b bg-white">
+      {/* The month is shown inside the month picker button, so screen readers get it as the page heading here. */}
+      <h1 className="sr-only">{monthLabel(year, month)}</h1>
       <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-4 px-4 pt-5 pb-4">
         <div className="flex items-center gap-3">
-          <div className="flex size-11 items-center justify-center rounded-xl border border-amber-200 bg-amber-50 text-amber-600">
-            <House className="size-5" />
-          </div>
+          <HouseBadge />
           <div>
             <p className="px-1.5 text-sm font-semibold text-amber-700">My House</p>
             <div className="flex items-center gap-2">

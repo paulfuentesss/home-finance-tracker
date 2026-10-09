@@ -275,7 +275,7 @@ function MonthLock({ view }: { view: PeriodView }) {
                 {unsettled.map((r) => (
                   <li key={r.memberId} className="flex justify-between gap-3">
                     <span>{nameOf.get(r.memberId)}</span>
-                    <span className={cn("font-mono tabular-nums", r.balance > 0 ? "text-rose-600" : "text-emerald-600")}>
+                    <span className={cn("font-mono tabular-nums", r.balance > 0 ? "text-rose-600" : "text-emerald-700")}>
                       {formatPHP(Math.abs(r.balance))} {r.balance > 0 ? "to pay" : "to receive"}
                     </span>
                   </li>

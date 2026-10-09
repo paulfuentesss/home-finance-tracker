@@ -61,6 +61,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Everything except Next's static files and images.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
+  // Everything except Next's static files, images (the app icons among them) and robots.txt,
+  // which crawlers must be able to read signed out.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
 };

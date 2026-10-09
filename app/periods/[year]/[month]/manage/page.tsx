@@ -12,7 +12,10 @@ import { memberDotClass } from "@/lib/members";
 import { toCentavos } from "@/lib/money";
 import { isAdmin } from "@/lib/permissions";
 import { getPeriodView } from "@/lib/periods";
-import { parsePeriodParams } from "../params";
+import { parsePeriodParams, tabMetadata } from "../params";
+
+export const generateMetadata = ({ params }: PageProps<"/periods/[year]/[month]/manage">) =>
+  tabMetadata(params, "Manage");
 
 // Tab 4: Manage Columns & People. PA only — it reads the database directly (logins included),
 // so it checks the viewer itself instead of relying on getPeriodView.

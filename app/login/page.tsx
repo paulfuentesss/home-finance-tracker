@@ -1,6 +1,6 @@
-import { House } from "lucide-react";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { HouseBadge } from "@/components/house-badge";
 import { LoginForm } from "@/components/login-form";
 import { getViewer } from "@/lib/auth";
 
@@ -21,9 +21,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
     // resolve and the card would sit at the top of tall screens.
     <main className="mx-auto flex min-h-dvh w-full max-w-sm flex-col justify-center px-4 py-12">
       <div className="mb-6 flex items-center gap-3">
-        <div className="flex size-11 items-center justify-center rounded-xl border border-amber-200 bg-amber-50 text-amber-600">
-          <House className="size-5" />
-        </div>
+        <HouseBadge />
         <div>
           <h1 className="text-lg font-semibold text-amber-700">My House</h1>
           <p className="text-sm text-muted-foreground">Household bills, settled monthly.</p>

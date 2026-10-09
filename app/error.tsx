@@ -1,17 +1,21 @@
 "use client";
 
+import { MessagePage } from "@/components/message-page";
 import { Button } from "@/components/ui/button";
 
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
-    <div className="mx-auto max-w-md space-y-4 px-4 py-16 text-center">
-      <h1 className="text-2xl font-semibold tracking-tight">Something went wrong</h1>
-      <p className="text-muted-foreground">
-        If this keeps happening, the Supabase project may be paused. Restore it from the Supabase dashboard, then try
-        again.
+    <MessagePage title="Something went wrong">
+      {/* An error page can't export metadata (it's a Client Component); React puts this in <head>. */}
+      <title>Something went wrong · My House</title>
+      <p className="text-sm text-muted-foreground">Try again in a moment. If it keeps happening, let PA know.</p>
+      <p className="text-xs text-muted-foreground">
+        For PA: the Supabase project may be paused. Restore it from the Supabase dashboard, then try again.
       </p>
       {error.digest && <p className="font-mono text-xs text-muted-foreground">Error ID: {error.digest}</p>}
-      <Button onClick={reset}>Try again</Button>
-    </div>
+      <Button onClick={reset} className="w-full">
+        Try again
+      </Button>
+    </MessagePage>
   );
 }
