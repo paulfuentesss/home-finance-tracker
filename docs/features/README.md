@@ -13,9 +13,9 @@ begins, then it gets a page here.
 | Settle Up | ✅ | Who owes whom, one tap to record a payment | [settle-up.md](settle-up.md) |
 | Months | ✅ | Month picker, starting the next month, live carry-over, closing / reopening | [months.md](months.md) |
 | Manage Columns & People | ✅ | Bill and shared columns, Meralco points, housemates moving in and out | [manage.md](manage.md) |
-| Login | ✅ | Google or an emailed code; invite-only; PA edits everything, housemates log their own advances | [auth.md](auth.md) |
+| Login | ✅ | Google or an emailed code; invite-only; the admin edits everything, housemates log their own advances | [auth.md](auth.md) |
 | Email-imported bills | 🚧 | Bill emails become Pending bills with the payment fee added; Bill Inbox. Missing: the inbox address (once online) | [email-bills.md](email-bills.md) |
-| Receipts | ✅ | Proof (screenshots) on each bill and payment, in a private bucket; PA attaches | [receipts.md](receipts.md) |
+| Receipts | ✅ | Proof (screenshots) on each bill and payment, in a private bucket; the admin attaches | [receipts.md](receipts.md) |
 
 Also running, not features of the app itself:
 - **How it works page** (`/how-it-works`) — the household-facing explanation of the rules;

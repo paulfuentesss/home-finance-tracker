@@ -1,7 +1,7 @@
 # Receipts
 
 ## Status
-✅ Working: PA attaches proof to bills and payments. Housemates sending their own payment with
+✅ Working: the admin attaches proof to bills and payments. Housemates sending their own payment with
 proof is next ([TODO.md](../TODO.md)).
 
 ## What it does

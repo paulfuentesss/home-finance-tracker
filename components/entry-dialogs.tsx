@@ -202,7 +202,7 @@ function AdvanceForm({ view, advance, onDone }: Props & { advance?: ViewAdvance;
         ) : (
           <p className="text-xs text-muted-foreground">
             Goes into {defaultColumn?.name ?? "Advances Shared"}, split by everyone. If it should be split
-            differently, ask PA to move it.
+            differently, ask the admin to move it.
             <input type="hidden" name="columnId" value="0" />
           </p>
         )}

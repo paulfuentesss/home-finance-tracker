@@ -44,7 +44,7 @@ export default async function PeriodLayout({ params, children }: Props) {
                   to make changes.
                 </>
               ) : (
-                "Ask PA to reopen it if something needs fixing."
+                "Ask the admin to reopen it if something needs fixing."
               )}
             </p>
           </div>
@@ -59,7 +59,7 @@ export default async function PeriodLayout({ params, children }: Props) {
               <p className="font-medium">This month&apos;s numbers can&apos;t be calculated yet.</p>
               <p className="mt-1">
                 {view.issue}.{" "}
-                {admin ? "Fix it in Manage Columns & People or the Advances Log." : "Ask PA to fix it."}
+                {admin ? "Fix it in Manage Columns & People or the Advances Log." : "Ask the admin to fix it."}
               </p>
             </div>
           </div>
