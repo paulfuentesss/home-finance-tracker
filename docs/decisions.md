@@ -216,8 +216,9 @@ tied to his card and bank), so their receipts still go to him.
 
 ## 2026-10-10 — Hosting on Vercel's free plan, a vercel.app address
 **Decision:** the app runs on Vercel (Hobby), deploying every merge to `main`, at a free
-`*.vercel.app` address. Its environment variables are Production only; preview builds are off;
-the functions run in the database's region. No Vercel–Supabase integration.
+`*.vercel.app` address. Its environment variables are Production only; preview builds are off
+and the functions run in the database's region, both set in `vercel.json` rather than the
+dashboard (versioned and reviewed like code). No Vercel–Supabase integration.
 **Why:** Vercel builds Next.js with no configuration, and Hobby is meant for personal,
 non-commercial use, which a household app is. An own domain isn't needed to launch; it can
 come with Resend or the bill inbox. Production-only variables mean a branch build can never

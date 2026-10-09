@@ -131,16 +131,18 @@ secrets or a password manager.
 
 ## Hosting (Vercel)
 
-- **Deploys:** every merge to `main` goes live by itself in a minute or two. Preview builds
-  are off (Settings → Git → Ignored Build Step → "Only build production"): they'd have no
-  environment variables, so they'd fail or show nothing.
+- **Settings in code:** `vercel.json` sets the two that matter, so they're reviewed in PRs and
+  can't drift in the dashboard:
+  - `regions`: the functions run in Seoul (`icn1`), the database's region, so each query
+    doesn't cross an ocean.
+  - `ignoreCommand`: only production builds (exit 0 = skip). Branch and PR builds would have
+    no environment variables, so they'd fail or show nothing; Vercel lists them as canceled.
+- **Deploys:** every merge to `main` goes live by itself in a minute or two.
 - **Environment variables** (Settings → Environment Variables), Production only and marked
   Sensitive: `DATABASE_URL` (the pooler, port 6543), `NEXT_PUBLIC_SUPABASE_URL`,
   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`. Not `DIRECT_URL` — only
   scripts and migrations use it, and they run on PA's laptop. A changed value only takes
   effect after a redeploy (Deployments → ⋯ → Redeploy).
-- **Function region:** the same as the database (Settings → Functions), so each query doesn't
-  cross an ocean.
 - **The address** is also Supabase's **Site URL** and is in its Redirect URLs as
   `https://<address>/**` (Authentication → URL Configuration). Without the `/**`, or with
   the Site URL left on localhost, signing in on the live site ends on `localhost`.
