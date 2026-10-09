@@ -265,3 +265,11 @@ added), and deleting them in Finder leaves git's records behind. Checking the me
 not "is the branch merged into main", works with GitHub's merge commits and catches work
 committed after the merge. The running-process check keeps it from pulling a folder out from
 under an open VS Code window, dev server or another session.
+
+## 2026-10-10 — Develop against a local Supabase, not a second cloud project
+**Decision:** for development and testing, run Supabase on the laptop (the Supabase CLI, in
+Docker) rather than creating a second free cloud project. Not built yet ([TODO.md](TODO.md)).
+**Why:** today `localhost` and the live site share one database, so testing touches the
+household's real numbers. A local stack is free, unlimited and never pauses. The free plan
+allows only two active cloud projects (as of 2026-10), so a test project would use up the last slot that
+other apps might need.
