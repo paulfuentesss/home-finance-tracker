@@ -12,6 +12,14 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
       (2026-10-09). A test housemate still has a `+` alias of PA's Gmail; swap in their real
       address. Anyone signing in with Google also needs to be a test user on the consent screen.
 
+- [ ] **A local Supabase for development** ([operations.md](operations.md#one-database-localhost-is-live-data)).
+      Do before the next schema change. Today `localhost` and the live site share one database;
+      the Supabase CLI (`supabase start`, needs Docker Desktop) runs the whole stack on the
+      laptop instead — database, logins (codes land in its local mail viewer), storage. Needs:
+      `supabase init` in the repo, `.env.local` pointing at it (keep the live values in a
+      second file), migrations + `storage:setup` + `db:seed:august` against it, and docs
+      ([setup.md](setup.md), [commands.md](commands.md)) for switching between the two.
+
 - [ ] **Housemates send their payment with proof** ([settle-up](features/settle-up.md),
       [receipts](features/receipts.md)). On Settle Up a housemate taps "I paid", types the amount
       and attaches the bank-transfer screenshot. It shows as **Waiting for PA** and doesn't count
@@ -29,7 +37,7 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
 
 ## Later
 
-- [ ] **Bill inbox address** ([email-bills](features/email-bills.md)) — *waits for deploy.*
+- [ ] **Bill inbox address** ([email-bills](features/email-bills.md)) — *the app is online; waits on choosing a provider.*
       Pick an inbound-email provider that posts parsed mail to a webhook with a DKIM/SPF
       verdict; a long random address; a new `app/api/inbound-email/route.ts` verifies the signature,
       accepts only the providers' domains with DKIM pass (plus Gmail's forwarding-confirmation

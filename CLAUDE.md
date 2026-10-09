@@ -65,6 +65,9 @@ Part of every change, in the same PR — not a separate chore.
   tsx and must use `createDb` from `db/client.ts` instead, because `server-only` throws
   outside Next.
 - Schema changes: `npm run db:generate`, review the SQL, then `npm run db:migrate`. Never `push`.
+- **One database:** `localhost`, scripts and the live site share it, so local edits, seeds and
+  migrations hit live data. A migration must be safe for the code already deployed (add first,
+  remove later; backup before anything destructive) — `docs/operations.md` → One database.
 - Every table has RLS enabled with no policies (blocks Supabase's public Data API).
   Keep `.enableRLS()` on new tables.
 - **Login guards everything** (`docs/features/auth.md`). Server Actions and Route Handlers are

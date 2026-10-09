@@ -93,7 +93,7 @@ the start of a session to "work in a new worktree".
 | `npm run worktrees:clean -- --dry-run` | Shows what it would remove, removes nothing | When unsure |
 | `git worktree remove ../home-finance-tracker-<task>` | Deletes one folder by hand (the branch stays) | Rarely — e.g. abandoned work with no PR |
 
-All folders share one database, and the second `npm run dev` gets port 3001. Don't delete a
+All folders share one database — the live one ([operations.md](operations.md#one-database-localhost-is-live-data)) — and the second `npm run dev` gets port 3001. Don't delete a
 worktree folder in Finder: git keeps a record of it and its branch stays locked
 (`git worktree prune` clears that; `worktrees:clean` runs it too).
 

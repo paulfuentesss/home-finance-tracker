@@ -3,13 +3,29 @@
 Running and looking after My House: database changes, backups, the Supabase free plan,
 commits, troubleshooting, where things live, and keeping household data private.
 
+## One database: localhost is live data
+
+There is one Supabase project. `npm run dev`, every script (`db:seed:august`, `bills:import`,
+`auth:invite`, …) and the live site all use the same database, logins and receipt files.
+
+- Whatever you add, edit or delete on `localhost` the household sees on the live site at once.
+- `npm run db:seed:august -- --replace` rewrites August 2026 for everyone: only while August
+  is still test data.
+- `npm run db:migrate` changes the live database immediately, before the code that needs the
+  change is merged — see the next section for the safe order.
+
+A local Supabase for development is planned ([TODO.md](TODO.md)); until then, test with care.
+
 ## Changing the database schema
 
 1. Edit `db/schema.ts` (and `docs/settlement-rules.md` if a rule changes).
 2. `npm run db:generate`: creates a new SQL file in `drizzle/`.
 3. **Read the generated SQL** before applying it, especially anything that drops or
    renames columns.
-4. `npm run db:migrate`: applies it to Supabase.
+4. `npm run db:migrate`: applies it to Supabase — **the live database**. Adding a table or a
+   column (nullable, or with a default) is safe: the live site ignores it until the new code
+   is deployed. Dropping or renaming breaks the live site until then, so do it in two steps
+   (add the new, deploy, then remove the old) and run `npm run db:backup` first.
 5. Commit the schema change and the migration files together, and add the table or
    migration to [data-model.md](data-model.md).
 
