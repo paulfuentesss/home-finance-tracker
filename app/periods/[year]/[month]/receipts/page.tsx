@@ -5,7 +5,10 @@ import { dateLabel } from "@/lib/format";
 import { formatPHP } from "@/lib/money";
 import { getPeriodReceipts, getPeriodView, type ViewReceipt } from "@/lib/periods";
 import { isAdmin } from "@/lib/permissions";
-import { parsePeriodParams } from "../params";
+import { parsePeriodParams, tabMetadata } from "../params";
+
+export const generateMetadata = ({ params }: PageProps<"/periods/[year]/[month]/receipts">) =>
+  tabMetadata(params, "Receipts");
 
 // Tab 3: Payment Proofs / Receipts (docs/features/receipts.md). Proof of each bill paid and
 // each settle-up payment: screenshots or photos in a private bucket. Never changes the math.

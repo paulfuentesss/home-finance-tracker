@@ -15,6 +15,8 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: { default: "My House", template: "%s · My House" },
   description: "Household bills and shared expenses, settled monthly.",
+  // Private household app: keep every page out of search results (robots.txt also disallows all).
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
