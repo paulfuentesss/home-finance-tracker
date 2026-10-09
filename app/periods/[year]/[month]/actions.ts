@@ -365,7 +365,7 @@ async function loadAdvanceFor(tx: Tx, advanceId: number, viewer: Viewer, missing
   });
   if (!advance) throw new ActionError(missing);
   if (!canManageAdvance(viewer, { payerId: advance.payerId, inDefaultColumn: advance.column.isDefault })) {
-    throw new ActionError("Only PA can change this advance.");
+    throw new ActionError("Only the admin can change this advance.");
   }
   return advance;
 }
@@ -1148,7 +1148,7 @@ async function run<S extends z.ZodType>(
   // validation messages either.
   const viewer = await getViewer();
   if (!viewer) redirect("/login");
-  if (access === "admin" && !isAdmin(viewer)) return { ok: false, error: "Only PA can change this." };
+  if (access === "admin" && !isAdmin(viewer)) return { ok: false, error: "Only the admin can change this." };
 
   const parsed = schema.safeParse(input instanceof FormData ? Object.fromEntries(input) : input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };

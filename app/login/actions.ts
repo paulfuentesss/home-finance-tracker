@@ -13,7 +13,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type LoginState = { ok: true; message?: string } | { ok: false; error: string };
 
-const NOT_INVITED = "That account isn't invited. Ask PA to add your email in Manage.";
+const NOT_INVITED = "That account isn't invited. Ask the admin to add your email in Manage.";
 const TOO_MANY = "Too many tries — wait a minute, then try again.";
 
 /** This site's origin, e.g. http://localhost:3000 (Next checks a Server Action's Origin against its Host). */

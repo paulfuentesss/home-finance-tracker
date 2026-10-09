@@ -337,7 +337,7 @@ function ExplainerCards() {
     {
       icon: Zap,
       title: "Automatic equal split",
-      body: "Water, PLDT and the Helper split evenly to the centavo. Any leftover centavo goes to PA, the collector.",
+      body: "Water, PLDT and the Helper split evenly to the centavo. Any leftover centavo goes to the admin, who collects.",
       href: "#equal",
     },
     {

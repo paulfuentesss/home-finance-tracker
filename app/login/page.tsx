@@ -7,7 +7,7 @@ import { getViewer } from "@/lib/auth";
 export const metadata: Metadata = { title: "Sign in" };
 
 const ERRORS: Record<string, string> = {
-  "not-invited": "That account isn't invited. Ask PA to add your email in Manage — for Google, the exact address Google shows.",
+  "not-invited": "That account isn't invited. Ask the admin to add your email in Manage — for Google, the exact address Google shows.",
   auth: "Sign-in didn't finish (cancelled, or the link was already used). Try again.",
 };
 
@@ -29,7 +29,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
       </div>
       <LoginForm next={typeof next === "string" ? next : "/"} error={typeof error === "string" ? ERRORS[error] : undefined} />
       <p className="mt-4 text-center text-xs text-muted-foreground">
-        Only household members PA has invited can sign in.
+        Only household members the admin has invited can sign in.
       </p>
     </main>
   );

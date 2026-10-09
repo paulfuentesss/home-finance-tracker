@@ -235,7 +235,7 @@ function MonthLock({ view }: { view: PeriodView }) {
       <section className="rounded-xl border bg-white p-4 shadow-xs sm:p-5">
         <h2 className="text-lg font-semibold">{label} is open</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          PA closes the month once it&apos;s settled. Anything still unpaid then carries over
+          The admin closes the month once it&apos;s settled. Anything still unpaid then carries over
           {next ? ` to ${next}` : " to next month"} as Prev Month Unsettled.
         </p>
       </section>

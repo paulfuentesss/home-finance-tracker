@@ -36,7 +36,7 @@ export default async function HowItWorksPage() {
             bill.
           </p>
           <p>
-            When a bill doesn&apos;t divide evenly, the leftover centavo or two goes to <strong>PA</strong> (who
+            When a bill doesn&apos;t divide evenly, the leftover centavo or two goes to <strong>the admin</strong> (who
             collects), so it never lands on anyone else. Example: ₱2,173.63 Water ÷ 5 = ₱434.726…, so three people pay
             ₱434.73 and two pay ₱434.72.
           </p>
@@ -123,10 +123,10 @@ export default async function HowItWorksPage() {
           </p>
           <ul className="list-disc space-y-1 pl-5">
             <li>
-              <span className="font-medium text-rose-600">To pay</span> — pay this amount to PA.
+              <span className="font-medium text-rose-600">To pay</span> — pay this amount to the admin.
             </li>
             <li>
-              <span className="font-medium text-emerald-700">To receive</span> — PA pays this amount back to you.
+              <span className="font-medium text-emerald-700">To receive</span> — the admin pays this amount back to you.
             </li>
             <li>
               <span className="font-medium text-zinc-600">Settled</span> — ₱0.00, nothing to do.
@@ -141,11 +141,11 @@ export default async function HowItWorksPage() {
     },
     {
       id: "who-pays",
-      q: "Why does PA usually pay the bills?",
+      q: "Why does the admin usually pay the bills?",
       a: (
         <p>
-          PA pays Meralco, Water, PLDT and usually the Helper upfront, and everyone settles with PA. Whoever pays a bill
-          — PA or anyone else — gets it counted as money they paid, so it comes off their Month Final.
+          The admin pays Meralco, Water, PLDT and usually the Helper upfront, and everyone settles with the admin. Whoever
+          pays a bill — the admin or anyone else — gets it counted as money they paid, so it comes off their Month Final.
         </p>
       ),
     },
@@ -165,8 +165,8 @@ export default async function HowItWorksPage() {
             {fees.length > 0 ? ` ${firstFeeNote}` : " payment fee"}&rdquo;.
           </p>
           <p>
-            A pending bill is <strong>not counted yet</strong>: nobody&apos;s totals change until PA checks it and taps{" "}
-            <strong>Confirm</strong>. PA can still change the amount first. <strong>Discard</strong> puts the bill back
+            A pending bill is <strong>not counted yet</strong>: nobody&apos;s totals change until the admin checks it and taps{" "}
+            <strong>Confirm</strong>. The admin can still change the amount first. <strong>Discard</strong> puts the bill back
             to ₱0.00 to type in by hand.
           </p>
           <p>
@@ -190,7 +190,7 @@ export default async function HowItWorksPage() {
             Someone who <strong>moves out</strong> is left out of future months. In a month where they already have
             something recorded — an advance, a payment, a bill they paid, or an amount typed for them in a Manual bill
             or column — they stay, so that month&apos;s numbers don&apos;t change. Otherwise they&apos;re taken out and
-            the bills re-split. A new month&apos;s bill they&apos;re down as paying but that is still ₱0 goes to PA.
+            the bills re-split. A new month&apos;s bill they&apos;re down as paying but that is still ₱0 goes to the admin.
           </p>
           <p>
             Someone who still owes, or is still owed, money from an earlier month also stays until it&apos;s settled,
@@ -215,8 +215,8 @@ export default async function HowItWorksPage() {
       a: (
         <>
           <p>
-            Pay PA, and PA records it in the <strong>Settle Up</strong> tab, which lists who still owes whom — everyone
-            settles with PA. &ldquo;Record payment&rdquo; fills in the amount; PA changes it if you only paid part.
+            Pay the admin, who records it in the <strong>Settle Up</strong> tab, which lists who still owes whom — everyone
+            settles with the admin. &ldquo;Record payment&rdquo; fills in the amount; the admin changes it if you only paid part.
           </p>
           <p>
             A payment comes off the payer&apos;s Final and the receiver&apos;s, and shows in the Split Table&apos;s
@@ -232,13 +232,13 @@ export default async function HowItWorksPage() {
         <>
           <p>
             Everyone in the household signs in with their own login — Google, or a code sent to their email — and can
-            see every month. Only emails PA has added can sign in.
+            see every month. Only emails the admin has added can sign in.
           </p>
           <p>
             You can log your own advances into <strong>Advances Shared</strong>, and edit or delete them while
             they&apos;re there. Everything else — bills, points, other shared columns, payments, attaching proof of
-            payment (Receipts), moving in and out, closing months — is done by PA. If one of your advances should be split differently (say, not with
-            everyone), PA moves it to the right column; after that, it&apos;s PA&apos;s to change.
+            payment (Receipts), moving in and out, closing months — is done by the admin. If one of your advances should be split differently (say, not with
+            everyone), the admin moves it to the right column; after that, only the admin can change it.
           </p>
         </>
       ),
@@ -249,13 +249,13 @@ export default async function HowItWorksPage() {
       a: (
         <>
           <p>
-            Once a month is done, PA <strong>closes</strong> it in Settle Up. A closed month is locked: nothing in it
+            Once a month is done, the admin <strong>closes</strong> it in Settle Up. A closed month is locked: nothing in it
             can be changed (its proofs of payment included), and everyone&apos;s Final is saved as next month&apos;s Prev Month Unsettled. Unpaid
             amounts simply carry over.
           </p>
           <p>
             Months close in order (July before August), and only once no bill in it is still pending. If something
-            needs fixing, PA can <strong>reopen</strong> the latest closed month, fix it, and close it again.
+            needs fixing, the admin can <strong>reopen</strong> the latest closed month, fix it, and close it again.
           </p>
         </>
       ),

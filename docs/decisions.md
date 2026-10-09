@@ -233,3 +233,9 @@ ours for a Supabase project that's already wired up.
 name is Vercel's own switch for this and depends on nothing at build time.
 **Instead of:** an `ignoreCommand` of `[ "$VERCEL_ENV" != production ]` — tried first, and it
 skipped the production deploy as well (the variable evidently isn't `production` at that step).
+
+## 2026-10-10 — The app says "the admin", not "PA"
+**Decision:** household-facing text names the role — "Ask the admin…", "Only the admin can
+change this." — never PA by name. "PA" still appears where it's a member's name in the data
+(e.g. the "Advances Shared w/o PA" example).
+**Why:** PA prefers it, and the text stays right if someone else ever becomes the admin.

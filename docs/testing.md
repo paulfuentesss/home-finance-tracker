@@ -70,7 +70,7 @@ so PA stays signed in in the main one.
    A wrong code shows an error; an email that isn't invited gets the same "on its way"
    message, and nothing is sent.
 4. As that housemate, run `updateBillTotal` from the browser console (or any PA-only action):
-   "Only PA can change this.", and nothing changes.
+   "Only the admin can change this.", and nothing changes.
 5. Change their email in Manage. In Supabase → Authentication → Users the **old** login is
    gone and the new one is there — the one check a fake can't make (`invites.test.ts`).
 6. Clear their email while they're signed in: their next click goes to `/login`.

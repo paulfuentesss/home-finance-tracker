@@ -31,7 +31,7 @@ export function AccountMenu({ dotClass }: { dotClass: string }) {
           <p className="font-semibold">Hi, {viewer.name}!</p>
           {viewer.email && <p className="truncate text-xs text-muted-foreground">{viewer.email}</p>}
           <p className="text-xs text-muted-foreground">
-            {admin ? "Admin — you can change everything." : "You can log your own advances. PA handles the rest."}
+            {admin ? "Admin — you can change everything." : "You can log your own advances. The admin handles the rest."}
           </p>
         </div>
         <form action={signOut} className="border-t p-1">

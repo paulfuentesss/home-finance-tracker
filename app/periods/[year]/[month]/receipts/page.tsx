@@ -26,7 +26,7 @@ export default async function ReceiptsPage({ params }: PageProps<"/periods/[year
       ? "This month is closed, so its proofs can't change. Reopen it on Settle Up to attach or delete one."
       : viewer && isAdmin(viewer)
         ? "Attach a screenshot to each bill and payment. They're made smaller before upload."
-        : "PA attaches the proofs. Tap one to see it full size.";
+        : "The admin attaches the proofs. Tap one to see it full size.";
 
   return (
     <div className="space-y-6">
