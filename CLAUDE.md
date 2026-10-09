@@ -80,8 +80,9 @@ Part of every change, in the same PR — not a separate chore.
     the allowlist in `lib/actions-guard.test.ts`.
   - `SUPABASE_SECRET_KEY` is read only in `lib/supabase/admin-server.ts` (and scripts).
   - Storage policies must never grant access to every `authenticated` user.
-- **Going online** follows `docs/TODO.md` → Before going online (production URL in Supabase's
-  Site URL and Redirect URLs, env vars on the host).
+- **Online on Vercel** (`docs/operations.md` → Hosting): merging to `main` deploys. A new env
+  var goes into Vercel too (Production, Sensitive) and needs a redeploy; open items are in
+  `docs/TODO.md` → Going online.
 - Editable values in tables/lists use `components/inline-input.tsx` (save on Enter/blur,
   Escape reverts, readOnly while saving). Dialog forms submit through `useDialogForm` in
   `components/entry-dialogs.tsx`. Both use `onSubmit` + `startTransition` instead of

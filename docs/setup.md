@@ -9,8 +9,9 @@ Getting My House running on a new machine. Afterwards, day to day you only need
    npm install
    ```
    This also installs the git hooks (Husky): lint on every commit, Conventional Commit messages.
-2. **Create a Supabase project** at [supabase.com](https://supabase.com) (region:
-   Southeast Asia / Singapore).
+2. **Create a Supabase project** at [supabase.com](https://supabase.com) (region: one near
+   the household — My House's is Seoul; the Vercel functions run in the same one,
+   [operations.md → Hosting](operations.md#hosting-vercel)).
 3. **Add your connection strings**
    ```bash
    cp .env.example .env.local
@@ -77,8 +78,8 @@ Getting My House running on a new machine. Afterwards, day to day you only need
      and the sign-in fails.
    - **Rate limits:** emails sent — about 30 per hour.
    - **URL Configuration:** Site URL `http://localhost:3000`; Redirect URLs
-     `http://localhost:3000/**`. (The production URL is added when going online —
-     [TODO.md](TODO.md#before-going-online).)
+     `http://localhost:3000/**`. Once the app is online, the Site URL is the live address
+     instead and both are in Redirect URLs ([operations.md → Hosting](operations.md#hosting-vercel)).
    - **JWT Keys:** use the asymmetric signing keys (migrate if the project still uses the
      legacy secret), so the app checks logins without calling Supabase each time.
    - Optional: **Settings → Data API** — turn it off; the app never uses it.
