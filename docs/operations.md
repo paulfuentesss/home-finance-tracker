@@ -122,18 +122,37 @@ secrets or a password manager.
 
 | Service | What it's for | Notes |
 |---|---|---|
-| Supabase (free plan, Singapore) | The Postgres database, Auth (the logins), and Storage (receipt files, private `receipts` bucket; 1 GB on the free plan) | Connection strings and keys in `.env.local`; pauses after 7 idle days (above); login settings in [setup.md](setup.md) step 5 |
+| Supabase (free plan, Seoul — `ap-northeast-2`) | The Postgres database, Auth (the logins), and Storage (receipt files, private `receipts` bucket; 1 GB on the free plan) | Connection strings and keys in `.env.local`; pauses after 7 idle days (above); login settings in [setup.md](setup.md) step 5 |
 | Google Cloud (OAuth client) | "Continue with Google" | Consent screen in Testing mode; members using Google are its test users |
 | My House Gmail (the household's own, not PA's) | Sends the email sign-in codes (Supabase custom SMTP); Meralco, Manila Water and PLDT bills go to it (switching over: [TODO.md](TODO.md)) | 2-Step Verification on; its App Password is only in Supabase's SMTP settings; will forward the bills to the bill inbox address once it exists. Changing it: [setup.md](setup.md) step 5b |
 | GitHub `paulfuentesss/home-finance-tracker` | Code, PRs, the keep-alive job | **Public**; secret `DIRECT_URL` for the keep-alive job |
-| Inbound email provider, hosting | The bill inbox address; running the app online | Not chosen yet ([TODO.md](TODO.md)) |
+| Vercel (Hobby, project `myhouse`) | Runs the app online | Address in `.private/NOTES.md`; how it's set up: [Hosting](#hosting-vercel) below |
+| Inbound email provider | The bill inbox address | Not chosen yet ([TODO.md](TODO.md)) |
+
+## Hosting (Vercel)
+
+- **Deploys:** every merge to `main` goes live by itself in a minute or two. Preview builds
+  are off (Settings → Git → Ignored Build Step → "Only build production"): they'd have no
+  environment variables, so they'd fail or show nothing.
+- **Environment variables** (Settings → Environment Variables), Production only and marked
+  Sensitive: `DATABASE_URL` (the pooler, port 6543), `NEXT_PUBLIC_SUPABASE_URL`,
+  `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`. Not `DIRECT_URL` — only
+  scripts and migrations use it, and they run on PA's laptop. A changed value only takes
+  effect after a redeploy (Deployments → ⋯ → Redeploy).
+- **Function region:** the same as the database (Settings → Functions), so each query doesn't
+  cross an ocean.
+- **The address** is also Supabase's **Site URL** and is in its Redirect URLs as
+  `https://<address>/**` (Authentication → URL Configuration). Without the `/**`, or with
+  the Site URL left on localhost, signing in on the live site ends on `localhost`.
+- **A bad deploy:** Deployments → the last good one → **Instant Rollback**, then fix on a branch.
+- No Vercel integrations: Supabase is already wired through the variables above.
 
 ## Privacy & security
 
 The app holds household finances, and **this repo is public**, so:
 
-- **Login protects every page and change** ([features/auth.md](features/auth.md)). Go online
-  only through the checklist in [TODO.md → Before going online](TODO.md#before-going-online).
+- **Login protects every page and change** ([features/auth.md](features/auth.md)). What's left
+  of going online: [TODO.md → Going online](TODO.md#going-online).
 - **`SUPABASE_SECRET_KEY` is server-only** — it can create and delete logins and read every
   receipt file. Never give it
   a `NEXT_PUBLIC_` name, never commit it; only `lib/supabase/admin-server.ts` and the invite
