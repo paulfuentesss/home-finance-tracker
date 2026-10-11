@@ -400,3 +400,13 @@ payment; the housemate gets a record that they paid. It reuses the pending-bill 
 (skipped by `computeMonth`, blocking `closeCheck`) and the receipts upload.
 **Instead of:** housemates' payments counting straight away (nothing to check against), or a
 separate table for submissions (a status on `payments` keeps one list and one delete path).
+
+## 2026-10-11 — The month refreshes when you come back to the app, not live
+**Decision:** a month page redraws from the server when the app's tab or window comes back
+after 30+ seconds away (`useRefreshOnReturn`); no polling, no live updates.
+**Why:** moving between tabs keeps the month's header as it was, so a housemate's "I paid" (the
+count on Settle Up) or advance only showed after a reload — found while testing "I paid". Coming
+back to the app is exactly when PA would look; one refresh then is cheap, keeps typed text and
+open dialogs, and needs no server changes.
+**Instead of:** polling every few seconds (constant database reads on a free plan), or live
+updates (Supabase Realtime: more moving parts for a household app).
