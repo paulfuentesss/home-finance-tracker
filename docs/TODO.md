@@ -19,9 +19,19 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
       waits — like pending bills. Needs `payments.status`, member actions in the guard test, and
       the settlement ignoring pending payments.
 
-- [ ] **Bills to the My House Gmail** ([email-bills](features/email-bills.md)). Change the billing
-      email in the Meralco, Manila Water and PLDT accounts; remove this once a bill from each has
+- [ ] **Bills to the My House Gmail** ([email-bills](features/email-bills.md)). The billing email
+      was changed in the Meralco, Manila Water and PLDT apps, but a PLDT bill still went to PA's
+      personal email — the app setting isn't always the e-bill address. **Next: email each biller**
+      asking them to send e-bills to the My House Gmail. Remove this once a bill from each has
       arrived there. Steps in [setup.md](setup.md) step 5b.
+
+- [ ] **Turn on bills by email** ([email-bills](features/email-bills.md)) — built; needs setting
+      up once ([setup.md](setup.md) step 7): `BILL_EMAIL_SECRET` in Vercel + redeploy, the script
+      in the My House Gmail (`setup()`, `testRun()`), and the forwarding filter in PA's personal
+      Gmail. Then check on the first real bill from each biller that it shows as Pending — one
+      forwarded from the personal Gmail too (if that one is refused, its DKIM didn't survive
+      forwarding: switch to a second script there). Remove the filter once every biller sends
+      to the My House Gmail.
 
 - [ ] **Watch where sign-in emails land** ([auth](features/auth.md)): the first code went to
       Promotions, a later one to Primary. If housemates' codes keep getting filed away, move to
@@ -29,14 +39,6 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
 
 ## Later
 
-- [ ] **Bill inbox address** ([email-bills](features/email-bills.md)) — *the app is online; waits on choosing a provider.*
-      Pick an inbound-email provider that posts parsed mail to a webhook with a DKIM/SPF
-      verdict; a long random address; a new `app/api/inbound-email/route.ts` verifies the signature,
-      accepts only the providers' domains with DKIM pass (plus Gmail's forwarding-confirmation
-      sender), then calls `importBillEmail(db, …)`; a filter in the My House Gmail forwards the
-      three providers.
-      The route is public: add it to `PUBLIC_PATHS` in `proxy.ts` and to the Route Handler
-      allowlist in `lib/actions-guard.test.ts`.
 - [ ] **Proof for advances** ([receipts](features/receipts.md)) — attach a receipt to an advance,
       ideally right in "Log new advance". Needs an `advance_id` on `receipts` (and in its
       one-owner check).
@@ -76,8 +78,8 @@ Live on Vercel since 2026-10-10 ([operations.md → Hosting](operations.md#hosti
 - [x] Accessibility in the code: alt text, a heading per page, labels on every field and icon
       button, color contrast (the amber buttons are a chosen exception: [decisions.md](decisions.md)),
       visible keyboard focus on the tabs.
-- [ ] Accessibility by hand: use the app with the keyboard only (Tab, Enter, Escape) through
-      the tabs, the dialogs and the inline inputs.
+- [x] *Skipped by choice (2026-10-11):* accessibility by hand — using the app with the keyboard
+      only (Tab, Enter, Escape) through the tabs, the dialogs and the inline inputs.
 - [x] Branded 404 and error pages (`app/not-found.tsx`, `app/error.tsx`).
 
 **Discoverability**
@@ -86,17 +88,17 @@ Live on Vercel since 2026-10-10 ([operations.md → Hosting](operations.md#hosti
 
 **Operational**
 - [x] Login protects every page and Server Action ([features/auth.md](features/auth.md)); only
-      the inbound-email webhook will stay open (signature-checked).
-- [x] Hosting: Vercel, its environment variables set (the bill inbox's webhook secret joins
-      them when that's built).
+      the bill-email route will stay open (checked by its shared secret).
+- [x] Hosting: Vercel, its environment variables set (`BILL_EMAIL_SECRET` is added when bills
+      by email are turned on — the item above).
 - [x] Address: a free `*.vercel.app` one, HTTPS by default. An own domain can come later.
 - [x] Login knows the real URL (Supabase Site URL and Redirect URLs). Keep the Google consent
       screen in Testing (its test users are a second allowlist).
 - [x] Signed in on the live site with Google and with an email code; a Google account that
       isn't invited is refused.
 - [x] Backups taken before the first deploy (`npm run db:backup`, `npm run storage:backup`).
-- [ ] Copy `backups/`, Download backup zips and `.private/NOTES.md` somewhere off the laptop
-      (cloud drive).
+- [x] *Skipped by choice (2026-10-11):* copying `backups/`, Download backup zips and
+      `.private/NOTES.md` off the laptop (cloud drive) — they're only on the laptop for now.
 - [x] Reviewed [operations.md → Privacy & security](operations.md#privacy--security) on the live
       site: no secrets in git or in the browser code, the receipts bucket private, every table
       locked; the real names and amounts in the test data replaced with made-up ones.

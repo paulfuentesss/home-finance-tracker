@@ -1,4 +1,4 @@
-// Imports bill emails into the database exactly as the inbound-email webhook will, so the
+// Imports bill emails into the database exactly as the /api/bill-email route does, so the
 // whole flow can be tried locally (docs/settlement-rules.md → "Email-imported bills").
 //
 //   npm run bills:import -- meralco water pldt   # the made-up August 2026 sample emails

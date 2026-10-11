@@ -70,7 +70,7 @@ The `db:` and `test:` prefixes are just a naming convention for grouping.
 
 | Command | What it does | When to run it |
 |---|---|---|
-| `npm run bills:import -- meralco water pldt` | Imports bill emails the way the future inbox address will: the made-up August 2026 sample emails by name (**local database only**), or a `.json` email file (`{ messageId, from, subject, receivedAt, text }`, any database) | Importing a real email file by hand until the inbox address exists ([features/email-bills.md](features/email-bills.md)); the samples need a local database |
+| `npm run bills:import -- meralco water pldt` | Imports bill emails the way the Gmail script does: the made-up August 2026 sample emails by name (**local database only**), or a `.json` email file (`{ messageId, from, subject, receivedAt, text }`, any database) | Importing a real email file by hand, e.g. one the Gmail script couldn't send ([features/email-bills.md](features/email-bills.md)); the samples need a local database |
 
 ## Login
 

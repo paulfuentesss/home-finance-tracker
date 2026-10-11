@@ -1,5 +1,5 @@
 // Turns a bill email into a pending bill (docs/settlement-rules.md → "Email-imported bills").
-// Called by the inbound-email webhook (with `db` from "@/db") and by `npm run bills:import`
+// Called by the /api/bill-email route (with `db` from "@/db") and by `npm run bills:import`
 // (with `createDb()`), so it takes the database as a parameter and never imports "@/db".
 //
 // Every email gets a `bill_emails` row — the Bill inbox. A readable one then fills its month's
