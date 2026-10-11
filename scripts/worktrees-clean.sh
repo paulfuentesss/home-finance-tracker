@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# npm run worktrees:clean — removes the worktrees (one folder per session, docs/commands.md →
-# Working in parallel) whose work is finished, and their local branches. A worktree goes only
+# npm run worktrees:clean — removes the worktrees (a folder for work that needs its own PR,
+# docs/commands.md → Working in parallel) whose work is finished, and their local branches. A worktree goes only
 # when all of these hold, otherwise it's listed with the reason it stayed:
 #   - its branch's PR is merged on GitHub, and the folder is still at the commit that was merged
 #     (nothing committed after the merge);

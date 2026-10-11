@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Claude Code SessionStart hook (.claude/settings.json): prints the state of this folder
 # when a session starts, and Claude Code adds the output to Claude's context. Several
-# sessions can work on this repo at once; this shows whether another one is already
-# using this folder before anything is switched or committed.
+# sessions work in this folder at once, on one branch and one dev server; this shows what
+# the others are doing before anything is changed or committed.
 #
 # Read-only — it never changes anything. What Claude does with it: CLAUDE.md → "Parallel
 # sessions". Try it yourself: .claude/hooks/checkout-status.sh
@@ -15,7 +15,7 @@ echo "Branch: $(git branch --show-current || echo '(none)')"
 
 changes=$(git status --short)
 if [ -n "$changes" ]; then
-  echo "Uncommitted changes — maybe another session's work in progress:"
+  echo "Uncommitted changes — yours from before, or another session's work in progress:"
   printf '%s\n' "$changes" | head -20
   total=$(printf '%s\n' "$changes" | wc -l | tr -d ' ')
   [ "$total" -gt 20 ] && echo "…and $((total - 20)) more ($total files in all)"
@@ -28,8 +28,15 @@ if git rev-parse --verify --quiet '@{upstream}' > /dev/null 2>&1; then
   [ "$unpushed" -gt 0 ] && echo "Commits not pushed yet: $unpushed"
 fi
 
+pid=$(lsof -tiTCP:3000 -sTCP:LISTEN 2> /dev/null | head -1)
+if [ -n "$pid" ]; then
+  echo "Dev server: http://localhost:3000 from $(lsof -a -p "$pid" -d cwd -Fn 2> /dev/null | sed -n 's/^n//p') — shared, don't start another"
+else
+  echo "Dev server: not running (npm run dev)"
+fi
+
 echo
-echo "Worktrees (one folder per session):"
+echo "Worktrees (only for work that needs its own PR):"
 git worktree list
 # Finished ones (PR merged, nothing left in them); the same rules as npm run worktrees:clean.
 "$PWD/scripts/worktrees-clean.sh" --check 2> /dev/null
@@ -39,3 +46,11 @@ echo
 echo "Open PRs:"
 prs=$(gh pr list --limit 10 2> /dev/null) || prs="(couldn't reach GitHub)"
 echo "${prs:-none}"
+
+branch=$(git branch --show-current)
+if [ -n "$branch" ] && [ "$branch" != main ] &&
+  merged=$(gh pr list --head "$branch" --state merged --limit 1 --json number -q '.[].number' 2> /dev/null) &&
+  [ -n "$merged" ]; then
+  echo
+  echo "This branch's PR (#$merged) is merged — start the next batch: git switch -c <branch> origin/main"
+fi

@@ -33,7 +33,7 @@ The `db:` and `test:` prefixes are just a naming convention for grouping.
 
 | Command | What it does | When to run it |
 |---|---|---|
-| `npm run dev` | Starts the dev server at http://localhost:3000 with hot reload | While working on the app |
+| `npm run dev` | Starts the dev server at http://localhost:3000 with hot reload. Refuses if one is already running (one local site for every session) | While working on the app |
 | `npm run build` | Builds the production version | Before deploying, or to check that everything compiles. Stop `dev` first: they share `.next/` and the dev server hangs |
 | `npm run start` | Serves the production build (run `build` first) | To test the production build locally |
 
@@ -79,22 +79,45 @@ The `db:` and `test:` prefixes are just a naming convention for grouping.
 | `npm run auth:invite -- PA you@gmail.com` | Gives a member a login for that email (Google or an emailed code), replacing any login they had — the same as typing it in Manage | Once for PA's own login during setup; to change PA's login email; to get back in if it's wrong ([features/auth.md](features/auth.md)) |
 | `npm run auth:invite -- <name> --remove` | Takes a member's login away | Rarely — clearing the email in Manage does the same for everyone but PA |
 
-## Working in parallel (git worktrees)
+## Working in parallel
 
-One folder can only be on one branch. To run a second Claude session at the same time, give it
-its own folder (a **worktree**): same git history, separate files and branch. Or ask Claude at
-the start of a session to "work in a new worktree".
+**The usual way: one folder, one branch, one local site.** Every Claude session opens the main
+folder and works on the same branch. One `npm run dev` serves everyone's edits at
+http://localhost:3000, and one PR at the end ships them all.
+
+- A second `npm run dev` stops with "already running" and names the folder serving
+  localhost:3000 (`scripts/dev-guard.sh`, run first by npm as `predev`). A second server on
+  purpose: `SECOND_DEV=1 npm run dev -- -p 3001`.
+- Sessions can't wipe each other's work:
+  - Claude's edit tool won't save over a file that changed since it last read it.
+  - A hook blocks git commands that throw away uncommitted changes or switch branches
+    (`.claude/hooks/git-guard.sh`; you can still run them yourself in a terminal).
+  - When a session is about to edit a file another session changed in the last hour, you're
+    asked first (`.claude/hooks/edit-overlap.sh`). Say yes if the changes fit together, no to
+    keep the sessions apart.
+  - Giving each session its own part of the app still keeps things simplest.
+- When everything's done, ask one session to raise the PR. It commits every session's changes
+  together.
+- After the PR merges, the next session to start sees the branch is finished and makes a new
+  one from `main`.
+
+### Git worktrees (only for a separate PR)
+
+One folder can only be on one branch. When some work needs its own PR, give it its own folder
+(a **worktree**): same git history, separate files and branch. Or ask Claude at the start of a
+session to "work in a new worktree". To see that folder's changes in the browser, it needs its
+own server (`SECOND_DEV=1 npm run dev -- -p 3001`).
 
 | Command | What it does | When to run it |
 |---|---|---|
-| `git worktree add ../home-finance-tracker-<task> -b <branch> origin/main` | Makes a new folder next to this one, on a new branch from the latest `main` | Before starting a second session; open the new folder in its own VS Code window |
+| `git worktree add ../home-finance-tracker-<task> -b <branch> origin/main` | Makes a new folder next to this one, on a new branch from the latest `main` | When some work needs its own PR; open the new folder in its own VS Code window |
 | `ln -s ../home-finance-tracker/.env.local . && npm install` | Links the settings git ignores to the main folder's (one file, so a change there reaches every worktree), installs dependencies | Once, inside the new folder |
 | `git worktree list` | Shows every folder and the branch it's on | Any time |
 | `npm run worktrees:clean` | Removes every finished worktree and its branch: PR merged, nothing committed after it, no uncommitted changes, nothing running from it (dev server, terminal, VS Code, a Claude session). Lists what it kept and why | After PRs merge — the startup check says when some are finished. Close their VS Code windows first |
 | `npm run worktrees:clean -- --dry-run` | Shows what it would remove, removes nothing | When unsure |
 | `git worktree remove ../home-finance-tracker-<task>` | Deletes one folder by hand (the branch stays) | Rarely — e.g. abandoned work with no PR |
 
-All folders share one database — the live one ([operations.md](operations.md#one-database-localhost-is-live-data)) — and the second `npm run dev` gets port 3001. Don't delete a
+All folders share one database — the live one ([operations.md](operations.md#one-database-localhost-is-live-data)). Don't delete a
 worktree folder in Finder: git keeps a record of it and its branch stays locked
 (`git worktree prune` clears that; `worktrees:clean` runs it too).
 
@@ -103,3 +126,4 @@ worktree folder in Finder: git keeps a record of it and its branch stays locked
 | Script | What it does | When it runs |
 |---|---|---|
 | `prepare` | Installs the Husky git hooks: `pre-commit` runs ESLint, `commit-msg` enforces Conventional Commits (`feat:`, `fix:`, …) | After every `npm install` |
+| `predev` | Stops `npm run dev` when localhost:3000 is already being served, and says from which folder | Before every `npm run dev` |
