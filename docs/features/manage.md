@@ -14,7 +14,8 @@
   login away.
 - **Login email** per housemate ([auth.md](auth.md)): typing one invites them (Google or an
   emailed code); clearing it takes the login away. PA's own is changed with
-  `npm run auth:invite`.
+  `npm run auth:invite`. Inviting sends no email, so an address whose domain can't receive mail
+  (a typo after the @) is refused (`lib/email-domain.ts`).
 - The whole tab is PA's: anyone else is sent back to the month.
 - **Bill Inbox** card ([email-bills.md](email-bills.md)).
 - **Backup** card: **Download backup** saves a zip of every row (a `.sql` file) and every receipt

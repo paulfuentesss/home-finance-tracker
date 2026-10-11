@@ -10,8 +10,10 @@
   - **a sign-in code by email** — for anyone without a Google account. Any email provider,
     no password.
 - **Invite-only.** Sign-ups are off in Supabase: PA types someone's email in **Manage →
-  Manage Housemates**, and only then can that email sign in. Clearing the email (or removing
-  the housemate) takes the login away on their next click. The login page never says which
+  Manage Housemates**, and only then can that email sign in. Inviting sends nothing: PA
+  tells them the site's address, and they ask for a code on the login page. An email whose
+  domain can't receive mail is refused, so a typo after the @ shows up straight away.
+  Clearing the email (or removing the housemate) takes the login away on their next click. The login page never says which
   emails are invited.
 - **Two roles:**
 

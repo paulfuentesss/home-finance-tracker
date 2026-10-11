@@ -413,6 +413,17 @@ open dialogs, and needs no server changes.
 **Instead of:** polling every few seconds (constant database reads on a free plan), or live
 updates (Supabase Realtime: more moving parts for a household app).
 
+## 2026-10-11 — An invite checks the email's domain, and lets it through when unsure
+**Decision:** before inviting, `updateMemberEmail` asks DNS whether the part after the @ can
+receive mail (`domainTakesMail` in `lib/email-domain.ts`). It refuses only on a definite "no"
+(the domain doesn't exist, or has no mail server and no address); a slow or failing lookup
+returns "unknown" and the invite goes ahead.
+**Why:** inviting sends no email, so a typo in the domain (found with a housemate's address
+saved with an extra word after the @) only showed when their sign-in code never came. A DNS
+hiccup must never stop PA from inviting someone.
+**Instead of:** sending a welcome email on invite (a second email to set up and keep working),
+or a list of known providers (blocks anyone on a domain not on it).
+
 ## 2026-10-11 — Parallel sessions share one folder and one local site
 **Decision:** parallel Claude sessions all work in the main folder, on one shared branch, seen on
 one dev server at `localhost:3000`; one PR at the end ships everything. `npm run dev` refuses to
