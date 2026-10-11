@@ -157,6 +157,8 @@ landed on the wrong branch. Git can't tell whether another session is open, but 
 leaves (a feature branch, uncommitted files) can be shown up front.
 **Instead of:** blocking `git switch` with a hook — the report plus the CLAUDE.md rule covers
 it without getting in the way of normal branch work.
+**Superseded 2026-10-11:** sessions now share one folder and one dev server (below), and a hook
+does block `git switch`; the startup check stays.
 
 ## 2026-10-08 — Receipts: a private bucket, opened through the app
 **Decision:** receipt files go in a private Supabase Storage bucket that only the server
@@ -370,7 +372,7 @@ The app uses one per server instance and closes it after 20 s idle; the free pla
 
 ## 2026-10-11 — Worktrees link `.env.local` instead of copying it
 **Decision:** a new worktree gets `.env.local` as a symlink to the main folder's
-(`ln -s ../home-finance-tracker/.env.local .`, [commands.md](commands.md#working-in-parallel-git-worktrees)).
+(`ln -s ../home-finance-tracker/.env.local .`, [commands.md](commands.md#git-worktrees-only-for-a-separate-pr)).
 **Why:** a copy is frozen at the moment the worktree is made. When the main folder's
 `DATABASE_URL` moved to the session pooler (above), a worktree made earlier that day kept the
 transaction pooler, so its local server hung on the month page while the live site was fine.
@@ -421,3 +423,20 @@ saved with an extra word after the @) only showed when their sign-in code never 
 hiccup must never stop PA from inviting someone.
 **Instead of:** sending a welcome email on invite (a second email to set up and keep working),
 or a list of known providers (blocks anyone on a domain not on it).
+
+## 2026-10-11 — Parallel sessions share one folder and one local site
+**Decision:** parallel Claude sessions all work in the main folder, on one shared branch, seen on
+one dev server at `localhost:3000`; one PR at the end ships everything. `npm run dev` refuses to
+start a second server (`scripts/dev-guard.sh` as `predev`). Worktrees stay for work that needs
+its own PR. Replaces "one worktree per session" (2026-10-08); the startup check stays.
+**Why:** a worktree per session meant a dev server per folder (3000, 3001, 3002…), and it was
+hard to tell which address showed which change. Paul raises one PR per batch anyway, so the
+separate branches bought nothing. The 2026-10-08 accident (a session switched branches under
+another) is covered by the rule that sessions never switch branches, except off a finished one.
+Guards so sessions can't destroy each other's work: Claude's edit tool already refuses to save
+over unread changes; a hook blocks git commands that discard changes or switch branches
+(`git-guard.sh`); another asks Paul before a session edits a file a different session edited
+in the last hour (`edit-overlap.sh`, a log inside `.git`).
+**Instead of:** one dev server pointed at whichever worktree is current (swapping folders under
+a running server), or keeping worktrees and just stopping old servers by hand (the pile-up
+comes back with every new session).

@@ -176,7 +176,8 @@ proxy.ts        Runs before every page: refreshes the login, sends logged-out vi
 app/            Next.js routes: /periods/[year]/[month] (5 tabs), /how-it-works,
                 /login and /auth/callback (sign-in), /receipts/[id] (opens a receipt file),
                 /backup (the Download backup zip), /api/bill-email (bills from the Gmail script)
-.claude/        Claude Code: review agents (agents/), the startup check (hooks/, settings.json), and
+.claude/        Claude Code: review agents (agents/), hooks wired in settings.json (hooks/: the
+                startup check, git-guard.sh and edit-overlap.sh for sessions sharing the folder), and
                 the commands it may run without asking (settings.json → permissions.allow:
                 read-only checks only — typecheck, test, lint, git fetch)
 .github/        Workflows (checks on every PR, keep-alive), PR template

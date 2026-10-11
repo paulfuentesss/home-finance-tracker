@@ -105,17 +105,29 @@ Part of every change, in the same PR — not a separate chore.
   `.github/workflows/checks.yml`). Then the review agents in `.claude/agents/`: **docs-keeper**
   always, **money-reviewer** when money files or the schema changed. They only report; fix what
   they find before committing.
-- **Parallel sessions.** Paul often runs several Claude sessions at once; one folder can only be
-  on one branch, so each session needs its own git worktree (`docs/commands.md` → Working in
-  parallel). Every session starts with a "Startup check" report from
-  `.claude/hooks/checkout-status.sh` (branch, uncommitted changes, worktrees, open PRs):
-  - Folder not on `main`, or has changes you didn't make → another session may be using it.
-    Don't switch branches, stash, reset or commit its files here; tell Paul and offer a new
-    worktree.
-  - Right before committing, `git status -sb` again; commit only your own files, on your branch.
-  - All worktrees share one database: only one schema-changing feature at a time.
-  - When the startup check lists finished worktrees, suggest `npm run worktrees:clean` to Paul
-    (removing folders is his to run); for a new task, create a fresh worktree from `origin/main`.
+- **Parallel sessions share one folder, one branch, one dev server.** Paul often runs several
+  Claude sessions at once, all in the main folder, all seen on `localhost:3000`; one PR at the
+  end covers everything (`docs/commands.md` → Working in parallel). Every session starts with a
+  "Startup check" report from `.claude/hooks/checkout-status.sh` (branch, uncommitted changes,
+  dev server, worktrees, open PRs):
+  - Changes you didn't make are another session's work in progress. Never stash, reset, discard
+    or reformat them, and stay out of files another session is editing.
+  - Change files only with Edit/Write — never through the shell (`sed -i`, `cat >`, a script
+    writing files). Edit/Write refuse to save over changes made since your last read; the
+    shell doesn't check.
+  - Hooks back this up (`.claude/hooks/`): `git-guard.sh` blocks git commands that discard
+    changes or switch branches; `edit-overlap.sh` asks Paul before you edit a file another
+    session edited in the last hour. When one stops you, tell Paul; don't work around it.
+  - Never switch branches. One exception: the folder is on `main`, or on a branch whose PR is
+    merged (the startup check says so) → `git switch -c <branch> origin/main` (uncommitted
+    changes come along) and tell Paul which branch the batch is on.
+  - Don't start, stop or restart the dev server when `localhost:3000` is up — it's every
+    session's (`npm run dev` refuses a second one). Restart it only when it's broken.
+  - Commit only when Paul asks for the PR. That commit carries every session's changes: check
+    with Paul that the others are done, and run the pre-PR checks on all of it.
+  - One database for everyone: only one schema-changing task at a time.
+  - A worktree only when Paul wants a separate PR. When the startup check lists finished
+    worktrees, suggest `npm run worktrees:clean` (removing folders is his to run).
 
 ## Known pitfalls (hit during development — check here first)
 
