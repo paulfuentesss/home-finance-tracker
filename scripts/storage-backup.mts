@@ -5,6 +5,7 @@
 
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { listReceiptFiles } from "../lib/receipt-files";
 import { RECEIPTS_BUCKET } from "../lib/receipts";
 import { createAdminClient } from "../lib/supabase/admin";
 
@@ -17,22 +18,7 @@ if (!supabaseUrl || !secretKey) {
 const bucket = createAdminClient(supabaseUrl, secretKey).storage.from(RECEIPTS_BUCKET);
 const dir = join(process.cwd(), "backups", "receipts");
 
-/** Every file in the bucket. Folders (YYYY/, MM/) come back without an id. */
-async function listFiles(prefix = ""): Promise<string[]> {
-  const files: string[] = [];
-  for (let offset = 0; ; offset += 1000) {
-    const { data, error } = await bucket.list(prefix, { limit: 1000, offset });
-    if (error) throw new Error(`Couldn't list ${prefix || "the bucket"}: ${error.message}`);
-    for (const item of data) {
-      const path = prefix ? `${prefix}/${item.name}` : item.name;
-      if (item.id === null) files.push(...(await listFiles(path)));
-      else files.push(path);
-    }
-    if (data.length < 1000) return files;
-  }
-}
-
-const files = await listFiles();
+const files = await listReceiptFiles(bucket);
 let downloaded = 0;
 for (const path of files) {
   const target = join(dir, path);

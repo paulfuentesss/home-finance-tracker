@@ -43,26 +43,56 @@ Every table has RLS enabled with no policies ([decisions.md](decisions.md)); kee
 ## Backups
 
 Supabase's free plan has **no automatic backups**, and there is only one database, so backups
-are the safety net. Run them **after closing each month** and **before every `db:migrate`**:
+are the safety net. Take one **after closing each month** and **before every `db:migrate`**.
+Two ways, both covering the database and the receipt pictures:
+
+- **From the site (any device):** Manage → **Download backup**. Your browser saves
+  `home-finance-tracker-backup-YYYY-MM-DD.zip`: a `.sql` file with every row, and `receipts/`
+  with every picture. Admin only.
+- **From the laptop:**
+  ```bash
+  npm run db:backup        # the database → backups/home-finance-tracker-YYYY-MM-DD.sql
+  npm run storage:backup   # receipt files → backups/receipts/ (only new ones are downloaded)
+  ```
+  `backups/` is git-ignored.
+
+Either way the files hold real household data (login emails, payment screenshots): keep a copy
+somewhere safe off the laptop (a cloud drive), never in the repo. Don't automate them with
+GitHub Actions: workflow artifacts on a public repo can be downloaded by others.
+
+### Restoring
+
+Into an **empty** database, e.g. a new Supabase project. Restoring into one that already has
+rows fails on the first duplicate and changes nothing.
+
+**The site's zip.** Its `.sql` holds rows only; the tables come from `drizzle/`. The schema
+must match the backup's, so use the commit written at the top of the `.sql`:
 
 ```bash
-npm run db:backup        # the database → backups/home-finance-tracker-YYYY-MM-DD.sql
-npm run storage:backup   # receipt files → backups/receipts/ (only new ones are downloaded)
+git checkout <commit from the .sql header>
+npm run db:migrate                                   # creates the tables
+psql "$DIRECT_URL" -q -f home-finance-tracker-data-YYYY-MM-DD.sql
+git checkout main && npm run db:migrate              # catch up to today's schema
 ```
 
-Backups are saved in `backups/`, which is git-ignored because they contain real household
-data (login emails, payment screenshots). Keep a copy somewhere safe outside the repo (a cloud
-drive). Don't automate them with GitHub Actions: workflow artifacts on a public repo can be
-downloaded by others. After
-restoring into a new project, run `npm run storage:setup` and upload `backups/receipts/` back
-into the bucket under the same names (the `receipts` table refers to them by name).
+`psql` comes with `libpq` (below). The `.sql` is one transaction: if anything fails, nothing
+is written.
 
-Logins live in Supabase's own `auth` schema, not in the backup. After restoring into a **new**
-Supabase project, every `members.auth_user_id` points at nothing: set up login again
+**The laptop's `db:backup` file** has the tables too: `psql "$DIRECT_URL" -f <file>` into the
+empty database (no migrate first).
+
+**Receipt pictures** (either backup): `npm run storage:setup` (new project only), then
+`npm run storage:restore -- <folder>/receipts`. It uploads each picture under its original name,
+which the `receipts` table refers to. It only adds missing files and never overwrites or
+deletes. `--dry-run` lists what it would upload.
+
+Logins live in Supabase's own `auth` schema, not in either backup. After restoring into a
+**new** Supabase project, every `members.auth_user_id` points at nothing: set up login again
 ([setup.md](setup.md) step 5), then re-invite everyone (`npm run auth:invite -- PA …`, the
 rest from Manage).
 
-`db:backup` needs `pg_dump` (its version must be at least Supabase's Postgres version):
+`db:backup` needs `pg_dump` (its version must be at least Supabase's Postgres version), and
+restoring needs `psql`. Both come with `libpq`:
 
 ```bash
 brew install libpq
@@ -126,7 +156,8 @@ checklist for keeping the docs up to date.
 ```
 proxy.ts        Runs before every page: refreshes the login, sends logged-out visitors to /login
 app/            Next.js routes: /periods/[year]/[month] (5 tabs), /how-it-works,
-                /login and /auth/callback (sign-in), /receipts/[id] (opens a receipt file)
+                /login and /auth/callback (sign-in), /receipts/[id] (opens a receipt file),
+                /backup (the Download backup zip)
 .claude/        Claude Code: review agents (agents/), the startup check (hooks/, settings.json), and
                 the commands it may run without asking (settings.json → permissions.allow:
                 read-only checks only — typecheck, test, lint, git fetch)
@@ -139,8 +170,9 @@ docs/           How things work: rules, features, decisions, TODO (this folder)
 hooks/          Client hooks (drag-to-scroll for the wide Split Table)
 lib/            Money, settlement, month-lock, advances log, bill emails (lib/bill-email/),
                 bill import, login (auth.ts, permissions.ts, invites.ts, supabase/),
-                receipt files (receipts.ts, receipt-image.ts) — with their tests
-scripts/        Seed, backup, bill-email import, invite and receipt-storage scripts
+                receipt files (receipts.ts, receipt-image.ts, receipt-files.ts), the
+                Download backup (backup.ts) — with their tests
+scripts/        Seed, backup, bill-email import, invite and receipt-storage (setup, backup, restore) scripts
 ```
 
 ## Services & accounts

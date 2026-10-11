@@ -45,7 +45,8 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
       them only with `--delete`. Rare; only if the bucket grows unexpectedly.
 - [ ] **A picture (GIF) for each member** ([manage](features/manage.md)), shown wherever the
       member appears (Who owes what cards, Advances Log) — *file storage exists now (the receipts
-      bucket); pictures would get their own bucket.*
+      bucket); pictures would get their own bucket, which the backups must then cover too
+      (Download backup in `app/backup/route.ts`, `storage:backup`, `storage:restore`).*
 - [ ] **PWA** — installable, polished on mobile, usable offline. Offline *viewing* (the last
       months loaded, cached by a service worker) first; offline *editing* needs a sync queue and
       conflict handling. Cached pages put household finances on the device, so signing out must
@@ -94,7 +95,8 @@ Live on Vercel since 2026-10-10 ([operations.md → Hosting](operations.md#hosti
 - [x] Signed in on the live site with Google and with an email code; a Google account that
       isn't invited is refused.
 - [x] Backups taken before the first deploy (`npm run db:backup`, `npm run storage:backup`).
-- [ ] Copy `backups/` and `.private/NOTES.md` somewhere off the laptop (cloud drive).
+- [ ] Copy `backups/`, Download backup zips and `.private/NOTES.md` somewhere off the laptop
+      (cloud drive).
 - [x] Reviewed [operations.md → Privacy & security](operations.md#privacy--security) on the live
       site: no secrets in git or in the browser code, the receipts bucket private, every table
       locked; the real names and amounts in the test data replaced with made-up ones.

@@ -2,10 +2,11 @@
 
 ## Automated tests
 
-`npm test` runs every `*.test.ts` with Vitest in under a second. Unit tests never touch the
-database or React: the money math and rules are pure code in `lib/`. Two exceptions, both
+`npm test` runs every `*.test.ts` with Vitest in a few seconds. Unit tests never touch the
+database or React: the money math and rules are pure code in `lib/`. Three exceptions, all
 still offline: `invites.test.ts` runs `lib/invites.ts` against a fake database and a fake
-Supabase, and `actions-guard.test.ts` reads the source files.
+Supabase, `actions-guard.test.ts` reads the source files, and `backup.test.ts` runs a real
+Postgres in memory (PGlite, the slowest few seconds of the run), never the live database.
 
 **CI:** GitHub Actions runs `npm run typecheck`, `npm run lint` and `npm test` on every pull
 request and every push to main (`.github/workflows/checks.yml`); a failure shows as a red ✗
@@ -21,8 +22,9 @@ on the PR. It needs no secrets because no test touches the database — keep it 
 | `lib/bill-email/fees.test.ts` | The payment fee setting turns the sample emails into the fixture's bills |
 | `lib/local-database.test.ts` | Test-data scripts recognise only a database on this machine as local |
 | `lib/permissions.test.ts` | Who may change which advance; `safeNext` blocking open redirects after sign-in |
-| `lib/actions-guard.test.ts` | Every Server Action goes through `run("admin" \| "member", …)`; only the three advance actions are open to members; no unknown Route Handlers, and `/receipts/[id]` checks the login first; the secret key and admin client stay out of the browser |
+| `lib/actions-guard.test.ts` | Every Server Action goes through `run("admin" \| "member", …)`; only the three advance actions are open to members; no unknown Route Handlers; `/receipts/[id]` and `/backup` check the login first, and `/backup` the admin; the secret key and admin client stay out of the browser |
 | `lib/receipts.test.ts` | Which receipt files are accepted (real type from the first bytes, size limit), their names in the bucket, resizing long screenshots |
+| `lib/backup.test.ts` | Download backup: the real migrations in PGlite (Postgres inside the test), made-up rows backed up and restored exactly, id counters moved on, a restore into a non-empty database changing nothing; the zip holding the `.sql` and every picture byte for byte |
 | `lib/invites.test.ts` | Inviting / un-inviting: the order of the database and Supabase calls, rolling back a new login, never reusing a leftover one |
 
 Money or rule changes: update the expectations in `lib/settlement.test.ts` (and the worked

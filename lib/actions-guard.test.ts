@@ -13,9 +13,11 @@ const PUBLIC_ACTIONS = new Set(["signInWithGoogle", "sendEmailCode", "verifyEmai
 /** The only actions a non-admin may call; each checks ownership itself (lib/permissions.ts). */
 const MEMBER_ACTIONS = ["addAdvance", "deleteAdvance", "updateAdvance"];
 /** Route Handlers, each doing its own auth. The bill inbox webhook joins this when it's built. */
-const ROUTE_HANDLERS = ["app/auth/callback/route.ts", "app/receipts/[id]/route.ts"];
+const ROUTE_HANDLERS = ["app/auth/callback/route.ts", "app/backup/route.ts", "app/receipts/[id]/route.ts"];
 /** Route Handlers that serve household data: each must check the signed-in member first. */
-const DATA_ROUTES = ["app/receipts/[id]/route.ts"];
+const DATA_ROUTES = ["app/backup/route.ts", "app/receipts/[id]/route.ts"];
+/** Data routes only the admin may use: the admin check comes right after the login check. */
+const ADMIN_ROUTES = ["app/backup/route.ts"];
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -98,6 +100,12 @@ describe("Route Handlers", () => {
     const source = read(join(ROOT, file));
     const handler = source.slice(source.indexOf("export async function GET"));
     expect(handler).toMatch(/^export async function GET[^{]*\{\s*(\/\/[^\n]*\n\s*)*const viewer = await getViewer\(\);\s*if \(!viewer\) return/);
+  });
+
+  it.each(ADMIN_ROUTES)("%s refuses anyone but the admin, before anything else", (file) => {
+    const source = read(join(ROOT, file));
+    const handler = source.slice(source.indexOf("export async function GET"));
+    expect(handler).toMatch(/if \(!viewer\) return[^\n]*\n\s*if \(!isAdmin\(viewer\)\) return/);
   });
 });
 
