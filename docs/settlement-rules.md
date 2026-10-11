@@ -44,8 +44,9 @@ as long as every Manual shared column's typed amounts add up to its total. Any d
 shown on that column ("₱0.02 over") and in the Month Final total, like the sheet's check.
 
 > **Never log a bill as an advance.** Bills paid by someone are credited through
-> `bill_items.paid_by_id`. The Advances Log *shows* them as read-only "Direct Bill Pay" rows,
-> but they are not stored as advances, so nothing is counted twice.
+> `bill_items.paid_by_id` — or, for the Helper, through who handed her money
+> ([The Helper](#the-helper)). The Advances Log *shows* them as read-only "Bills" rows, but they
+> are not stored as advances, so nothing is counted twice.
 
 ### August 2026 (made up)
 
@@ -94,6 +95,39 @@ Each bill column's split is **fixed** — there's no switch in the table:
 | A new bill column | **Auto equal** or **Manual**, chosen when it's added (Manual: type each person's amount; the bill's total is their sum) |
 
 Shares are computed in one place: `computeBillShares` in `lib/settlement.ts`.
+
+## The Helper
+
+The Helper has no fixed day or pay, and whoever is home pays her. Each **visit** (her daily
+pay) and each **early pay** (money given before she works) is logged on the Helper tab
+(`helper_entries`). Three rules:
+
+1. **Whoever hands her money gets it back.** Each person is credited what they handed over —
+   daily pay minus anything taken off her debt, plus early pay — in their Own Adv (−), like a
+   bill they paid. Someone who pays ₱650 daily pay and gives ₱1,200 early pay on the same day
+   (made up) is credited ₱1,850 that month.
+2. **The month's Helper bill is everything handed to her:**
+   `Σ (daily pay − taken off) + Σ early pay`, split **Auto equal** like any bill. It's never
+   negative. A visit taken off in full (pay ₱350, ₱350 taken off) adds ₱0.
+3. **Her debt** = early pay − everything taken off, across all months (the sheet's
+   "Remaining"). It's only a record: it never enters the split by itself, and never goes below
+   ₱0 at any point, in ledger order (month by month; in a month, her starting debt first, then
+   by date, early pay before a visit on the same day).
+
+Example (made up): daily pay ₱3,250 over a month, ₱450 of it taken off her debt, and ₱1,200
+early pay given → the Helper bill is 3,250 − 450 + 1,200 = **₱4,000**, and her debt goes up by
+₱750. A month where she borrows more than she works off costs more than her daily pay;
+a later month where she works it off costs less. Over time the house pays exactly her pay.
+
+- **Her starting debt** (the sheet's Remaining when moving over) is entered once as an
+  `opening` entry: it adds to her debt but to **no bill**, since the sheet already settled it.
+- A month with **no visits or early pay** keeps the old way: a typed Helper total, paid by the
+  column's payer (`paid_by_id`); her starting debt doesn't change that. The first visit or early
+  pay replaces that total, and from then on the column's payer counts for nothing (someone
+  leaving the house isn't kept in the month by it).
+- The bill credits several payers through `paidBy` on the bill (`computeMonth`); their amounts
+  must add up to the bill total. Shares still come only from `computeBillShares`.
+- An entry belongs to the month it's logged in, whatever its date (a visit paid late).
 
 ### Meralco point system
 
@@ -182,7 +216,7 @@ everyone currently active and carries over (not while a housemate's payment is s
 in the latest month — the new month's carry-over would show them owing it all again, and they
 might pay twice):
 
-- the bill columns — name, split, Meralco's points and payer — at **₱0.00**
+- the bill columns — name, split, Meralco's points, payer, and which one is the Helper's — at **₱0.00**
   (`bill_items.total_amount >= 0`), ready for the new bills;
 - an empty **Advances Shared** column;
 - each person's Final as **Prev Month Unsettled** (computed live).
@@ -222,8 +256,8 @@ Rules (`lib/month-lock.ts`):
   0 points until set; manual bills and columns give them ₱0; they join Advances Shared but
   not situational Auto-equal columns. Re-adding a former member's name reactivates them.
 - **Removing** someone deactivates them (left out of future months). In open months where
-  they have no advances, payments, bills paid (with an amount above ₱0), typed amounts in a
-  Manual bill, or Manual column amounts, they're removed and the bills re-split; where they
+  they have no advances, payments, bills paid (with an amount above ₱0), Helper visits or early
+  pay, typed amounts in a Manual bill, or Manual column amounts, they're removed and the bills re-split; where they
   do, they stay so that month's numbers don't change. They also stay in a month they carried
   an unsettled balance into (Prev Month Unsettled ≠ ₱0), so it can't vanish; "Start next
   month" refuses to leave out someone who moved out with an unsettled Final. The collector

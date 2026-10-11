@@ -5,8 +5,9 @@
 
 ## What it does
 - **Advances Log:** every advance and bill paid in the month, grouped by person, with search
-  and filters. Bills paid show as read-only "Direct Bill Pay" rows (they're not stored as
-  advances, so nothing counts twice).
+  and filters. Bills paid show as read-only "Bills" rows (they're not stored as advances, so
+  nothing counts twice). The Helper, once its visits are logged, shows one row per person who
+  paid her ([helper.md](helper.md)).
 - Log, edit (payer, category, description, amount, date, column) and delete advances;
   "Save & add another" for entering many receipts in a row.
 - **Who can log what** ([auth.md](auth.md)): PA logs, edits and deletes any advance. Everyone
@@ -23,8 +24,9 @@
 - Pure helpers: `lib/advances-log.ts` (split tags, grouping by person) — tested in
   `lib/advances-log.test.ts`.
 - Actions: `addAdvance`, `updateAdvance`, `deleteAdvance` in `app/periods/[year]/[month]/actions.ts`
-  — the only actions open to members (`run("member", …)`): for a member the payer and column
-  are forced, and `canManageAdvance` (`lib/permissions.ts`) is checked against the stored advance.
+  — open to members (`run("member", …)`), like the Helper's ([helper.md](helper.md)): for a
+  member the payer and column are forced, and `canManageAdvance` (`lib/permissions.ts`) is
+  checked against the stored advance.
 - Tables: `advances`, `shared_columns`, `shared_column_members`.
 
 ## Rules

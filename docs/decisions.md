@@ -441,6 +441,30 @@ in the last hour (`edit-overlap.sh`, a log inside `.git`).
 a running server), or keeping worktrees and just stopping old servers by hand (the pile-up
 comes back with every new session).
 
+## 2026-10-12 — The Helper: whoever hands her money gets it back; her early pay is a debt record
+**Decision:** each visit and early pay is a line on a Helper tab (`helper_entries`). The month's
+Helper bill is **everything handed to her** (daily pay − what was taken off her debt + early
+pay), split equally; each person is credited what they handed over. Her debt (early pay − taken
+off) is kept across months, like the sheet's Remaining. Choices made with PA:
+- Early pay is **house money**: the giver gets it back the month they give it, not as it's
+  worked off. So a month where she borrows more than she works off costs more than her daily
+  pay, and later months cost less; over time the house pays exactly her pay.
+- **One Helper column**, not a second "early pay" column: in a month where she only works off
+  debt, that column would be negative, and bills can't be.
+- Housemates log what they paid (like their advances); PA sets the debt carried over from the
+  sheet, which counts in no bill (the sheet already settled it).
+- A month with no entries keeps a typed Helper total, so the old months don't change.
+- The Helper column is marked with `bill_items.kind`, not found by its name, so renaming it
+  breaks nothing.
+
+**Why:** the Helper has no fixed day or pay, whoever is home pays her, and the sheet tracked her
+early pay by hand; one Helper total with one payer couldn't say who paid what. Crediting what
+left each person's pocket keeps the full ledger at ₱0 with no matching up of early pay and
+deductions.
+**Instead of:** the bill = her daily pay with each deduction credited to whoever gave the early
+pay (exact too, but the giver waits weeks to be paid back and the app must match each deduction
+to an early pay), or two columns (pay, and early pay − deductions, which can go negative).
+
 ## 2026-10-12 — Biller passwords are encrypted by the app and revealed one at a time
 **Decision:** the Billers tab ([features/billers.md](features/billers.md)) keeps the billers'
 logins and the Wi-Fi details too. A password is encrypted (AES-256-GCM) before it's saved, with

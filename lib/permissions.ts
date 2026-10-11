@@ -26,6 +26,18 @@ export function canManageAdvance(viewer: Viewer, advance: { payerId: number; inD
   return isAdmin(viewer) || (advance.payerId === viewer.memberId && advance.inDefaultColumn);
 }
 
+/**
+ * Whether the viewer may edit or delete a Helper entry (docs/features/helper.md). The admin can
+ * change any; a member only a visit or early pay they paid. The debt carried over from the
+ * sheet (`opening`) is the admin's.
+ */
+export function canManageHelperEntry(
+  viewer: Viewer,
+  entry: { kind: "visit" | "early_pay" | "opening"; payerId: number | null },
+): boolean {
+  return isAdmin(viewer) || (entry.kind !== "opening" && entry.payerId === viewer.memberId);
+}
+
 export type PaymentStatus = "confirmed" | "pending" | "rejected";
 
 /**

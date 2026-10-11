@@ -61,7 +61,10 @@ export default async function ReceiptsPage({ params }: PageProps<"/periods/[year
                     <span className="font-mono font-semibold text-amber-700 tabular-nums">{formatPHP(bill.total)}</span>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Paid by {memberOf.get(bill.paidById)?.name ?? "—"}
+                    Paid by{" "}
+                    {bill.paidBy
+                      ? bill.paidBy.map((p) => memberOf.get(p.memberId)?.name ?? "—").join(", ") || "—"
+                      : (memberOf.get(bill.paidById)?.name ?? "—")}
                     {bill.paidOn && ` · ${dateLabel(bill.paidOn)}`}
                   </p>
                 </div>

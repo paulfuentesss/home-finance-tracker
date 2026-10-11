@@ -1,5 +1,5 @@
 {
-  "id": "6057658b-3a0d-4ec3-8378-2cd7c5d57927",
+  "id": "1f2d62f7-f0fd-4067-8b4c-146e0fc768df",
   "prevId": "82360548-2c06-4825-ac55-048043e1356e",
   "version": "7",
   "dialect": "postgresql",
@@ -543,6 +543,14 @@
           "notNull": true,
           "default": "'equal'"
         },
+        "kind": {
+          "name": "kind",
+          "type": "bill_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'standard'"
+        },
         "due_date": {
           "name": "due_date",
           "type": "date",
@@ -607,6 +615,22 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "bill_items_one_helper": {
+          "name": "bill_items_one_helper",
+          "columns": [
+            {
+              "expression": "period_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"bill_items\".\"kind\" = 'helper'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -646,199 +670,6 @@
           "value": "\"bill_items\".\"total_amount\" >= 0"
         }
       },
-      "isRLSEnabled": true
-    },
-    "public.biller_fields": {
-      "name": "biller_fields",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "identity": {
-            "type": "always",
-            "name": "biller_fields_id_seq",
-            "schema": "public",
-            "increment": "1",
-            "startWith": "1",
-            "minValue": "1",
-            "maxValue": "2147483647",
-            "cache": "1",
-            "cycle": false
-          }
-        },
-        "biller_id": {
-          "name": "biller_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "biller_field_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "label": {
-          "name": "label",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "value": {
-          "name": "value",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "secret_value": {
-          "name": "secret_value",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "housemates_can_see": {
-          "name": "housemates_can_see",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "sort_order": {
-          "name": "sort_order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "biller_fields_biller_id": {
-          "name": "biller_fields_biller_id",
-          "columns": [
-            {
-              "expression": "biller_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "biller_fields_biller_id_billers_id_fk": {
-          "name": "biller_fields_biller_id_billers_id_fk",
-          "tableFrom": "biller_fields",
-          "tableTo": "billers",
-          "columnsFrom": [
-            "biller_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "biller_fields_secret_not_plain": {
-          "name": "biller_fields_secret_not_plain",
-          "value": "\"biller_fields\".\"kind\" <> 'secret' OR \"biller_fields\".\"value\" IS NULL"
-        },
-        "biller_fields_only_secret_encrypted": {
-          "name": "biller_fields_only_secret_encrypted",
-          "value": "\"biller_fields\".\"kind\" = 'secret' OR \"biller_fields\".\"secret_value\" IS NULL"
-        }
-      },
-      "isRLSEnabled": true
-    },
-    "public.billers": {
-      "name": "billers",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "identity": {
-            "type": "always",
-            "name": "billers_id_seq",
-            "schema": "public",
-            "increment": "1",
-            "startWith": "1",
-            "minValue": "1",
-            "maxValue": "2147483647",
-            "cache": "1",
-            "cycle": false
-          }
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sort_order": {
-          "name": "sort_order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "billers_name_unique": {
-          "name": "billers_name_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "name"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": true
     },
     "public.billing_periods": {
@@ -933,6 +764,154 @@
         "billing_periods_month_range": {
           "name": "billing_periods_month_range",
           "value": "\"billing_periods\".\"month\" between 1 and 12"
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "public.helper_entries": {
+      "name": "helper_entries",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "helper_entries_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "period_id": {
+          "name": "period_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "helper_entry_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payer_id": {
+          "name": "payer_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "on_date": {
+          "name": "on_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "amount": {
+          "name": "amount",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "deduction": {
+          "name": "deduction",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "helper_entries_period_id": {
+          "name": "helper_entries_period_id",
+          "columns": [
+            {
+              "expression": "period_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "helper_entries_period_id_billing_periods_id_fk": {
+          "name": "helper_entries_period_id_billing_periods_id_fk",
+          "tableFrom": "helper_entries",
+          "tableTo": "billing_periods",
+          "columnsFrom": [
+            "period_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "helper_entries_payer_id_members_id_fk": {
+          "name": "helper_entries_payer_id_members_id_fk",
+          "tableFrom": "helper_entries",
+          "tableTo": "members",
+          "columnsFrom": [
+            "payer_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "helper_entries_amount_positive": {
+          "name": "helper_entries_amount_positive",
+          "value": "\"helper_entries\".\"amount\" > 0"
+        },
+        "helper_entries_deduction_range": {
+          "name": "helper_entries_deduction_range",
+          "value": "\"helper_entries\".\"deduction\" >= 0 AND \"helper_entries\".\"deduction\" <= \"helper_entries\".\"amount\""
+        },
+        "helper_entries_deduction_visit_only": {
+          "name": "helper_entries_deduction_visit_only",
+          "value": "\"helper_entries\".\"kind\" = 'visit' OR \"helper_entries\".\"deduction\" = 0"
+        },
+        "helper_entries_payer": {
+          "name": "helper_entries_payer",
+          "value": "(\"helper_entries\".\"kind\" = 'opening') = (\"helper_entries\".\"payer_id\" IS NULL)"
         }
       },
       "isRLSEnabled": true
@@ -1720,6 +1699,14 @@
         "dismissed"
       ]
     },
+    "public.bill_kind": {
+      "name": "bill_kind",
+      "schema": "public",
+      "values": [
+        "standard",
+        "helper"
+      ]
+    },
     "public.bill_provider": {
       "name": "bill_provider",
       "schema": "public",
@@ -1754,14 +1741,13 @@
         "pending"
       ]
     },
-    "public.biller_field_kind": {
-      "name": "biller_field_kind",
+    "public.helper_entry_kind": {
+      "name": "helper_entry_kind",
       "schema": "public",
       "values": [
-        "text",
-        "link",
-        "secret",
-        "heading"
+        "visit",
+        "early_pay",
+        "opening"
       ]
     },
     "public.member_role": {

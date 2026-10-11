@@ -203,6 +203,31 @@ describe("computeMonth — rules", () => {
     }
   });
 
+  // Helper ₱5,500 handed over by PA ₱3,000 and Cara ₱2,500 (lib/helper.ts): ₱1,100 each.
+  // PA: 1,100 − 3,000 = −1,900 · Cara: 1,100 − 2,500 = −1,400 · the others +1,100.
+  it("credits each payer their part of a bill with several payers", () => {
+    const input = helperOnly("PA");
+    input.bills[0].paidBy = [
+      { memberId: idOf("PA"), amount: "3000.00" },
+      { memberId: idOf("Cara"), amount: "2500.00" },
+    ];
+    const result = computeMonth(input);
+    expect(rowOf(result, "PA").billsPaid).toBe(300000);
+    expect(rowOf(result, "Cara").billsPaid).toBe(250000);
+    expect(rowOf(result, "PA").monthFinal).toBe(-190000);
+    expect(rowOf(result, "Cara").monthFinal).toBe(-140000);
+    expect(rowOf(result, "Ben").monthFinal).toBe(110000);
+    expect(sumCentavos(result.rows.map((r) => r.monthFinal))).toBe(0);
+  });
+
+  it("reports payers that don't add up to the bill, or aren't in the month", () => {
+    const input = helperOnly("PA");
+    input.bills[0].paidBy = [{ memberId: idOf("PA"), amount: "5000.00" }];
+    expect(() => computeMonth(input)).toThrow(/Payers of Helper add up to/);
+    input.bills[0].paidBy = [{ memberId: 999, amount: "5500.00" }];
+    expect(() => computeMonth(input)).toThrow(SettlementError);
+  });
+
   it("ignores pending (unconfirmed email) bills", () => {
     const input = helperOnly("PA");
     input.bills[0].status = "pending";

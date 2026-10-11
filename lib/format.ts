@@ -9,6 +9,13 @@ export function monthLabel(year: number, month: number): string {
   return monthFormatter.format(Date.UTC(year, month - 1, 1));
 }
 
+const SHORT_MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+
+/** (2026, 9) → "SEP 2026": the month picker on phones, where the full name doesn't fit. */
+export function shortMonthLabel(year: number, month: number): string {
+  return `${SHORT_MONTHS[month - 1]} ${year}`;
+}
+
 /**
  * "2026-09-06" → "Sept. 6". Read straight from the string, not through a Date, because
  * these are calendar dates, not moments in time, so no timezone should shift them.

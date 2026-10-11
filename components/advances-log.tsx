@@ -68,16 +68,19 @@ export function AdvancesLog({ view }: { view: PeriodView }) {
     return [
       ...view.bills
         .filter((b) => b.status === "confirmed" && b.total > 0)
-        .map((b) => ({
-          key: `bill-${b.id}`,
-          advanceId: null,
-          payerId: b.paidById,
-          category: "bills" as const,
-          description: b.name,
-          split: BILL_SPLIT,
-          amount: b.total,
-          date: b.paidOn,
-        })),
+        // The Helper, once visits are logged: one row per person who handed her money.
+        .flatMap((b) =>
+          (b.paidBy ?? [{ memberId: b.paidById, amount: b.total }]).map((p) => ({
+            key: `bill-${b.id}-${p.memberId}`,
+            advanceId: null,
+            payerId: p.memberId,
+            category: "bills" as const,
+            description: b.name,
+            split: BILL_SPLIT,
+            amount: p.amount,
+            date: b.paidBy ? null : b.paidOn,
+          })),
+        ),
       ...view.advances.map((a) => ({
         key: `advance-${a.id}`,
         advanceId: a.id,

@@ -12,9 +12,19 @@ const ROOT = join(__dirname, "..");
 const PUBLIC_ACTIONS = new Set(["signInWithGoogle", "sendEmailCode", "verifyEmailCode", "signOut"]);
 /**
  * The only actions a non-admin may call; each checks ownership itself (lib/permissions.ts):
- * their own advances, and their own "I paid" (sent to the collector; cancelled while waiting).
+ * their own advances, the Helper visits and early pay they paid, and their own "I paid" (sent to
+ * the collector; cancelled while waiting).
  */
-const MEMBER_ACTIONS = ["addAdvance", "cancelPayment", "deleteAdvance", "submitPayment", "updateAdvance"];
+const MEMBER_ACTIONS = [
+  "addAdvance",
+  "addHelperEntry",
+  "cancelPayment",
+  "deleteAdvance",
+  "deleteHelperEntry",
+  "submitPayment",
+  "updateAdvance",
+  "updateHelperEntry",
+];
 /** Route Handlers, each doing its own auth. */
 const ROUTE_HANDLERS = [
   "app/api/bill-email/route.ts",

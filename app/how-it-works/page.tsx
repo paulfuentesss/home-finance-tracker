@@ -146,7 +146,35 @@ export default async function HowItWorksPage() {
         <p>
           The admin pays Meralco, Water, PLDT and usually the Helper upfront, and everyone settles with the admin. Whoever
           pays a bill — the admin or anyone else — gets it counted as money they paid, so it comes off their Month Final.
+          For the Helper, that&apos;s whoever paid her each time (see the Helper question).
         </p>
+      ),
+    },
+    {
+      id: "helper",
+      q: "How does the Helper work? What is early pay?",
+      a: (
+        <>
+          <p>
+            Every day the Helper works is logged on the <strong>Helper</strong> tab: the date, her daily pay, and who
+            paid her. Whoever is home can pay her and log it themselves.
+          </p>
+          <p>
+            Sometimes she gets money <strong>before</strong> she works — <strong>early pay</strong>. She then owes it,
+            and part of her later daily pay is taken off what she owes instead of being handed to her. The Helper tab
+            keeps track of what she still owes.
+          </p>
+          <p>
+            <strong>Whoever hands her money gets it back.</strong> The month&apos;s Helper bill is everything handed
+            to her that month — daily pay minus what was taken off, plus early pay — split equally like Water and
+            PLDT. Each person&apos;s part counts as money they paid, so it comes off their Month Final. Example: pay
+            her ₱650 and give ₱1,200 early pay on the same day, and you get ₱1,850 back that month.
+          </p>
+          <p>
+            A month where she gets early pay can cost a bit more than her daily pay; the months when it&apos;s taken
+            off cost a bit less. Over time the house pays exactly her pay.
+          </p>
+        </>
       ),
     },
     {

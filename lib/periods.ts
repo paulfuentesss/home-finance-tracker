@@ -11,7 +11,17 @@ import { dateInManila } from "@/lib/format";
 import { dotClassOf } from "@/lib/members";
 import { canSeePaymentProof } from "@/lib/permissions";
 import { closeCheck, reopenCheck, type LockCheck } from "@/lib/month-lock";
-import { formatPHP, sumCentavos, toCentavos, type Centavos } from "@/lib/money";
+import {
+  countsInBill,
+  handedOver,
+  helperMonthSummary,
+  helperPaidBy,
+  ledgerCompare,
+  owesAfter,
+  type HelperEntryKind,
+  type HelperMonthSummary,
+} from "@/lib/helper";
+import { formatPHP, fromCentavos, sumCentavos, toCentavos, type Centavos } from "@/lib/money";
 import {
   computeMonth,
   openingBalancesFrom,
@@ -38,8 +48,15 @@ export interface ViewMember extends SettlementMember {
 export interface ViewBill {
   id: number;
   name: string;
+  /** "helper" = the Helper column (docs/features/helper.md). */
+  kind: "standard" | "helper";
   total: Centavos;
   paidById: number;
+  /**
+   * Set for a Helper column whose month has visits or early pay logged: who handed her money and
+   * how much (the total and payers come from the Helper tab). Null = `paidById` paid it all.
+   */
+  paidBy: { memberId: number; amount: Centavos }[] | null;
   status: "confirmed" | "pending";
   /** "email" = filled in from a bill email. */
   source: "manual" | "email";
@@ -111,6 +128,34 @@ export interface ViewColumn {
   amounts: Record<string, Centavos | null>;
 }
 
+export interface ViewHelperEntry {
+  id: number;
+  kind: HelperEntryKind;
+  payerId: number | null;
+  onDate: string | null;
+  /** Daily pay, early pay, or the carried-over debt. */
+  amount: Centavos;
+  deduction: Centavos;
+  note: string | null;
+  handedOver: Centavos;
+  /** Her debt after this entry (all months, in order), like the sheet's "Remaining". */
+  owesAfter: Centavos;
+}
+
+export interface ViewHelper {
+  /** The month's Helper column (null when the month has none yet). */
+  billId: number | null;
+  /** This month's entries in ledger order (`ledgerCompare`: starting debt first, then by date). */
+  entries: ViewHelperEntry[];
+  summary: HelperMonthSummary;
+  /** Her debt before this month's first entry. */
+  owesAtStart: Centavos;
+  /** Her debt now, after every month's entries. */
+  owesNow: Centavos;
+  /** Whether her debt from the Google Sheet has been entered (in any month). */
+  hasOpening: boolean;
+}
+
 export interface PeriodView {
   period: PeriodSummary & {
     status: "open" | "closed";
@@ -124,6 +169,7 @@ export interface PeriodView {
   rows: ViewRow[];
   advances: ViewAdvance[];
   payments: ViewPayment[];
+  helper: ViewHelper;
   stats: { coreBills: Centavos; sharedAdvances: Centavos };
   periods: PeriodSummary[];
   prev: PeriodSummary | null;
@@ -147,6 +193,8 @@ const loadPeriods = (executor: Executor = db) =>
       sharedColumns: { with: { members: true }, orderBy: (c) => [asc(c.id)] },
       advances: { orderBy: (a) => [asc(a.spentOn), asc(a.id)] },
       payments: { orderBy: (p) => [asc(p.paidOn), asc(p.id)] },
+      // Put into ledger order with ledgerCompare where it matters (helperViewOf).
+      helperEntries: { orderBy: (h) => [asc(h.onDate), asc(h.id)] },
     },
   });
 
@@ -234,11 +282,14 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
         : b.splitMode === "points" && totalPoints > 0
           ? { amount: Math.round(total / totalPoints), unit: "point" as const }
           : null;
+    const payers = b.kind === "helper" ? helperPayersOf(period) : undefined;
     return {
       id: b.id,
       name: b.name,
+      kind: b.kind,
       total,
       paidById: b.paidById,
+      paidBy: payers ? payers.map((p) => ({ memberId: p.memberId, amount: toCentavos(p.amount) })) : null,
       status: b.status,
       source: b.source,
       emailed: emailedOf(b.emails),
@@ -320,6 +371,7 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
       status: p.status,
       rejectedReason: p.rejectedReason,
     })),
+    helper: helperViewOf(all, index),
     stats: {
       coreBills: sumCentavos(bills.filter((b) => b.status === "confirmed").map((b) => b.total)),
       sharedAdvances: sumCentavos(period.advances.map((a) => toCentavos(a.amount))),
@@ -423,10 +475,49 @@ export function periodMembers(period: LoadedPeriod) {
   return period.balances.map((b) => b.member).sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
 }
 
+/**
+ * Who paid the month's Helper bill, from its visits and early pay — undefined when none are
+ * logged (her starting debt doesn't count), so a Helper column filled in the old way (a typed
+ * total, one payer) still works.
+ */
+function helperPayersOf(period: LoadedPeriod): { memberId: number; amount: string }[] | undefined {
+  const entries = period.helperEntries.filter(countsInBill);
+  if (entries.length === 0) return undefined;
+  return [...helperPaidBy(entries)].map(([memberId, amount]) => ({ memberId, amount: fromCentavos(amount) }));
+}
+
+function helperViewOf(all: LoadedPeriod[], index: number): ViewHelper {
+  const period = all[index];
+  const months = all.map((p) => p.helperEntries.toSorted(ledgerCompare));
+  const ledger = months.flat();
+  const after = owesAfter(ledger);
+  const lastBefore = months.slice(0, index).flat().at(-1);
+  const lastOverall = ledger.at(-1);
+  return {
+    billId: period.billItems.find((b) => b.kind === "helper")?.id ?? null,
+    entries: months[index].map((e) => ({
+      id: e.id,
+      kind: e.kind,
+      payerId: e.payerId,
+      onDate: e.onDate,
+      amount: toCentavos(e.amount),
+      deduction: toCentavos(e.deduction),
+      note: e.note,
+      handedOver: handedOver(e),
+      owesAfter: after.get(e.id)!,
+    })),
+    summary: helperMonthSummary(period.helperEntries),
+    owesAtStart: lastBefore ? after.get(lastBefore.id)! : 0,
+    owesNow: lastOverall ? after.get(lastOverall.id)! : 0,
+    hasOpening: ledger.some((e) => e.kind === "opening"),
+  };
+}
+
 function toMonthInput(period: LoadedPeriod, opening: Map<MemberId, Centavos>): MonthInput {
+  const helperPayers = helperPayersOf(period);
   return {
     members: periodMembers(period),
-    bills: period.billItems,
+    bills: period.billItems.map((b) => (b.kind === "helper" && helperPayers ? { ...b, paidBy: helperPayers } : b)),
     billShares: new Map(period.billItems.map((b) => [b.id, b.shares])),
     sharedColumns: period.sharedColumns.map((c) => ({
       id: c.id,
