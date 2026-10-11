@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   canCancelPayment,
   canManageAdvance,
+  canManageHelperEntry,
   canSeePaymentProof,
   canSubmitPayment,
   isAdmin,
@@ -17,6 +18,20 @@ describe("isAdmin", () => {
   it("is true only for the admin role", () => {
     expect(isAdmin(pa)).toBe(true);
     expect(isAdmin(housemate)).toBe(false);
+  });
+});
+
+describe("canManageHelperEntry", () => {
+  it("lets the admin change any entry, the carried-over debt included", () => {
+    expect(canManageHelperEntry(pa, { kind: "visit", payerId: 3 })).toBe(true);
+    expect(canManageHelperEntry(pa, { kind: "opening", payerId: null })).toBe(true);
+  });
+
+  it("lets a member change only a visit or early pay they paid", () => {
+    expect(canManageHelperEntry(housemate, { kind: "visit", payerId: 3 })).toBe(true);
+    expect(canManageHelperEntry(housemate, { kind: "early_pay", payerId: 3 })).toBe(true);
+    expect(canManageHelperEntry(housemate, { kind: "visit", payerId: 5 })).toBe(false);
+    expect(canManageHelperEntry(housemate, { kind: "opening", payerId: null })).toBe(false);
   });
 });
 

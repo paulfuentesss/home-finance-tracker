@@ -76,7 +76,8 @@ so PA stays signed in in the main one.
 2. **Continue with Google** as PA: everything works as before, and the header shows PA.
 3. Manage → Manage Housemates: type a test email for a housemate. On the login page, **Get a
    code by email** with it; the code arrives from the My House Gmail. Signed in as them:
-   no Manage tab, no edit controls except their own advances in Advances Shared.
+   no Manage tab, no edit controls except their own advances in Advances Shared and the
+   Helper visits and early pay they paid.
    A wrong code shows an error; an email that isn't invited gets the same "on its way"
    message, and nothing is sent.
 4. As that housemate, run `updateBillTotal` from the browser console (or any PA-only action):

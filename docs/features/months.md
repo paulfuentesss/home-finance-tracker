@@ -4,9 +4,10 @@
 ✅ Working.
 
 ## What it does
-- **Month picker** in the header; the home page opens the most recent month.
+- **Month picker** in the header; the home page opens the most recent month. On phones it shows
+  the short name ("SEP 2026") so the month, the help and the account buttons fit on one row.
 - **Start <next month>** (on the latest month): creates the next month with everyone currently
-  active, copies the bill columns (split, points, payer) at ₱0.00 and an empty Advances Shared.
+  active, copies the bill columns (split, points, payer, which one is the Helper's) at ₱0.00 and an empty Advances Shared.
   Refuses to leave out someone who moved out with an unsettled Final, and waits while a
   housemate's "I paid" is still waiting ([settle-up.md](settle-up.md)).
 - **Live carry-over:** an open month's Prev Month Unsettled is the previous month's Final,

@@ -32,17 +32,56 @@ export function PeriodHeader({
       {/* The month is shown inside the month picker button, so screen readers get it as the page heading here. */}
       <h1 className="sr-only">{monthLabel(year, month)}</h1>
       <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-4 px-4 pt-5 pb-4">
-        <div className="flex items-center gap-3">
-          <HouseBadge />
-          <div>
-            <p className="px-1.5 text-sm font-semibold text-amber-700">My House</p>
-            <div className="flex items-center gap-2">
+        {/* Phone: the month (short name, to fit) and the help/account buttons share the first row.
+            Wider: `contents` puts them back in one row with the totals between. */}
+        <div className="flex w-full items-center justify-between gap-2 sm:contents">
+          <div className="flex min-w-0 items-center gap-3">
+            <HouseBadge />
+            <div className="min-w-0">
+              <p className="flex items-center gap-2 px-1.5 text-sm font-semibold text-amber-700">
+                My House
+                {/* Open is the normal state, so only a locked month gets a badge. */}
+                {status === "closed" && (
+                  <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">Closed</span>
+                )}
+              </p>
               <MonthPicker periods={view.periods} current={{ year, month }} canStartNext={view.isLatest && isAdmin(viewer)} />
-              {/* Open is the normal state, so only a locked month gets a badge. */}
-              {status === "closed" && (
-                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">Closed</span>
-              )}
             </div>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-1 sm:order-last sm:gap-2">
+            {/* A popover like the stat cards' (hover or tap), with the link inside — a tooltip
+                never shows on a phone. */}
+            <Popover>
+              <PopoverTrigger
+                openOnHover
+                aria-label="How it works"
+                className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors outline-none hover:bg-zinc-100 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-popup-open:bg-zinc-100 data-popup-open:text-foreground"
+              >
+                <CircleHelp className="size-5" />
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-64">
+                <div>
+                  <PopoverTitle>How it works</PopoverTitle>
+                  <PopoverDescription className="text-xs">
+                    How bills and advances are split, what Month Final and Final mean, settling up, and who can
+                    change what.
+                  </PopoverDescription>
+                </div>
+                <Link
+                  href="/how-it-works"
+                  className="text-xs font-medium text-amber-700 underline-offset-2 hover:underline"
+                >
+                  Read how it works →
+                </Link>
+              </PopoverContent>
+            </Popover>
+            <AccountMenu
+              dotClass={
+                [...view.members, ...previewChoices].find((m) => m.id === viewer.memberId)?.dotClass ?? "bg-zinc-400"
+              }
+              previewChoices={previewChoices}
+            />
           </div>
         </div>
 
@@ -69,40 +108,6 @@ export function PeriodHeader({
           />
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* A popover like the stat cards' (hover or tap), with the link inside — a tooltip
-              never shows on a phone. */}
-          <Popover>
-            <PopoverTrigger
-              openOnHover
-              aria-label="How it works"
-              className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors outline-none hover:bg-zinc-100 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-popup-open:bg-zinc-100 data-popup-open:text-foreground"
-            >
-              <CircleHelp className="size-5" />
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-64">
-              <div>
-                <PopoverTitle>How it works</PopoverTitle>
-                <PopoverDescription className="text-xs">
-                  How bills and advances are split, what Month Final and Final mean, settling up, and who can
-                  change what.
-                </PopoverDescription>
-              </div>
-              <Link
-                href="/how-it-works"
-                className="text-xs font-medium text-amber-700 underline-offset-2 hover:underline"
-              >
-                Read how it works →
-              </Link>
-            </PopoverContent>
-          </Popover>
-          <AccountMenu
-            dotClass={
-              [...view.members, ...previewChoices].find((m) => m.id === viewer.memberId)?.dotClass ?? "bg-zinc-400"
-            }
-            previewChoices={previewChoices}
-          />
-        </div>
       </div>
       <div className="mx-auto w-full max-w-7xl px-4">
         <TabNav base={base} waiting={view.payments.filter((p) => p.status === "pending").length} />

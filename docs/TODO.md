@@ -27,6 +27,11 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
       Promotions, a later one to Primary. If housemates' codes keep getting filed away, move to
       a transactional email service (e.g. Resend) with an own domain once online.
 
+- [ ] **Move the Helper over from the sheet** ([helper](features/helper.md)) — after it's
+      online: on the Helper tab, **Set starting debt** to the sheet's Remaining, then log this
+      month's visits and early pay (the first entry replaces the typed Helper total). Stop
+      updating the sheet's Helper tables after that.
+
 ## Later
 
 - [ ] **Proof for advances** ([receipts](features/receipts.md)) — attach a receipt to an advance,

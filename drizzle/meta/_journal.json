@@ -71,6 +71,13 @@
       "when": 1791717282361,
       "tag": "0009_payment-status",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791735590540,
+      "tag": "0010_helper-entries",
+      "breakpoints": true
     }
   ]
 }

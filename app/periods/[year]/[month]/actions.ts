@@ -9,7 +9,7 @@
 // run(), and never trust ids or payers sent from the page — check them here.
 
 import { randomUUID } from "node:crypto";
-import { and, asc, desc, eq, gt, inArray, max, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, max, not, or, sql, type SQL } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -20,6 +20,7 @@ import {
   billItems,
   billItemShares,
   db,
+  helperEntries,
   members,
   payments,
   periodBalances,
@@ -32,11 +33,28 @@ import { placeBill } from "@/lib/bill-import";
 import { pointsFor, pointsOf, writeShares, type Tx } from "@/lib/bill-shares";
 import { domainTakesMail } from "@/lib/email-domain";
 import { ActionError, isUniqueViolation } from "@/lib/errors";
-import { monthLabel } from "@/lib/format";
+import { dateLabel, monthLabel } from "@/lib/format";
+import { countsInBill, firstOverdrawn, helperBillTotal, ledgerCompare } from "@/lib/helper";
 import { inviteMember, uninviteMember } from "@/lib/invites";
-import { fromCentavos, parseMoneyInput, splitEqually, sumCentavos, toCentavos, type Centavos } from "@/lib/money";
+import {
+  formatPHP,
+  fromCentavos,
+  parseMoneyInput,
+  splitEqually,
+  sumCentavos,
+  toCentavos,
+  type Centavos,
+} from "@/lib/money";
 import { closeCheck, reopenCheck, startCheck, vanishingBalances } from "@/lib/month-lock";
-import { canCancelPayment, canManageAdvance, canSubmitPayment, isAdmin, type Role, type Viewer } from "@/lib/permissions";
+import {
+  canCancelPayment,
+  canManageAdvance,
+  canManageHelperEntry,
+  canSubmitPayment,
+  isAdmin,
+  type Role,
+  type Viewer,
+} from "@/lib/permissions";
 import { computePeriod, pendingBillNames, periodMembers, waitingPaymentLabels } from "@/lib/periods";
 import {
   checkReceiptFile,
@@ -91,6 +109,13 @@ export async function updateBillTotal(_prev: ActionState, formData: FormData): P
       const { bill, order } = await loadBill(tx, billId);
       if (bill.splitMode === "manual") {
         throw new ActionError(`${bill.name} is split manually — edit each person's share instead.`);
+      }
+      if (bill.kind === "helper") {
+        // Taken in turn with the Helper tab, so a visit logged at the same moment can't be overwritten.
+        await lockHelper(tx);
+        if (await hasBillEntries(tx, bill.periodId)) {
+          throw new ActionError(`${bill.name}'s total comes from the visits on the Helper tab.`);
+        }
       }
       const points = pointsOf(bill.shares);
       const shares = computeBillShares(bill.splitMode, total, order, { points });
@@ -191,7 +216,15 @@ export async function renameBill(_prev: ActionState, formData: FormData): Promis
 export async function deleteBill(billId: number): Promise<ActionState> {
   return run("admin", z.object({ billId: id }), { billId }, async ({ billId }) => {
     const files = await db.transaction(async (tx) => {
-      await loadBill(tx, billId);
+      const { bill } = await loadBill(tx, billId);
+      if (bill.kind === "helper") {
+        await lockHelper(tx);
+        if (await hasBillEntries(tx, bill.periodId)) {
+          throw new ActionError(
+            `${bill.name} has visits or early pay logged this month — delete them on the Helper tab first.`,
+          );
+        }
+      }
       // An email that filled this column goes back to the Bill inbox.
       await tx
         .update(billEmails)
@@ -379,6 +412,195 @@ function unchangedFor(viewer: Viewer, advance: { payerId: number; columnId: numb
   if (isAdmin(viewer)) return undefined;
   return and(eq(advances.payerId, viewer.memberId), eq(advances.columnId, advance.columnId));
 }
+
+// ---------- The Helper (docs/features/helper.md) ----------
+
+// Her visits and early pay. Members may add, edit and delete the ones they paid; PA, any — and
+// only PA sets the debt carried over from the sheet (lib/permissions.ts → canManageHelperEntry).
+// Every change rewrites the month's Helper column: its total is what was handed over, split
+// equally (lib/helper.ts), and her debt across all months may never go below ₱0.
+
+const helperEntryFields = z.object({
+  // 0 / missing for the carried-over debt, which nobody paid.
+  payerId: z.coerce.number().int().nonnegative().default(0),
+  onDate: optionalDate,
+  amount: moneyField(false),
+  // Visits only; blank = nothing taken off.
+  deduction: z
+    .string()
+    .default("")
+    .transform((v) => v.trim() || "0")
+    .pipe(moneyField(true)),
+  note: z
+    .string()
+    .trim()
+    .max(120, "Keep the note under 120 characters")
+    .default("")
+    .transform((v) => v || null),
+});
+const helperKind = z.enum(["visit", "early_pay", "opening"], { message: "Choose visit or early pay" });
+type HelperKind = z.output<typeof helperKind>;
+
+/** Validates an entry for its kind and, for a member, makes it theirs whatever the form sent. */
+function helperEntryFor(input: z.output<typeof helperEntryFields>, kind: HelperKind, viewer: Viewer) {
+  if (kind === "opening") {
+    if (!isAdmin(viewer)) throw new ActionError("Only the admin can set her starting debt.");
+    return { ...input, kind, payerId: null, deduction: 0 };
+  }
+  const payerId = isAdmin(viewer) ? input.payerId : viewer.memberId;
+  if (payerId === 0) throw new ActionError("Choose who paid her.");
+  if (kind === "early_pay") return { ...input, kind, payerId, deduction: 0 };
+  if (input.deduction > input.amount) throw new ActionError("Taken off can't be more than her daily pay.");
+  return { ...input, kind, payerId };
+}
+
+export async function addHelperEntry(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const schema = helperEntryFields.extend({ periodId: id, kind: helperKind });
+  return run("member", schema, formData, async ({ periodId, kind, ...input }, viewer) => {
+    const data = helperEntryFor(input, kind, viewer);
+    await db.transaction(async (tx) => {
+      await lockHelper(tx);
+      const { order } = await loadOpenPeriod(tx, periodId);
+      if (data.payerId !== null && !order.includes(data.payerId)) {
+        throw new ActionError(isAdmin(viewer) ? "The payer isn't in this month." : "You're not in this month.");
+      }
+      if (data.kind === "opening") {
+        const [existing] = await tx
+          .select({ id: helperEntries.id })
+          .from(helperEntries)
+          .where(eq(helperEntries.kind, "opening"))
+          .limit(1);
+        if (existing) throw new ActionError("Her starting debt is already set — edit it instead.");
+      }
+      await tx.insert(helperEntries).values({
+        periodId,
+        kind: data.kind,
+        payerId: data.payerId,
+        onDate: data.onDate,
+        amount: fromCentavos(data.amount),
+        deduction: fromCentavos(data.deduction),
+        note: data.note,
+      });
+      await syncHelperBill(tx, periodId, order, data.kind);
+    });
+  });
+}
+
+// Editing keeps the entry in its month and its kind (visit, early pay or the starting debt).
+export async function updateHelperEntry(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const schema = helperEntryFields.extend({ entryId: id });
+  return run("member", schema, formData, async ({ entryId, ...input }, viewer) => {
+    await db.transaction(async (tx) => {
+      await lockHelper(tx);
+      const entry = await loadHelperEntryFor(tx, entryId, viewer, "That entry was deleted.");
+      const data = helperEntryFor(input, entry.kind, viewer);
+      const { order } = await loadOpenPeriod(tx, entry.periodId);
+      if (data.payerId !== null && !order.includes(data.payerId)) throw new ActionError("The payer isn't in this month.");
+      await tx
+        .update(helperEntries)
+        .set({
+          payerId: data.payerId,
+          onDate: data.onDate,
+          amount: fromCentavos(data.amount),
+          deduction: fromCentavos(data.deduction),
+          note: data.note,
+        })
+        .where(eq(helperEntries.id, entryId));
+      await syncHelperBill(tx, entry.periodId, order, entry.kind);
+    });
+  });
+}
+
+export async function deleteHelperEntry(entryId: number): Promise<ActionState> {
+  return run("member", z.object({ entryId: id }), { entryId }, async ({ entryId }, viewer) => {
+    await db.transaction(async (tx) => {
+      await lockHelper(tx);
+      const entry = await loadHelperEntryFor(tx, entryId, viewer, "That entry was already deleted.");
+      const { order } = await loadOpenPeriod(tx, entry.periodId);
+      await tx.delete(helperEntries).where(eq(helperEntries.id, entryId));
+      await syncHelperBill(tx, entry.periodId, order, entry.kind);
+    });
+  });
+}
+
+/**
+ * One Helper change at a time, across every month: her debt spans them all, so two people
+ * logging at once can't each pass the "not below ₱0" check, or leave a stale column total.
+ * Taken before reading the entry, so a member's ownership check can't go stale either.
+ */
+async function lockHelper(tx: Tx) {
+  await tx.execute(sql`select pg_advisory_xact_lock(${HELPER_LOCK_KEY})`);
+}
+// Any fixed number unique to this lock.
+const HELPER_LOCK_KEY = 7_201_001;
+
+/** Loads a Helper entry the viewer is allowed to change. */
+async function loadHelperEntryFor(tx: Tx, entryId: number, viewer: Viewer, missing: string) {
+  const entry = await tx.query.helperEntries.findFirst({ where: eq(helperEntries.id, entryId) });
+  if (!entry) throw new ActionError(missing);
+  if (!canManageHelperEntry(viewer, entry)) throw new ActionError("Only the admin can change this entry.");
+  return entry;
+}
+
+/** Whether the month has visits or early pay, which make its Helper column (not her starting debt). */
+async function hasBillEntries(tx: Tx, periodId: number): Promise<boolean> {
+  const [entry] = await tx.select({ id: helperEntries.id }).from(helperEntries).where(helperBillEntriesIn(periodId)).limit(1);
+  return Boolean(entry);
+}
+const helperBillEntriesIn = (periodId: number) =>
+  and(eq(helperEntries.periodId, periodId), sql`${helperEntries.kind} <> 'opening'`);
+
+/**
+ * After a change: checks she never owes less than ₱0 at any point (in ledger order), then — unless
+ * it was her starting debt, which is in no bill — sets the month's Helper column to what was
+ * handed over and re-splits it equally, creating the column if the month has none yet.
+ */
+async function syncHelperBill(tx: Tx, periodId: number, order: MemberId[], changed: HelperKind) {
+  const rows = await tx.query.helperEntries.findMany({ with: { period: { columns: { year: true, month: true } } } });
+  const ledger = rows.toSorted(
+    (a, b) => a.period.year - b.period.year || a.period.month - b.period.month || ledgerCompare(a, b),
+  );
+  const overdrawn = firstOverdrawn(ledger);
+  if (overdrawn) {
+    const when = overdrawn.entry.onDate ? `by ${dateLabel(overdrawn.entry.onDate)}` : "on an undated visit";
+    throw new ActionError(
+      `That takes off more than she owes: ${when}, ${formatPHP(-overdrawn.owes)} more was taken off than she'd been given. Check the dates, her early pay and the amounts taken off.`,
+    );
+  }
+  if (changed === "opening") return;
+  const monthEntries = rows.filter((e) => e.periodId === periodId && countsInBill(e));
+  const total = helperBillTotal(monthEntries);
+
+  let bill = await tx.query.billItems.findFirst({
+    where: and(eq(billItems.periodId, periodId), eq(billItems.kind, "helper")),
+  });
+  if (!bill) {
+    if (monthEntries.length === 0) return;
+    const [taken] = await tx
+      .select({ id: billItems.id })
+      .from(billItems)
+      .where(and(eq(billItems.periodId, periodId), eq(sql`lower(${billItems.name})`, HELPER_BILL_NAME.toLowerCase())))
+      .limit(1);
+    if (taken) throw new ActionError(`Another column is already named ${HELPER_BILL_NAME} — rename it in Manage first.`);
+    // The payer only matters while no visits are logged; the collector, like any new bill.
+    [bill] = await tx
+      .insert(billItems)
+      .values({ periodId, name: HELPER_BILL_NAME, kind: "helper", totalAmount: "0", paidById: order[0], splitMode: "equal" })
+      .returning();
+  }
+  if (bill.splitMode !== "equal") {
+    throw new ActionError(`${bill.name} isn't split equally, so visits can't be logged into it.`);
+  }
+  await tx.update(billItems).set({ totalAmount: fromCentavos(total) }).where(eq(billItems.id, bill.id));
+  await writeShares(tx, bill.id, computeBillShares("equal", total, order), null);
+}
+const HELPER_BILL_NAME = "Helper";
+
+/** A Helper column whose month has visits or early pay: its payers come from those, not `paid_by_id`. */
+const helperBillDrivenByEntries = and(
+  eq(billItems.kind, "helper"),
+  sql`exists (select 1 from ${helperEntries} where ${helperEntries.periodId} = ${billItems.periodId} and ${helperEntries.kind} <> 'opening')`,
+)!;
 
 // ---------- Payments ----------
 
@@ -895,6 +1117,9 @@ export async function removeMember(memberId: number): Promise<ActionState> {
       // Locked, so an invite saved at the same moment can't leave a stale login behind.
       const [member] = await tx.select().from(members).where(eq(members.id, memberId)).for("update");
       if (!member || !member.active) throw new ActionError("That person was already removed.");
+      // In turn with the Helper tab, so a visit they log right now can't land after the check
+      // below that keeps them in a month where they paid her.
+      await lockHelper(tx);
       if (member.isCollector) throw new ActionError(`${member.name} is the collector and can't be removed.`);
       const active = await tx.select({ id: members.id }).from(members).where(eq(members.active, true));
       if (active.length <= 1) throw new ActionError("At least one person has to stay in the household.");
@@ -923,12 +1148,17 @@ export async function removeMember(memberId: number): Promise<ActionState> {
         });
         if (!inPeriod) continue;
         // ₱0 bills they're down as paying (copied from last month by "Start next month")
-        // aren't real payments: hand them to the collector so the member can leave the month.
+        // aren't real payments, nor is a Helper column whose visits say who paid: hand them to
+        // the collector so the member can leave the month.
         const zeroBillsPaid = await tx
           .select({ id: billItems.id })
           .from(billItems)
           .where(
-            and(eq(billItems.periodId, period.id), eq(billItems.paidById, memberId), eq(billItems.totalAmount, "0")),
+            and(
+              eq(billItems.periodId, period.id),
+              eq(billItems.paidById, memberId),
+              or(eq(billItems.totalAmount, "0"), helperBillDrivenByEntries),
+            ),
           );
         if (zeroBillsPaid.length) {
           if (!collector) throw new ActionError(`${member.name} is down as paying a bill. Set a collector first.`);
@@ -1061,12 +1291,19 @@ export async function startNextMonth(): Promise<ActionState> {
         })),
       );
 
-      // Copy the bill columns (name, split mode, points, payer) with ₱0 totals, ready to fill in.
+      // Copy the bill columns (name, kind, split mode, points, payer) with ₱0 totals, ready to fill in.
       for (const bill of latest.billItems) {
         const paidById = order.includes(bill.paidById) ? bill.paidById : collector.id;
         const [copy] = await tx
           .insert(billItems)
-          .values({ periodId: period.id, name: bill.name, totalAmount: "0", paidById, splitMode: bill.splitMode })
+          .values({
+            periodId: period.id,
+            name: bill.name,
+            kind: bill.kind,
+            totalAmount: "0",
+            paidById,
+            splitMode: bill.splitMode,
+          })
           .returning({ id: billItems.id });
         let points: Map<MemberId, number> | null = null;
         if (bill.splitMode === "points") {
@@ -1297,11 +1534,19 @@ async function hasRecordsIn(tx: Tx, periodId: number, memberId: number): Promise
       and(eq(payments.periodId, periodId), or(eq(payments.fromMemberId, memberId), eq(payments.toMemberId, memberId))),
     )
     .limit(1);
-  // ₱0 bills don't count: they're copied month to month before anyone has paid.
+  // ₱0 bills don't count: they're copied month to month before anyone has paid. Nor does a Helper
+  // column with visits logged: whoever paid her counts (helperEntry below), not its payer.
   const [paidBill] = await tx
     .select({ id: billItems.id })
     .from(billItems)
-    .where(and(eq(billItems.periodId, periodId), eq(billItems.paidById, memberId), gt(billItems.totalAmount, "0")))
+    .where(
+      and(
+        eq(billItems.periodId, periodId),
+        eq(billItems.paidById, memberId),
+        gt(billItems.totalAmount, "0"),
+        not(helperBillDrivenByEntries),
+      ),
+    )
     .limit(1);
   // Removing a typed share from a Manual bill would change that bill's total.
   const [manualBillShare] = await tx
@@ -1330,7 +1575,13 @@ async function hasRecordsIn(tx: Tx, periodId: number, memberId: number): Promise
       ),
     )
     .limit(1);
-  return Boolean(advance || payment || paidBill || manualBillShare || manualAmount);
+  // A visit or early pay they handed the Helper counts as a bill they paid.
+  const [helperEntry] = await tx
+    .select({ id: helperEntries.id })
+    .from(helperEntries)
+    .where(and(eq(helperEntries.periodId, periodId), eq(helperEntries.payerId, memberId)))
+    .limit(1);
+  return Boolean(advance || payment || paidBill || manualBillShare || manualAmount || helperEntry);
 }
 
 /**

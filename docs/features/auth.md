@@ -22,6 +22,7 @@
   | See every month and tab | ✅ | ✅ except Manage |
   | Log an advance | For anyone, into any column | Their own, into the month's default column (Advances Shared) |
   | Edit / delete an advance | Any | Their own, while it's in the default column — once PA moves it, it's PA's |
+  | Log, edit, delete a Helper visit or early pay ([helper.md](helper.md)) | Any, for anyone; and her starting debt | Only ones they paid |
   | Send a payment to PA ("I paid", with the transfer's screenshot) | — (PA records payments directly) | Their own, in the latest open month; it waits for PA |
   | Cancel a payment | Any (delete) | Their own, while it's waiting or rejected |
   | Bills, points, shared columns, recording / confirming / rejecting payments, housemates, starting / closing / reopening months | ✅ | — |
@@ -51,12 +52,15 @@
   `getLatestPointsBills` in `lib/periods.ts`), by the Manage page (which also requires PA),
   and by `run()`.
 - `run("admin" | "member", …)` in `app/periods/[year]/[month]/actions.ts` checks the caller
-  before anything else. Only `addAdvance`, `updateAdvance`, `deleteAdvance`, `submitPayment`
-  and `cancelPayment` are `"member"`: for a member the advance actions force the payer to
-  themselves and the column to the default one, and check `canManageAdvance` against the
-  stored advance; `submitPayment` sets the payer to themselves and the receiver to the
-  collector (`canSubmitPayment`), and `cancelPayment` checks `canCancelPayment`.
-- `lib/permissions.ts` (pure, tested) — `Viewer`, `isAdmin`, `canManageAdvance`, and
+  before anything else. Only `addAdvance`, `updateAdvance`, `deleteAdvance`, `addHelperEntry`,
+  `updateHelperEntry`, `deleteHelperEntry`, `submitPayment` and `cancelPayment` are `"member"`:
+  for a member the advance actions force the payer to themselves and the column to the default
+  one, and check `canManageAdvance` against the stored advance; the Helper actions force the
+  payer to themselves, refuse her starting debt, and check `canManageHelperEntry`;
+  `submitPayment` sets the payer to themselves and the receiver to the collector
+  (`canSubmitPayment`), and `cancelPayment` checks `canCancelPayment`.
+- `lib/permissions.ts` (pure, tested) — `Viewer`, `isAdmin`, `canManageAdvance`,
+  `canManageHelperEntry`, and
   `safeNext` (where to go after signing in, blocking open redirects).
 - **Invites:** `lib/invites.ts` creates a confirmed Supabase user for the email (with the
   secret key, `lib/supabase/admin-server.ts`) and stores its id on the member. Used by
@@ -82,7 +86,7 @@
   `useDialogForm`, `InlineInput` and `ConfirmDeleteButton`), `run()` returns an error while
   `previewFor(viewer)` is set, and the Manage page redirects. Signing in or out deletes the cookie.
 - **Safety net:** `lib/actions-guard.test.ts` fails if a Server Action skips `run()`, if a new
-  Route Handler appears, if anything besides the advance and "I paid" actions is opened to members, if
+  Route Handler appears, if anything besides the advance, Helper and "I paid" actions is opened to members, if
   `/receipts/[id]` stops checking `canSeePaymentProof`, or
   if `run()` stops refusing changes during a preview.
 - Tables: `members` (`email`, `auth_user_id`, `role`). Supabase keeps the logins themselves in
