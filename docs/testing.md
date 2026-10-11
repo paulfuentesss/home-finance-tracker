@@ -19,6 +19,7 @@ on the PR. It needs no secrets because no test touches the database — keep it 
 | `lib/month-lock.test.ts` | Closing / reopening rules, pending bills blocking a close, balances that would vanish |
 | `lib/advances-log.test.ts` | Advances Log grouping and split labels |
 | `lib/bill-email/parse.test.ts` | Reading the August sample bill emails; refusing other senders; bill month; dates |
+| `lib/bill-email/intake.test.ts` | What `/api/bill-email` accepts from the Gmail script: the shared secret, Gmail's DKIM verdict for the biller's domain (lookalikes, other domains, headers not from Gmail refused), the body's shape |
 | `lib/bill-email/fees.test.ts` | The payment fee setting turns the sample emails into the fixture's bills |
 | `lib/local-database.test.ts` | Test-data scripts recognise only a database on this machine as local |
 | `lib/permissions.test.ts` | Who may change which advance; `safeNext` blocking open redirects after sign-in |
@@ -103,7 +104,7 @@ so PA stays signed in in the main one.
 **Email-imported bills, start to finish.** This needs a local database, since the sample
 emails are test data and the scripts refuse the live one — and My House has none by choice
 ([decisions.md](decisions.md)). It's kept for if one is ever set up; until then the import is
-covered by `parse.test.ts` and by real bill emails once the inbox address exists.
+covered by `parse.test.ts`, `intake.test.ts` and real bills arriving through the Gmail script.
 1. `npm run db:seed:august -- --replace`, then `npm run bills:import -- meralco water pldt` —
    all three go to the Bill Inbox (August already has its bills).
 2. Split Table: set Meralco's amount to `0` (Enter). Manage → Bill Inbox → Meralco → **Retry**.

@@ -1,14 +1,17 @@
 # Email-imported bills
 
 ## Status
-🚧 Partly built. Reading emails, Pending bills, the Bill Inbox and payment fees work.
-**Missing:** the inbox address that forwarded emails arrive at — it needs the app online
-([TODO.md](../TODO.md)). Until then, emails are imported with `npm run bills:import`.
-Confirming, discarding and the Bill Inbox are PA's ([auth.md](auth.md)).
+🚧 Built, waiting for its first real bill. Reading emails, Pending bills, the Bill Inbox,
+payment fees and the intake (a script in the My House Gmail → `/api/bill-email`) are done; it
+counts as working once a real bill has arrived this way ([TODO.md](../TODO.md)). Setting it up:
+[setup.md](../setup.md) step 7. Confirming, discarding and the Bill Inbox are PA's
+([auth.md](auth.md)).
 
 ## What it does
-- Reads Meralco, Water (Manila Water) and PLDT bill emails: amount, due date, billing period,
-  and the month the bill is for.
+- Every hour, a script in the My House Gmail sends new Meralco, Manila Water and PLDT bill
+  emails to the app — also ones forwarded from PA's personal Gmail by a filter there, while a
+  biller still sends to it. A bill that reaches both inboxes counts once.
+- Reads each email: amount, due date, billing period, and the month the bill is for.
 - Fills that month's bill column as **Pending**, with the usual payment fee added and noted
   ("Emailed bill ₱… + ₱… <what the fee is>"). Pending bills aren't counted until confirmed.
 - **Confirm** / **Discard** under a pending bill in the Split Table; the amount stays editable
@@ -19,6 +22,18 @@ Confirming, discarding and the Bill Inbox are PA's ([auth.md](auth.md)).
 - A month can't be closed while a bill in it is pending.
 
 ## How it's built
+0. **Intake** — `scripts/gmail/bill-forwarder.gs`, a Google Apps Script in the My House Gmail
+   (reference copy; it runs in that Google account). Hourly, it searches for the billers'
+   bills received since it was set up, skips emails it has finished (fingerprints of their
+   Message-IDs in Script Properties — Gmail labels whole threads, so labels are only for
+   show), and POSTs each one — Message-ID, sender, subject, date, plain text and the topmost
+   `Authentication-Results` header — to `app/api/bill-email/route.ts`. 200 → done, labelled
+   `my-house/imported`; 400/422 → done, labelled `my-house/rejected`; anything else → retried
+   next hour. A refusal, or 3 failing runs in a row, emails `NOTIFY_TO` (at most daily).
+   The route has no login, so it checks, in order: `BILL_EMAIL_SECRET` (a shared secret,
+   constant-time), the body's shape, then Gmail's DKIM verdict for the biller's domain
+   (`lib/bill-email/intake.ts`, tested in `intake.test.ts`; `lib/actions-guard.test.ts` checks
+   the secret comes first). Only then `importBillEmail`.
 1. **Parse** — `lib/bill-email/parse.ts` (pure, tested in `parse.test.ts`): sender-domain
    allow-list, the amount line per provider, dates, the bill month.
 2. **Fee** — `lib/bill-email/fees.ts` reads `BILL_PAYMENT_FEES` (`lib/household-config.ts`);
@@ -32,19 +47,17 @@ Confirming, discarding and the Bill Inbox are PA's ([auth.md](auth.md)).
    (`EmailedNote`, `PendingBillActions`, `BillInbox`).
 5. **Math** — `computeMonth` skips pending bills; `closeCheck` blocks closing while one is pending.
 
-Takes the database as a parameter (never `@/db`), so the same code runs from the future
-webhook and from `scripts/import-email.mts`. Test emails: [testing.md](../testing.md).
+`importBillEmail` takes the database as a parameter (never `@/db`), so the same code runs from
+the route and from `scripts/import-email.mts`. Test emails: [testing.md](../testing.md).
 
 ## Rules
 [Email-imported bills](../settlement-rules.md#email-imported-bills) ·
 [Closing and reopening a month](../settlement-rules.md#closing-and-reopening-a-month)
 
 ## Open items
-- The bill inbox address (webhook) — after deploy ([TODO.md](../TODO.md)). Its Route Handler
-  is public, so it checks the provider's signature itself and joins `PUBLIC_PATHS` in
-  `proxy.ts` and the allowlist in `lib/actions-guard.test.ts` ([auth.md](auth.md)).
-- The providers' bills are moving to the My House Gmail ([TODO.md](../TODO.md));
-  the forwarding filter to the inbox address will live there.
+- Turning it on and checking it on real bills: [TODO.md](../TODO.md).
+- If a forwarded bill is refused (its DKIM didn't survive forwarding), run a second copy of the
+  script in the personal Gmail instead of the filter ([decisions.md](../decisions.md)).
 - Idea: read payment-confirmation emails to fill "Date paid" ([TODO.md](../TODO.md)).
 
 ## Built in

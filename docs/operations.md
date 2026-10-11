@@ -151,13 +151,30 @@ checklist for keeping the docs up to date.
   (they share `.next/`). Stop the dev server, delete `.next/dev/lock`, start it again.
 - More, with fixes: the "Known pitfalls" table in `CLAUDE.md`.
 
+### Bills stop arriving by email
+
+The script emails `NOTIFY_TO` when the app refuses a bill or 3 runs in a row fail. To look:
+- **Apps Script → Executions** (signed in as the My House Gmail): each hourly run and its log.
+  "Will retry: 401" → the secret differs between the script and Vercel; set the same value in
+  both (Vercel needs a redeploy). 5xx or timeouts → the app or Supabase is down (paused?).
+- **A thread labelled `my-house/rejected`** — the app said no (the log says why: not from the
+  biller, unreadable). A bill forwarded *by hand* always ends here; type it in instead.
+- **The bill never got to the My House Gmail** — the biller still sends to the personal Gmail
+  and the forwarding filter there is gone, or the email's subject doesn't have the words the
+  script searches for (`SEARCHES` in `scripts/gmail/bill-forwarder.gs`; update the pasted copy
+  too).
+- Imported but not where expected → the Bill Inbox (Manage) says why, with Retry.
+
+**Rotating the secret:** a new `openssl rand -base64 32` in Vercel (then redeploy) and in the
+script's Script Properties.
+
 ## Project layout
 
 ```
 proxy.ts        Runs before every page: refreshes the login, sends logged-out visitors to /login
 app/            Next.js routes: /periods/[year]/[month] (5 tabs), /how-it-works,
                 /login and /auth/callback (sign-in), /receipts/[id] (opens a receipt file),
-                /backup (the Download backup zip)
+                /backup (the Download backup zip), /api/bill-email (bills from the Gmail script)
 .claude/        Claude Code: review agents (agents/), the startup check (hooks/, settings.json), and
                 the commands it may run without asking (settings.json → permissions.allow:
                 read-only checks only — typecheck, test, lint, git fetch)
@@ -172,7 +189,8 @@ lib/            Money, settlement, month-lock, advances log, bill emails (lib/bi
                 bill import, login (auth.ts, permissions.ts, invites.ts, supabase/),
                 receipt files (receipts.ts, receipt-image.ts, receipt-files.ts), the
                 Download backup (backup.ts) — with their tests
-scripts/        Seed, backup, bill-email import, invite and receipt-storage (setup, backup, restore) scripts
+scripts/        Seed, backup, bill-email import, invite and receipt-storage (setup, backup, restore) scripts;
+                gmail/ holds the reference copy of the Gmail bill script (it runs in Google Apps Script)
 ```
 
 ## Services & accounts
@@ -184,10 +202,10 @@ secrets or a password manager.
 |---|---|---|
 | Supabase (free plan, Seoul — `ap-northeast-2`) | The Postgres database, Auth (the logins), and Storage (receipt files, private `receipts` bucket; 1 GB on the free plan) | Connection strings and keys in `.env.local`; pauses after 7 idle days (above); login settings in [setup.md](setup.md) step 5 |
 | Google Cloud (OAuth client) | "Continue with Google" | Consent screen in Testing mode; members using Google are its test users |
-| My House Gmail (the household's own, not PA's) | Sends the email sign-in codes (Supabase custom SMTP); Meralco, Manila Water and PLDT bills go to it (switching over: [TODO.md](TODO.md)) | 2-Step Verification on; its App Password is only in Supabase's SMTP settings; will forward the bills to the bill inbox address once it exists. Changing it: [setup.md](setup.md) step 5b |
+| My House Gmail (the household's own, not PA's) | Sends the email sign-in codes (Supabase custom SMTP); Meralco, Manila Water and PLDT bills go to it (switching over: [TODO.md](TODO.md)) | 2-Step Verification on; its App Password is only in Supabase's SMTP settings; the bill-email script runs in this account (the row below). Changing it: [setup.md](setup.md) step 5b |
 | GitHub `paulfuentesss/home-finance-tracker` | Code, PRs, the keep-alive job | **Public**; secret `DIRECT_URL` for the keep-alive job |
 | Vercel (Hobby, project `myhouse`) | Runs the app online | Address in `.private/NOTES.md`; how it's set up: [Hosting](#hosting-vercel) below |
-| Inbound email provider | The bill inbox address | Not chosen yet ([TODO.md](TODO.md)) |
+| Google Apps Script "My House bills" (in the My House Gmail's account) | Sends the billers' emails to the app hourly (`scripts/gmail/bill-forwarder.gs`) | Script Properties hold the app address and `BILL_EMAIL_SECRET`; setup and fixing: [setup.md](setup.md) step 7, [below](#bills-stop-arriving-by-email) |
 
 ## Hosting (Vercel)
 
@@ -201,7 +219,8 @@ secrets or a password manager.
 - **Deploys:** every merge to `main` goes live by itself in a minute or two.
 - **Environment variables** (Settings → Environment Variables), Production only and marked
   Sensitive: `DATABASE_URL` (the pooler, port 6543), `NEXT_PUBLIC_SUPABASE_URL`,
-  `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`. Not `DIRECT_URL` — only
+  `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `BILL_EMAIL_SECRET` (the
+  Gmail script's shared secret; [setup.md](setup.md) step 7). Not `DIRECT_URL` — only
   scripts and migrations use it, and they run on PA's laptop. A changed value only takes
   effect after a redeploy (Deployments → ⋯ → Redeploy).
 - **The address** is also Supabase's **Site URL** and is in its Redirect URLs as

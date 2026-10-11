@@ -7,8 +7,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-/** Pages anyone can open. The bill inbox webhook joins this list when it's built. */
-const PUBLIC_PATHS = ["/login", "/auth/"];
+/** Pages anyone can open. /api/bill-email checks its own shared secret (the Gmail script). */
+const PUBLIC_PATHS = ["/login", "/auth/", "/api/bill-email"];
 
 function isPublic(path: string) {
   return PUBLIC_PATHS.some((p) => (p.endsWith("/") ? path.startsWith(p) : path === p));

@@ -14,7 +14,7 @@ begins, then it gets a page here.
 | Months | ✅ | Month picker, starting the next month, live carry-over, closing / reopening | [months.md](months.md) |
 | Manage Columns & People | ✅ | Bill and shared columns, Meralco points, housemates moving in and out, Download backup | [manage.md](manage.md) |
 | Login | ✅ | Google or an emailed code; invite-only; the admin edits everything, housemates log their own advances; the admin can preview as a housemate | [auth.md](auth.md) |
-| Email-imported bills | 🚧 | Bill emails become Pending bills with the payment fee added; Bill Inbox. Missing: the inbox address (an inbound-email provider) | [email-bills.md](email-bills.md) |
+| Email-imported bills | 🚧 | Bill emails, sent hourly by a script in the My House Gmail, become Pending bills with the payment fee added; Bill Inbox. Waiting for its first real bill | [email-bills.md](email-bills.md) |
 | Receipts | ✅ | Proof (screenshots) on each bill and payment, in a private bucket; the admin attaches | [receipts.md](receipts.md) |
 
 Also running, not features of the app itself:

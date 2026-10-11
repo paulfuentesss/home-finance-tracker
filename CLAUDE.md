@@ -89,6 +89,8 @@ Part of every change, in the same PR — not a separate chore.
   - A new Route Handler does its own auth, joins `PUBLIC_PATHS` in `proxy.ts` if public, and
     the allowlist in `lib/actions-guard.test.ts`.
   - `SUPABASE_SECRET_KEY` is read only in `lib/supabase/admin-server.ts` (and scripts).
+  - `/api/bill-email` is the one route without a login (the Gmail script calls it): it checks
+    `BILL_EMAIL_SECRET` before anything else, and only that route reads it.
   - Storage policies must never grant access to every `authenticated` user.
 - **Online on Vercel** (`docs/operations.md` → Hosting): merging to `main` deploys. A new env
   var goes into Vercel too (Production, Sensitive) and needs a redeploy; open items are in

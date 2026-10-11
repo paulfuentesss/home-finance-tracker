@@ -49,9 +49,9 @@ Getting My House running on a new machine. Afterwards, day to day you only need
    Supabase's built-in mailer only sends to the project's own team, so it can't be used.
 
    *Changing it later:* Supabase SMTP settings (username, password, sender email — step c),
-   the support email on the Google consent screen (step a) if it was this Gmail, and the
-   billing email in each provider's account. Send yourself a code to check, then revoke the
-   old Gmail's App Password.
+   the support email on the Google consent screen (step a) if it was this Gmail, the billing
+   email in each provider's account, and the bill-email script (step 7 — it lives in this
+   Gmail's account). Send yourself a code to check, then revoke the old Gmail's App Password.
 
    **c. Supabase → Authentication:**
    - **Sign In / Providers:** turn **off** "Allow new users to sign up" (invite-only). Turn on
@@ -106,6 +106,29 @@ Getting My House running on a new machine. Afterwards, day to day you only need
    npm run dev
    ```
    Open [http://localhost:3000](http://localhost:3000) and sign in.
+7. **Bills by email** (once the app is online — how it works:
+   [features/email-bills.md](features/email-bills.md)). A script in the My House Gmail sends
+   the billers' emails to the app every hour.
+
+   **a. The shared secret.** `openssl rand -base64 32` → in Vercel → Settings → Environment
+   Variables add `BILL_EMAIL_SECRET` (Production, Sensitive), then **redeploy** (Deployments →
+   ⋯ → Redeploy). Check: `curl -X POST https://<address>/api/bill-email` answers 401.
+
+   **b. The script.** Signed in as the My House Gmail, open
+   [script.google.com](https://script.google.com) → New project "My House bills" → paste
+   `scripts/gmail/bill-forwarder.gs` → Project Settings → Script Properties: `APP_URL`
+   (`https://<address>`), `BILL_EMAIL_SECRET` (the same value), `NOTIFY_TO` (your personal
+   Gmail). Run `setup()` and allow access — Google says the app isn't verified because it's your
+   own script: **Advanced → Go to My House bills**. Then run `testRun()`; its log lists each
+   email it sent and the app's answer. It only sends bills received from the day of `setup()`.
+
+   **c. Bills still going to your personal Gmail** (until each biller switches): in the
+   personal Gmail, Settings → Forwarding → **Add a forwarding address** → the My House Gmail →
+   open the confirmation email there and confirm. Then create a filter
+   `from:(meralco.com.ph OR manilawater.com OR pldt.com.ph)` → **Forward it to** the My House
+   Gmail (keep a copy). A filter only forwards new mail, and a bill forwarded by hand is refused
+   (it's then from you, not the biller) — type those in as before. Delete the filter once every
+   biller sends to the My House Gmail.
 
 **Optional, once:**
 - `pg_dump` for backups: `brew install libpq && brew link --force libpq` ([operations.md → Backups](operations.md#backups)).

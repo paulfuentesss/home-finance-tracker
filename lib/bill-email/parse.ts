@@ -6,7 +6,7 @@ import { parseMoneyInput, type Centavos } from "@/lib/money";
 
 export type BillProvider = "meralco" | "water" | "pldt";
 
-/** An email as the inbound webhook (or `npm run bills:import`) hands it over. */
+/** An email as the /api/bill-email route (or `npm run bills:import`) hands it over. */
 export interface BillEmail {
   /** The Message-ID header; makes importing the same email twice a no-op. */
   messageId: string;
@@ -45,12 +45,23 @@ const PROVIDERS: Record<BillProvider, { domain: string; name: string; amountLabe
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 const MONTH_NAME = "(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)";
 
+/** The domain a provider's bills come from (e.g. "meralco.com.ph"). */
+export function providerDomain(provider: BillProvider): string {
+  return PROVIDERS[provider].domain;
+}
+
+/** `domain` is `base` or one of its subdomains (not a lookalike like "base.evil.test"). */
+export function isDomainOrSubdomain(domain: string, base: string): boolean {
+  const d = domain.toLowerCase();
+  return d === base || d.endsWith(`.${base}`);
+}
+
 /** Which provider sent it, from the sender's domain (subdomains count; lookalikes don't). */
 export function providerOf(from: string): BillProvider | null {
   const address = (from.match(/<([^>]+)>/)?.[1] ?? from).trim().toLowerCase();
   const domain = address.split("@")[1] ?? "";
   for (const [provider, { domain: d }] of Object.entries(PROVIDERS) as [BillProvider, { domain: string }][]) {
-    if (domain === d || domain.endsWith(`.${d}`)) return provider;
+    if (isDomainOrSubdomain(domain, d)) return provider;
   }
   return null;
 }

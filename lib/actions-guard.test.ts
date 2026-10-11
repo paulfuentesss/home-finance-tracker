@@ -12,8 +12,15 @@ const ROOT = join(__dirname, "..");
 const PUBLIC_ACTIONS = new Set(["signInWithGoogle", "sendEmailCode", "verifyEmailCode", "signOut"]);
 /** The only actions a non-admin may call; each checks ownership itself (lib/permissions.ts). */
 const MEMBER_ACTIONS = ["addAdvance", "deleteAdvance", "updateAdvance"];
-/** Route Handlers, each doing its own auth. The bill inbox webhook joins this when it's built. */
-const ROUTE_HANDLERS = ["app/auth/callback/route.ts", "app/backup/route.ts", "app/receipts/[id]/route.ts"];
+/** Route Handlers, each doing its own auth. */
+const ROUTE_HANDLERS = [
+  "app/api/bill-email/route.ts",
+  "app/auth/callback/route.ts",
+  "app/backup/route.ts",
+  "app/receipts/[id]/route.ts",
+];
+/** The one route without a login (the Gmail script calls it): the shared secret comes first. */
+const SECRET_ROUTE = "app/api/bill-email/route.ts";
 /** Route Handlers that serve household data: each must check the signed-in member first. */
 const DATA_ROUTES = ["app/backup/route.ts", "app/receipts/[id]/route.ts"];
 /** Data routes only the admin may use: the admin check comes right after the login check. */
@@ -102,6 +109,15 @@ describe("Route Handlers", () => {
     expect(handler).toMatch(/^export async function GET[^{]*\{\s*(\/\/[^\n]*\n\s*)*const viewer = await getViewer\(\);\s*if \(!viewer\) return/);
   });
 
+  it(`${SECRET_ROUTE} checks the shared secret before anything else`, () => {
+    const source = read(join(ROOT, SECRET_ROUTE));
+    const handler = source.slice(source.indexOf("export async function POST"));
+    expect(handler).toMatch(
+      /^export async function POST[^{]*\{\s*const secret = process\.env\.BILL_EMAIL_SECRET;\s*if \(!secret\) return[^\n]*\n\s*if \(!checkBillEmailSecret\(request\.headers\.get\("authorization"\), secret\)\) \{\s*return[^\n]*status: 401/,
+    );
+    expect(source).not.toMatch(/export async function (GET|PUT|PATCH|DELETE)/);
+  });
+
   it.each(ADMIN_ROUTES)("%s refuses anyone but the admin, before anything else", (file) => {
     const source = read(join(ROOT, file));
     const handler = source.slice(source.indexOf("export async function GET"));
@@ -121,5 +137,10 @@ describe("secrets stay on the server", () => {
   it("SUPABASE_SECRET_KEY is read only by admin-server.ts (and the invite script)", () => {
     const readers = files.filter((f) => read(f).includes("process.env.SUPABASE_SECRET_KEY")).map(rel);
     expect(readers).toEqual(["lib/supabase/admin-server.ts"]);
+  });
+
+  it("BILL_EMAIL_SECRET is read only by the bill-email route", () => {
+    const readers = files.filter((f) => read(f).includes("process.env.BILL_EMAIL_SECRET")).map(rel);
+    expect(readers).toEqual([SECRET_ROUTE]);
   });
 });

@@ -221,7 +221,7 @@ and the functions run in the database's region, both set in `vercel.json` rather
 dashboard (versioned and reviewed like code). No Vercel–Supabase integration.
 **Why:** Vercel builds Next.js with no configuration, and Hobby is meant for personal,
 non-commercial use, which a household app is. An own domain isn't needed to launch; it can
-come with Resend or the bill inbox. Production-only variables mean a branch build can never
+come with Resend. Production-only variables mean a branch build can never
 reach the real database, so preview builds would only fail. Running next to the database
 avoids a trans-Pacific round trip per query. The integration would add its own variables over
 ours for a Supabase project that's already wired up.
@@ -328,3 +328,17 @@ The button is a plain `<a>`: not `<Link>`, which would prefetch the zip, and wit
 so an expired login or an error shows as a page instead of being saved as a "backup". `/backup`
 checks the login and the admin itself, like every Route Handler, and `actions-guard.test.ts`
 checks that it does.
+
+## 2026-10-11 — Bills reach the app through a script in the household Gmail
+**Decision:** a Google Apps Script in the My House Gmail sends the billers' emails to
+`/api/bill-email` every hour. Bills still going to PA's personal Gmail are forwarded there by a
+Gmail filter. The route checks a shared secret, then Gmail's DKIM verdict for the biller's
+domain, read from the topmost `Authentication-Results` header only.
+**Why:** it's free, needs no new account or domain, and has no size limit (PLDT attaches its
+bill as a PDF). Gmail has already verified the sender, so the app can use that result; the
+topmost header is the one Gmail's own server adds on arrival, which a sender can't forge. One
+script, in one mailbox: no script reads the personal Gmail. Duplicates were already handled
+(unique Message-ID, one bill per provider and month), so a bill in both inboxes counts once.
+**Instead of:** an inbound-email service (CloudMailin's free plan caps each email at 512 KB;
+Postmark charges for inbound), or a second copy of the script in the personal Gmail — the
+fallback if forwarded bills fail the DKIM check.
