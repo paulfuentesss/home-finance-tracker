@@ -36,9 +36,9 @@ export default async function HowItWorksPage() {
             bill.
           </p>
           <p>
-            When a bill doesn&apos;t divide evenly, the leftover centavo or two goes to <strong>the admin</strong> (who
-            collects), so it never lands on anyone else. Example: ₱1,948.63 Water ÷ 5 = ₱389.726…, so three people pay
-            ₱389.73 and two pay ₱389.72.
+            When a bill doesn&apos;t divide evenly, the leftover centavos are handed out one each,{" "}
+            <strong>the admin</strong> (who collects) first. Example: ₱1,000.02 split 5 ways is ₱200.004 each, so the
+            admin and one other person pay ₱200.01 and the other three pay ₱200.00.
           </p>
         </>
       ),
@@ -74,7 +74,7 @@ export default async function HowItWorksPage() {
     },
     {
       id: "shared-advances",
-      q: "What are shared advances? Why are some “w/o PA”?",
+      q: "What are shared advances? Why do some columns leave someone out?",
       a: (
         <>
           <p>
@@ -83,8 +83,9 @@ export default async function HowItWorksPage() {
             and everyone in that column pays an equal part — including the person who paid, who gets the rest back.
           </p>
           <p>
-            When the usual split doesn&apos;t fit, a separate column is added for that month. For example when PA
-            is away, purchases made meanwhile go into &ldquo;Advances Shared w/o PA&rdquo;, shared by the other four.
+            When the usual split doesn&apos;t fit, the admin adds a separate column for that month. For example, if
+            someone is away for part of the month, what&apos;s bought while they&apos;re gone can go into a column like
+            &ldquo;Advances Shared w/o PA&rdquo;, shared only by the people at home.
           </p>
           <p>
             Logged something wrong, or in the wrong column? Edit it in the Advances Log (the pencil next to it) and
@@ -98,8 +99,8 @@ export default async function HowItWorksPage() {
       q: "What if something isn't shared equally?",
       a: (
         <p>
-          Switch a shared column to <strong>Manual</strong> and type each person&apos;s amount — like the{" "}
-          <strong>Ice Maker Adj.</strong>, where one person covers half and the other four split the rest. If the typed
+          Switch a shared column to <strong>Manual</strong> and type each person&apos;s amount — for example, when one
+          person covers half of a purchase and everyone else splits the rest. If the typed
           amounts don&apos;t add up to the column&apos;s total, the table shows how much it&apos;s over or short.
         </p>
       ),
@@ -114,8 +115,8 @@ export default async function HowItWorksPage() {
             bills you paid).
           </p>
           <ul className="list-disc space-y-1 pl-5">
-            <li>Positive (e.g. ₱5,362.76): you still need to pay this amount.</li>
-            <li>Negative (e.g. −₱15,059.19): you paid more than your share and get this back.</li>
+            <li>Positive (e.g. ₱1,250.00): you still need to pay this amount.</li>
+            <li>Negative (e.g. −₱3,400.00): you paid more than your share and get this back.</li>
           </ul>
           <p>
             <strong>Final</strong> adds last month&apos;s unsettled balance, takes off any payments already made, and
@@ -156,8 +157,8 @@ export default async function HowItWorksPage() {
         <>
           <p>
             Meralco, Water and PLDT email their bills, and the app reads the amount and due date from the email. The
-            bill goes into the month it&apos;s for (the month the provider names, e.g. &ldquo;Meralco bill for August
-            2026&rdquo;) marked <strong>Pending</strong>.
+            bill goes into the month it&apos;s for — the month the provider names on the bill, not the day the email
+            arrives — marked <strong>Pending</strong>.
           </p>
           <p>
             The small fee for paying it is added and shared like the bill
@@ -220,7 +221,7 @@ export default async function HowItWorksPage() {
           </p>
           <p>
             A payment comes off the payer&apos;s Final and the receiver&apos;s, and shows in the Split Table&apos;s
-            Payments column. Pay back ₱10,105.83 you owed and your Final goes to ₱0.00 — Settled.
+            Payments column. Pay back everything you owed and your Final goes to ₱0.00 — Settled.
           </p>
         </>
       ),
@@ -254,7 +255,8 @@ export default async function HowItWorksPage() {
             amounts simply carry over.
           </p>
           <p>
-            Months close in order (July before August), and only once no bill in it is still pending. If something
+            Months close in order, oldest first — a month can&apos;t be closed while an earlier one is still open, or
+            while a bill in it is still pending. If something
             needs fixing, the admin can <strong>reopen</strong> the latest closed month, fix it, and close it again.
           </p>
         </>
