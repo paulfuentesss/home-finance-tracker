@@ -21,6 +21,11 @@ export interface SettlementBill {
   name: string;
   totalAmount: string;
   paidById: MemberId;
+  /**
+   * Several payers (the Helper bill, from its visits and early pay: lib/helper.ts). When set,
+   * each is credited their amount instead of `paidById` the whole total; must sum to the total.
+   */
+  paidBy?: SettlementShare[];
   status: "confirmed" | "pending";
 }
 
@@ -198,8 +203,14 @@ export function computeMonth(input: MonthInput): MonthResult {
       row(share.memberId).billShares.set(bill.id, amount);
       row(share.memberId).total += amount;
     }
-    // Full ledger: whoever paid the provider (usually the collector) is credited in full.
-    row(bill.paidById).billsPaid += total;
+    // Full ledger: whoever paid the provider (usually the collector) is credited in full —
+    // or, for a bill with several payers, each for their part.
+    if (bill.paidBy) {
+      assertSharesSumTo(bill.paidBy, total, `Payers of ${bill.name}`, assertMember);
+      for (const payer of bill.paidBy) row(payer.memberId).billsPaid += toCentavos(payer.amount);
+    } else {
+      row(bill.paidById).billsPaid += total;
+    }
   }
 
   // --- Advances: each is logged into a shared column; a column's total is the sum of its

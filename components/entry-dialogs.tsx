@@ -1,15 +1,17 @@
 "use client";
 
-import { Columns3, HandCoins, Plus, UserPlus } from "lucide-react";
+import { Columns3, HandCoins, NotebookPen, Plus, UserPlus } from "lucide-react";
 import { startTransition, useActionState, useRef, useState } from "react";
 import {
   addAdvance,
   addBill,
+  addHelperEntry,
   addMember,
   addPayment,
   addSharedColumn,
   submitPayment,
   updateAdvance,
+  updateHelperEntry,
   updatePayment,
   type ActionState,
 } from "@/app/periods/[year]/[month]/actions";
@@ -31,7 +33,7 @@ import { useIsPreviewing, useViewer } from "@/components/viewer-context";
 import { CATEGORY_LABELS, todayInManila } from "@/lib/format";
 import { formatPHP, fromCentavos, parseMoneyInput, type Centavos } from "@/lib/money";
 import { isAdmin } from "@/lib/permissions";
-import type { PeriodView, ViewAdvance, ViewPayment } from "@/lib/periods";
+import type { PeriodView, ViewAdvance, ViewHelperEntry, ViewPayment } from "@/lib/periods";
 import { prepareReceiptFile } from "@/lib/receipt-image";
 import { MAX_RECEIPT_BYTES } from "@/lib/receipts";
 
@@ -247,6 +249,191 @@ function AdvanceForm({ view, advance, onDone }: Props & { advance?: ViewAdvance;
               Save &amp; add another
             </Button>
           )}
+        </DialogFooter>
+      </form>
+    </>
+  );
+}
+
+type HelperKind = ViewHelperEntry["kind"];
+
+const HELPER_FORMS: Record<
+  HelperKind,
+  { button: string; title: string; editTitle: string; description: string; amountLabel: string; submit: string }
+> = {
+  visit: {
+    button: "Log a visit",
+    title: "Log a visit",
+    editTitle: "Edit visit",
+    description:
+      "A day she worked. Whoever paid her gets it back in the split. Anything taken off her pay comes off what she owes.",
+    amountLabel: "Daily pay (₱)",
+    submit: "Log visit",
+  },
+  early_pay: {
+    button: "Give early pay",
+    title: "Give early pay",
+    editTitle: "Edit early pay",
+    description:
+      "Money given to her before she works. Whoever gave it gets it back in this month's split, and it's added to what she owes.",
+    amountLabel: "Early pay (₱)",
+    submit: "Save early pay",
+  },
+  opening: {
+    button: "Set starting debt",
+    title: "Set her starting debt",
+    editTitle: "Edit her starting debt",
+    description:
+      "What she still owes from the Google Sheet (its Remaining). It's only added to what she owes — not split, since the sheet already settled it.",
+    amountLabel: "She owes (₱)",
+    submit: "Save",
+  },
+};
+
+/**
+ * "Log a visit", "Give early pay" or (PA) "Set starting debt" on the Helper tab. The starting
+ * debt is set once, so it's a link inside the "She owes" card rather than a button.
+ */
+export function AddHelperEntryDialog({ view, kind }: Props & { kind: HelperKind }) {
+  const [open, setOpen] = useState(false);
+  const Icon = kind === "visit" ? Plus : kind === "early_pay" ? HandCoins : NotebookPen;
+  const trigger =
+    kind === "opening" ? (
+      <Button variant="link" className="h-auto p-0 text-amber-700" />
+    ) : (
+      <Button variant={kind === "visit" ? "default" : "outline"} />
+    );
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={trigger}>
+        <Icon />
+        {HELPER_FORMS[kind].button}
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <HelperEntryForm view={view} kind={kind} onDone={() => setOpen(false)} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Edits a Helper entry (open while `entry` is set). It keeps its kind and month. */
+export function EditHelperEntryDialog({
+  view,
+  entry,
+  onClose,
+}: Props & { entry: ViewHelperEntry | null; onClose: () => void }) {
+  return (
+    <Dialog open={entry !== null} onOpenChange={(next) => !next && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        {entry && <HelperEntryForm key={entry.id} view={view} kind={entry.kind} entry={entry} onDone={onClose} />}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function HelperEntryForm({
+  view,
+  kind,
+  entry,
+  onDone,
+}: Props & { kind: HelperKind; entry?: ViewHelperEntry; onDone: () => void }) {
+  // Housemates log what they paid themselves; only PA picks who paid. (The server forces the
+  // same, whatever this form sends.)
+  const viewer = useViewer();
+  const admin = isAdmin(viewer);
+  const { state, pending, previewing, onSubmit } = useDialogForm(entry ? updateHelperEntry : addHelperEntry, onDone);
+  const form = HELPER_FORMS[kind];
+  const memberItems = view.members.map((m) => ({ value: String(m.id), label: m.name }));
+  const collectorId = String(view.members.find((m) => m.isCollector)?.id ?? view.members[0]?.id);
+  // What she owes before this visit's deduction (when editing, add back what it took off).
+  const owes = view.helper.owesNow + (entry?.deduction ?? 0);
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>{entry ? form.editTitle : form.title}</DialogTitle>
+        <DialogDescription>{form.description}</DialogDescription>
+      </DialogHeader>
+      <form onSubmit={onSubmit} className="grid gap-4">
+        {entry ? (
+          <input type="hidden" name="entryId" value={entry.id} />
+        ) : (
+          <>
+            <input type="hidden" name="periodId" value={view.period.id} />
+            <input type="hidden" name="kind" value={kind} />
+          </>
+        )}
+        <div className="grid grid-cols-2 gap-3">
+          {kind === "opening" ? null : admin ? (
+            <Field label={kind === "visit" ? "Paid her" : "Given by"} htmlFor="payerId">
+              <SelectField
+                id="payerId"
+                items={memberItems}
+                defaultValue={entry?.payerId ? String(entry.payerId) : collectorId}
+              />
+            </Field>
+          ) : (
+            // A hidden field, not a disabled select: disabled fields aren't submitted.
+            <div className="grid gap-1.5">
+              <span className="text-sm font-medium">{kind === "visit" ? "Paid her" : "Given by"}</span>
+              <span className="flex h-8 items-center text-sm">{viewer.name}</span>
+              <input type="hidden" name="payerId" value={viewer.memberId} />
+            </div>
+          )}
+          <Field label="Date (optional)" htmlFor="onDate">
+            <Input
+              id="onDate"
+              name="onDate"
+              type="date"
+              defaultValue={entry ? (entry.onDate ?? "") : kind === "opening" ? "" : todayInManila()}
+            />
+          </Field>
+        </div>
+        {/* items-start: the hint under "Taken off" mustn't push "Daily pay" down. */}
+        <div className="grid grid-cols-2 items-start gap-3">
+          <Field label={form.amountLabel} htmlFor="amount">
+            <Input
+              id="amount"
+              name="amount"
+              inputMode="decimal"
+              placeholder="0.00"
+              defaultValue={entry ? fromCentavos(entry.amount) : undefined}
+              required
+            />
+          </Field>
+          {kind === "visit" && (
+            <Field label="Taken off her debt (₱)" htmlFor="deduction">
+              <Input
+                id="deduction"
+                name="deduction"
+                inputMode="decimal"
+                placeholder="0.00"
+                defaultValue={entry && entry.deduction > 0 ? fromCentavos(entry.deduction) : undefined}
+              />
+              <p className="text-xs text-muted-foreground">
+                {owes > 0
+                  ? `She owes ${formatPHP(owes)} in all (less, if some early pay is dated after this visit).`
+                  : "She owes nothing right now."}
+              </p>
+            </Field>
+          )}
+        </div>
+        <Field label="Note (optional)" htmlFor="note">
+          <Input
+            id="note"
+            name="note"
+            placeholder={kind === "visit" ? "Paid late" : ""}
+            defaultValue={entry?.note ?? undefined}
+            maxLength={120}
+          />
+        </Field>
+        {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
+        {previewing && <p className="text-sm text-sky-800">You&apos;re previewing, so saving is off.</p>}
+        <DialogFooter>
+          <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
+          <Button type="submit" disabled={pending || previewing}>
+            {pending ? "Saving…" : entry ? "Save changes" : form.submit}
+          </Button>
         </DialogFooter>
       </form>
     </>

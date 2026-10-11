@@ -16,7 +16,6 @@ import { InlineInput, type FormAction } from "@/components/inline-input";
 import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { useDragScroll } from "@/hooks/use-drag-scroll";
 import { dayLabel, monthLabel } from "@/lib/format";
-import { BILLS_WITHOUT_DATES } from "@/lib/household-config";
 import { formatPHP, fromCentavos, sumCentavos } from "@/lib/money";
 import type { PeriodView, ViewBill, ViewColumn, ViewRow } from "@/lib/periods";
 import { cn } from "@/lib/utils";
@@ -90,7 +89,15 @@ export function SplitTable({ view }: { view: PeriodView }) {
                 </th>
                 {bills.map((bill) => (
                   <td key={bill.id} className={cn(cellBase, "text-center")}>
-                    {editable && bill.splitMode !== "manual" ? (
+                    {bill.paidBy ? (
+                      // Visits are logged on the Helper tab; the total is what was handed over.
+                      <Link
+                        href={`/periods/${view.period.year}/${view.period.month}/helper`}
+                        className="font-semibold underline decoration-dotted underline-offset-4 hover:text-amber-700"
+                      >
+                        {formatPHP(bill.total)}
+                      </Link>
+                    ) : editable && bill.splitMode !== "manual" ? (
                       <MoneyInput
                         action={updateBillTotal}
                         hidden={{ billId: bill.id }}
@@ -102,6 +109,7 @@ export function SplitTable({ view }: { view: PeriodView }) {
                       <span className="font-semibold">{formatPHP(bill.total)}</span>
                     )}
                     {bill.splitMode === "manual" && <div className="mt-1 text-[11px] text-muted-foreground">sum of shares</div>}
+                    {bill.paidBy && <div className="mt-1 font-sans text-[11px] text-muted-foreground">from the Helper tab</div>}
                     <EmailedNote bill={bill} />
                     {bill.status === "pending" && editable && <PendingBillActions bill={bill} />}
                   </td>
@@ -330,8 +338,8 @@ function MoneyInput({
   );
 }
 
-/** False for bills like the Helper that have no due date or date paid. */
-const hasDates = (bill: ViewBill) => !BILLS_WITHOUT_DATES.some((name) => name.toLowerCase() === bill.name.trim().toLowerCase());
+/** False for the Helper: no due date or date paid (her visits have their own dates, on the Helper tab). */
+const hasDates = (bill: ViewBill) => bill.kind !== "helper";
 
 /**
  * Shows the date as "Sept. 6". A transparent native date input sits on top, so clicking the

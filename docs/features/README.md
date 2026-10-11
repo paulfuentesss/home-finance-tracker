@@ -10,10 +10,11 @@ begins, then it gets a page here.
 |---|---|---|---|
 | Monthly Split Table | ✅ | Every bill and shared column split per person, Month Final, carry-over, Final; "Who owes what" cards | [split-table.md](split-table.md) |
 | Advances | ✅ | Log household purchases into shared columns; per-person report | [advances.md](advances.md) |
+| Helper | ✅ | Her visits and early pay: whoever paid her gets it back, the Helper column fills in by itself, and what she owes carries across months | [helper.md](helper.md) |
 | Settle Up | ✅ | Who owes whom; PA records a payment in one tap, a housemate sends theirs with “I paid” and a screenshot for PA to confirm | [settle-up.md](settle-up.md) |
 | Months | ✅ | Month picker, starting the next month, live carry-over, closing / reopening, the backup reminder | [months.md](months.md) |
 | Manage Columns & People | ✅ | Bill and shared columns, Meralco points, housemates moving in and out, Download backup | [manage.md](manage.md) |
-| Login | ✅ | Google or an emailed code; invite-only; the admin edits everything, housemates log their own advances; the admin can preview as a housemate | [auth.md](auth.md) |
+| Login | ✅ | Google or an emailed code; invite-only; the admin edits everything, housemates log their own advances and Helper visits; the admin can preview as a housemate | [auth.md](auth.md) |
 | Email-imported bills | 🚧 | Bill emails, sent hourly by a script in the My House Gmail, become Pending bills with the payment fee added; Bill Inbox. Waiting for its first real bill | [email-bills.md](email-bills.md) |
 | Receipts | ✅ | Proof (screenshots) on each bill and payment, in a private bucket; the admin attaches | [receipts.md](receipts.md) |
 
@@ -35,6 +36,7 @@ Every feature page uses the same headings: **Status** · **What it does** · **H
 | **Admin / member** | Login roles ([auth.md](auth.md)). The admin (PA) can change everything; members see everything and manage their own advances. |
 | **Invite** | A member's login email, set in Manage. Only invited emails can sign in. |
 | **Bill column** | A bill in the Split Table (Meralco, Water, PLDT Wifi, Helper, …), split equally, by points or manually. |
+| **Daily pay / early pay** | The Helper's pay for a visit / money given to her before she works, which she owes until it's taken off her daily pay ([helper.md](helper.md)). |
 | **Shared column** | A column of advances split among who shares it ("Advances Shared", "w/o PA", a Manual one). |
 | **Advance** | A household purchase one member paid for themselves; logged into a shared column. |
 | **Points** | Meralco's split: each member's share of electricity use. |

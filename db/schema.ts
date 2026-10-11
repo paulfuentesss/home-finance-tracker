@@ -36,6 +36,13 @@ export const billEmailStatus = pgEnum("bill_email_status", ["imported", "unmatch
 // equal = split evenly; points = split by each member's points (Meralco);
 // manual = amounts typed per member, and the bill total is their sum.
 export const billSplitMode = pgEnum("bill_split_mode", ["equal", "points", "manual"]);
+// helper = the Helper column: once its month has visits or early pay (helper_entries), its total
+// and who paid it come from them (docs/features/helper.md). standard = every other bill.
+export const billKind = pgEnum("bill_kind", ["standard", "helper"]);
+// visit = a day's work (her daily pay, part of it maybe taken off her debt) · early_pay = money
+// given before she works, which becomes her debt · opening = her debt carried over from the
+// Google Sheet (already settled there, so it's in no bill).
+export const helperEntryKind = pgEnum("helper_entry_kind", ["visit", "early_pay", "opening"]);
 // admin = PA: can change everything. member = sees everything (except Manage) and logs their
 // own advances in the default column (lib/permissions.ts).
 export const memberRole = pgEnum("member_role", ["admin", "member"]);
@@ -110,6 +117,7 @@ export const billItems = pgTable(
       .notNull()
       .references(() => members.id, { onDelete: "restrict" }),
     splitMode: billSplitMode("split_mode").notNull().default("equal"),
+    kind: billKind("kind").notNull().default("standard"),
     dueDate: date("due_date", { mode: "string" }),
     paidOn: date("paid_on", { mode: "string" }),
     source: billSource("source").notNull().default("manual"),
@@ -119,6 +127,8 @@ export const billItems = pgTable(
   },
   (t) => [
     uniqueIndex("bill_items_period_name").on(t.periodId, t.name),
+    // At most one Helper column per month.
+    uniqueIndex("bill_items_one_helper").on(t.periodId).where(sql`${t.kind} = 'helper'`),
     // ₱0 is allowed: a new month's copied bill columns start empty until the bill arrives.
     check("bill_items_total_nonneg", sql`${t.totalAmount} >= 0`),
   ],
@@ -218,6 +228,40 @@ export const advances = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [check("advances_amount_positive", sql`${t.amount} > 0`)],
+).enableRLS();
+
+// The Helper's visits and early pay (docs/features/helper.md), replacing the sheet's two
+// tables. Each row is money someone handed her, except `opening`. The month's Helper bill is
+// what was handed over (visit amount − deduction, plus early pay), credited to each payer; her
+// debt is early pay + opening − every deduction, across all months (lib/helper.ts).
+export const helperEntries = pgTable(
+  "helper_entries",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    // The month it counts in, which may not be the visit's date (a visit paid late).
+    periodId: integer("period_id")
+      .notNull()
+      .references(() => billingPeriods.id, { onDelete: "restrict" }),
+    kind: helperEntryKind("kind").notNull(),
+    // Who handed her the money; null only for `opening`.
+    payerId: integer("payer_id").references(() => members.id, { onDelete: "restrict" }),
+    // Optional: some visits have no date.
+    onDate: date("on_date", { mode: "string" }),
+    // Her daily pay (visit), the early pay, or the carried-over debt (opening).
+    amount: money("amount").notNull(),
+    // Visits only: the part of her daily pay taken off her debt instead of handed over.
+    deduction: money("deduction").notNull().default("0"),
+    note: text("note"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    check("helper_entries_amount_positive", sql`${t.amount} > 0`),
+    check("helper_entries_deduction_range", sql`${t.deduction} >= 0 AND ${t.deduction} <= ${t.amount}`),
+    check("helper_entries_deduction_visit_only", sql`${t.kind} = 'visit' OR ${t.deduction} = 0`),
+    check("helper_entries_payer", sql`(${t.kind} = 'opening') = (${t.payerId} IS NULL)`),
+    index("helper_entries_period_id").on(t.periodId),
+  ],
 ).enableRLS();
 
 // Real money changing hands to settle up (usually member → collector).
@@ -374,6 +418,7 @@ export const billingPeriodsRelations = relations(billingPeriods, ({ many }) => (
   advances: many(advances),
   payments: many(payments),
   balances: many(periodBalances),
+  helperEntries: many(helperEntries),
 }));
 
 export const billItemsRelations = relations(billItems, ({ one, many }) => ({
@@ -404,6 +449,11 @@ export const advancesRelations = relations(advances, ({ one }) => ({
   period: one(billingPeriods, { fields: [advances.periodId], references: [billingPeriods.id] }),
   column: one(sharedColumns, { fields: [advances.columnId], references: [sharedColumns.id] }),
   payer: one(members, { fields: [advances.payerId], references: [members.id] }),
+}));
+
+export const helperEntriesRelations = relations(helperEntries, ({ one }) => ({
+  period: one(billingPeriods, { fields: [helperEntries.periodId], references: [billingPeriods.id] }),
+  payer: one(members, { fields: [helperEntries.payerId], references: [members.id] }),
 }));
 
 export const billEmailsRelations = relations(billEmails, ({ one }) => ({
@@ -441,6 +491,7 @@ export type NewAdvance = typeof advances.$inferInsert;
 export type SharedColumn = typeof sharedColumns.$inferSelect;
 export type SharedColumnMember = typeof sharedColumnMembers.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
+export type HelperEntry = typeof helperEntries.$inferSelect;
 export type BillEmailRow = typeof billEmails.$inferSelect;
 export type Receipt = typeof receipts.$inferSelect;
 export type PeriodBalance = typeof periodBalances.$inferSelect;

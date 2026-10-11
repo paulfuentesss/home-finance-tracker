@@ -15,6 +15,7 @@ import {
   billingPeriods,
   billItems,
   billItemShares,
+  helperEntries,
   members,
   payments,
   periodBalances,
@@ -60,6 +61,7 @@ try {
           .where(or(eq(billItems.periodId, existing.id), eq(payments.periodId, existing.id)))
       ).map((r) => r.path);
       await tx.delete(advances).where(eq(advances.periodId, existing.id));
+      await tx.delete(helperEntries).where(eq(helperEntries.periodId, existing.id));
       // shared_column_members rows go with their column (ON DELETE CASCADE).
       await tx.delete(sharedColumns).where(eq(sharedColumns.periodId, existing.id));
       if (billIds.length) await tx.delete(billItemShares).where(inArray(billItemShares.billItemId, billIds));
@@ -106,6 +108,8 @@ try {
         .values({
           periodId: period.id,
           name: bill.name,
+          // Marked like migration 0010 marked the live ones: no visits logged, so its typed total counts.
+          kind: bill.name.toLowerCase() === "helper" ? "helper" : "standard",
           totalAmount: bill.totalAmount,
           paidById: idOf(bill.paidBy),
           splitMode: bill.splitMode,

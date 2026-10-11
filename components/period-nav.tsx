@@ -1,6 +1,17 @@
 "use client";
 
-import { Check, ChevronLeft, ChevronRight, CalendarPlus, HandCoins, Layers, PhilippinePeso, ReceiptText, Settings } from "lucide-react";
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  CalendarPlus,
+  HandCoins,
+  Layers,
+  PhilippinePeso,
+  ReceiptText,
+  Settings,
+  Sparkles,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -16,7 +27,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { monthLabel } from "@/lib/format";
+import { monthLabel, shortMonthLabel } from "@/lib/format";
 import { useViewer } from "@/components/viewer-context";
 import { isAdmin } from "@/lib/permissions";
 import type { PeriodSummary } from "@/lib/periods";
@@ -26,6 +37,7 @@ import { cn } from "@/lib/utils";
 const TABS = [
   { href: "", label: "Monthly Split Table", short: "Split", icon: Layers },
   { href: "/advances", label: "Advances Log & Report", short: "Advances", icon: PhilippinePeso },
+  { href: "/helper", label: "Helper Visits", short: "Helper", icon: Sparkles },
   { href: "/receipts", label: "Payment Proofs / Receipts", short: "Receipts", icon: ReceiptText },
   { href: "/settle", label: "Settle Up", short: "Settle", icon: HandCoins },
   { href: "/manage", label: "Manage Columns & People", short: "Manage", icon: Settings },
@@ -111,9 +123,10 @@ export function MonthPicker({
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger
           aria-label="Choose month"
-          className="cursor-pointer rounded-lg px-1.5 py-0.5 text-xl font-semibold tracking-tight transition-colors outline-none hover:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-ring data-popup-open:bg-zinc-100"
+          className="cursor-pointer rounded-lg px-1.5 py-0.5 text-xl font-semibold tracking-tight whitespace-nowrap transition-colors outline-none hover:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-ring data-popup-open:bg-zinc-100"
         >
-          {monthLabel(current.year, current.month)}
+          <span className="sm:hidden">{shortMonthLabel(current.year, current.month)}</span>
+          <span className="hidden sm:inline">{monthLabel(current.year, current.month)}</span>
         </PopoverTrigger>
         <PopoverContent align="start" className="w-48 gap-0 p-1">
           <ul>
