@@ -6,6 +6,7 @@ import {
   ChevronRight,
   CalendarPlus,
   HandCoins,
+  KeyRound,
   Layers,
   PhilippinePeso,
   ReceiptText,
@@ -40,6 +41,7 @@ const TABS = [
   { href: "/helper", label: "Helper Visits", short: "Helper", icon: Sparkles },
   { href: "/receipts", label: "Payment Proofs / Receipts", short: "Receipts", icon: ReceiptText },
   { href: "/settle", label: "Settle Up", short: "Settle", icon: HandCoins },
+  { href: "/billers", label: "Billers & Accounts", short: "Billers", icon: KeyRound },
   { href: "/manage", label: "Manage Columns & People", short: "Manage", icon: Settings },
 ] as const;
 

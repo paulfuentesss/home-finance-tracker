@@ -278,6 +278,10 @@ export default async function HowItWorksPage() {
             out, closing months — is done by the admin. If one of your advances should be split differently (say, not with
             everyone), the admin moves it to the right column; after that, only the admin can change it.
           </p>
+          <p>
+            <strong>Billers &amp; Accounts</strong> — account numbers, how each bill is paid, logins — is kept up to date
+            by the admin. You see what&apos;s shared with you; passwords stay hidden until you tap to reveal one.
+          </p>
         </>
       ),
     },

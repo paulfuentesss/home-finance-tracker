@@ -30,12 +30,13 @@ const ROUTE_HANDLERS = [
   "app/api/bill-email/route.ts",
   "app/auth/callback/route.ts",
   "app/backup/route.ts",
+  "app/biller-secrets/[id]/route.ts",
   "app/receipts/[id]/route.ts",
 ];
 /** The one route without a login (the Gmail script calls it): the shared secret comes first. */
 const SECRET_ROUTE = "app/api/bill-email/route.ts";
 /** Route Handlers that serve household data: each must check the signed-in member first. */
-const DATA_ROUTES = ["app/backup/route.ts", "app/receipts/[id]/route.ts"];
+const DATA_ROUTES = ["app/backup/route.ts", "app/biller-secrets/[id]/route.ts", "app/receipts/[id]/route.ts"];
 /** Data routes only the admin may use: the admin check comes right after the login check. */
 const ADMIN_ROUTES = ["app/backup/route.ts"];
 
@@ -138,6 +139,13 @@ describe("Route Handlers", () => {
     expect(source.indexOf("canSeePaymentProof(viewer")).toBeLessThan(source.indexOf("createSignedUrl"));
   });
 
+  it("app/biller-secrets/[id]/route.ts unlocks a password only for someone it's shared with", () => {
+    const source = read(join(ROOT, "app/biller-secrets/[id]/route.ts"));
+    expect(source).toMatch(/if \(!canSeeBillerField\(viewer, field\)\) return/);
+    expect(source.indexOf("canSeeBillerField(viewer")).toBeLessThan(source.indexOf("decryptSecret("));
+    expect(source).toMatch(/"Cache-Control": "no-store"/);
+  });
+
   it.each(ADMIN_ROUTES)("%s refuses anyone but the admin, before anything else", (file) => {
     const source = read(join(ROOT, file));
     const handler = source.slice(source.indexOf("export async function GET"));
@@ -149,7 +157,9 @@ describe("secrets stay on the server", () => {
   it("no Client Component imports the admin client, invites or the auth layer", () => {
     const leaks = files
       .filter((f) => /^\s*["']use client["']/.test(read(f)))
-      .filter((f) => /from "@\/lib\/(supabase\/admin|invites|auth)"|from "@\/lib\/supabase\/admin-server"/.test(read(f)))
+      .filter((f) =>
+        /from "@\/lib\/(supabase\/admin|invites|auth|biller-secrets)"|from "@\/lib\/supabase\/admin-server"/.test(read(f)),
+      )
       .map(rel);
     expect(leaks).toEqual([]);
   });
@@ -157,6 +167,11 @@ describe("secrets stay on the server", () => {
   it("SUPABASE_SECRET_KEY is read only by admin-server.ts (and the invite script)", () => {
     const readers = files.filter((f) => read(f).includes("process.env.SUPABASE_SECRET_KEY")).map(rel);
     expect(readers).toEqual(["lib/supabase/admin-server.ts"]);
+  });
+
+  it("BILLER_SECRET_KEY is read only by lib/biller-secrets.ts", () => {
+    const readers = files.filter((f) => read(f).includes("process.env.BILLER_SECRET_KEY")).map(rel);
+    expect(readers).toEqual(["lib/biller-secrets.ts"]);
   });
 
   it("BILL_EMAIL_SECRET is read only by the bill-email route", () => {

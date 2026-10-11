@@ -66,6 +66,14 @@ export function canSeePaymentProof(viewer: Viewer, payment: { fromMemberId: numb
 }
 
 /**
+ * Whether the viewer may see a line on the Billers tab (docs/features/billers.md), passwords
+ * included: the admin sees all of them, housemates the ones shared with them.
+ */
+export function canSeeBillerField(viewer: Viewer, field: { housematesCanSee: boolean }): boolean {
+  return isAdmin(viewer) || field.housematesCanSee;
+}
+
+/**
  * Who the admin is previewing as ("Preview as…" in the account menu), shaped like that
  * housemate's own login, or null for no preview. Only the admin may preview, and only an active
  * member who isn't an admin. The preview changes what's shown, never what's allowed: the server

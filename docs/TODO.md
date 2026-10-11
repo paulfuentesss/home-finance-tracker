@@ -8,6 +8,12 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
 
 ## Next
 
+- [ ] **Set up the passwords key, then fill in the Billers tab** ([billers](features/billers.md)).
+      `BILLER_SECRET_KEY` in `.env.local` and Vercel, plus a copy in a password manager
+      ([setup.md](setup.md) step 5g) — *before merging*, or saving a password on the live site
+      says "Passwords aren't set up". Then type in the billers from the old sheet, and delete the
+      passwords from the sheet.
+
 - [ ] **Invite the housemates** ([auth](features/auth.md)). Login testing is finished
       (2026-10-09). A test housemate still has a `+` alias of PA's Gmail; swap in their real
       address. Anyone signing in with Google also needs to be a test user on the consent screen.

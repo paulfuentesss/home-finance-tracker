@@ -464,3 +464,18 @@ deductions.
 **Instead of:** the bill = her daily pay with each deduction credited to whoever gave the early
 pay (exact too, but the giver waits weeks to be paid back and the app must match each deduction
 to an early pay), or two columns (pay, and early pay − deductions, which can go negative).
+
+## 2026-10-12 — Biller passwords are encrypted by the app and revealed one at a time
+**Decision:** the Billers tab ([features/billers.md](features/billers.md)) keeps the billers'
+logins and the Wi-Fi details too. A password is encrypted (AES-256-GCM) before it's saved, with
+a key (`BILLER_SECRET_KEY`) that lives only in `.env.local` and Vercel; the page never carries
+one — Reveal fetches it from `/biller-secrets/<id>`, which checks the login and that it's
+shared with the viewer. Every line, passwords included, is shared with housemates unless PA
+switches it to admin only.
+**Why:** PA wanted the sheet's details, logins included, in one place the household can look
+them up. Encrypting means the database, its backups and anyone with database access see only
+locked text; fetching on Reveal keeps passwords out of the page's HTML and the browser's cache.
+The cost: losing the key loses the passwords, so a copy of it is kept in a password manager.
+**Instead of:** plain text hidden from housemates (readable by anyone with the database or a
+backup), or no passwords on the site and a shared password manager only (safest, but a second
+place to look, and PA wanted it in My House).
