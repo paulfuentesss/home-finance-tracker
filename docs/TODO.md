@@ -74,7 +74,8 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
 Live on Vercel since 2026-10-10 ([operations.md → Hosting](operations.md#hosting-vercel)).
 
 **Content & UX**
-- [ ] Mobile check of every tab.
+- [x] Mobile check of every tab (2026-10-11): Split, Advances, Receipts, Settle, Manage and How
+      it works, checked at phone width and fixed where needed.
 - [x] Accessibility in the code: alt text, a heading per page, labels on every field and icon
       button, color contrast (the amber buttons are a chosen exception: [decisions.md](decisions.md)),
       visible keyboard focus on the tabs.

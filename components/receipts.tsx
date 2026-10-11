@@ -81,7 +81,8 @@ export function ReceiptsRow({ children, ...props }: Props & { children: React.Re
 
   return (
     <li className="flex flex-wrap items-center justify-between gap-3 py-3">
-      <div className="min-w-0">{children}</div>
+      {/* Full width on a phone, so the proofs and Attach drop below it (like the bill cards). */}
+      <div className="w-full min-w-0 sm:w-auto sm:flex-1">{children}</div>
       <div className="flex flex-wrap items-center justify-end gap-2">
         <ThumbRow receipts={props.receipts} label={props.label} onOpen={setViewing} />
         {upload.control}

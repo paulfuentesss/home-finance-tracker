@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown, ChevronsDownUp, ChevronsUpDown, Pencil, RotateCcw, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { deleteAdvance } from "@/app/periods/[year]/[month]/actions";
 import { ConfirmDeleteButton } from "@/components/confirm-button";
 import { AddAdvanceDialog, EditAdvanceDialog } from "@/components/entry-dialogs";
@@ -153,7 +153,8 @@ export function AdvancesLog({ view }: { view: PeriodView }) {
 
       <div className="space-y-2 border-b bg-zinc-50/60 px-5 py-3">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative">
+          {/* Phone: search across the top, the two filters sharing the next line. */}
+          <div className="relative w-full sm:w-auto">
             <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="search"
@@ -161,14 +162,17 @@ export function AdvancesLog({ view }: { view: PeriodView }) {
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search expenses…"
               aria-label="Search expenses"
-              className="h-8 w-52 rounded-lg border border-input bg-white pr-3 pl-8 text-sm focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
+              className="h-8 w-full rounded-lg border border-input bg-white pr-3 pl-8 text-sm focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none sm:w-52"
             />
           </div>
-          <FilterSelect label="Filter by payer" items={payerItems} value={payer} onChange={setPayer} />
-          <FilterSelect label="Filter by category" items={categoryItems} value={category} onChange={setCategory} />
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+            <FilterSelect label="Filter by payer" items={payerItems} value={payer} onChange={setPayer} />
+            <FilterSelect label="Filter by category" items={categoryItems} value={category} onChange={setCategory} />
+          </div>
           <Button
             variant="ghost"
             size="sm"
+            className="-ml-2 sm:ml-0"
             disabled={!isFiltered}
             onClick={() => {
               setSearch("");
@@ -208,10 +212,11 @@ export function AdvancesLog({ view }: { view: PeriodView }) {
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-amber-50/60 text-left text-amber-900">
+          {/* Phones get a two-line layout per entry (PersonGroup), so no column headings. */}
+          <thead className="hidden bg-amber-50/60 text-left text-amber-900 md:table-header-group">
             <tr>
               <th className="px-5 py-2.5 font-semibold">Category</th>
-              <th className="px-3 py-2.5 font-semibold">Items / Description</th>
+              <th className="px-3 py-2.5 font-semibold">Items</th>
               <th className="px-3 py-2.5 font-semibold">Column</th>
               <th className="px-3 py-2.5 text-right font-semibold">Amount</th>
               <th className="px-3 py-2.5 text-center font-semibold">Date</th>
@@ -297,45 +302,61 @@ function PersonGroup({
       {!collapsed &&
         group.rows.map((row) => {
           const pill = CATEGORY_PILLS[row.category];
+          const category = (
+            <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset", pill.className)}>
+              {pill.label}
+            </span>
+          );
+          const date = row.date ? dayLabel(row.date) : "—";
+          const actions = row.advanceId !== null && canManage(row.advanceId) && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`Edit ${row.description}`}
+                className="text-muted-foreground hover:text-foreground"
+                onClick={() => onEdit(row.advanceId!)}
+              >
+                <Pencil />
+              </Button>
+              <ConfirmDeleteButton
+                label={`Delete ${row.description}`}
+                title="Delete this advance?"
+                description={`${row.description} · ${group.name} · ${formatPHP(row.amount)}. Everyone's shares will be recalculated.`}
+                onConfirm={() => deleteAdvance(row.advanceId!)}
+              />
+            </>
+          );
           return (
-            <tr key={row.key} className="border-t border-zinc-100 hover:bg-zinc-50/60">
-              <td className="py-2.5 pr-3 pl-11">
-                <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset", pill.className)}>
-                  {pill.label}
-                </span>
-              </td>
-              <td className="px-3 py-2.5">{row.description}</td>
-              <td className="px-3 py-2.5">
-                <SplitChip tag={row.split} color={chipColor(row.split)} />
-              </td>
-              <td className="px-3 py-2.5 text-right font-mono font-semibold tabular-nums">{formatPHP(row.amount)}</td>
-              <td className="px-3 py-2.5 text-center text-muted-foreground tabular-nums">
-                {row.date ? dayLabel(row.date) : "—"}
-              </td>
-              {editable && (
-                <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                  {row.advanceId !== null && canManage(row.advanceId) && (
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={`Edit ${row.description}`}
-                      className="text-muted-foreground hover:text-foreground"
-                      onClick={() => onEdit(row.advanceId!)}
-                    >
-                      <Pencil />
-                    </Button>
-                  )}
-                  {row.advanceId !== null && canManage(row.advanceId) && (
-                    <ConfirmDeleteButton
-                      label={`Delete ${row.description}`}
-                      title="Delete this advance?"
-                      description={`${row.description} · ${group.name} · ${formatPHP(row.amount)}. Everyone's shares will be recalculated.`}
-                      onConfirm={() => deleteAdvance(row.advanceId!)}
-                    />
-                  )}
+            <Fragment key={row.key}>
+              {/* Phone: description and amount, then the tags, date and buttons. */}
+              <tr className="border-t border-zinc-100 md:hidden">
+                <td colSpan={columnCount} className="px-5 py-2.5">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="min-w-0">{row.description}</span>
+                    <span className="shrink-0 font-mono font-semibold tabular-nums">{formatPHP(row.amount)}</span>
+                  </div>
+                  <div className="mt-1.5 flex items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                      {category}
+                      <SplitChip tag={row.split} color={chipColor(row.split)} />
+                      <span className="tabular-nums">{date}</span>
+                    </div>
+                    {actions && <div className="-my-1 flex shrink-0">{actions}</div>}
+                  </div>
                 </td>
-              )}
-            </tr>
+              </tr>
+              <tr className="hidden border-t border-zinc-100 hover:bg-zinc-50/60 md:table-row">
+                <td className="py-2.5 pr-3 pl-11">{category}</td>
+                <td className="px-3 py-2.5">{row.description}</td>
+                <td className="px-3 py-2.5">
+                  <SplitChip tag={row.split} color={chipColor(row.split)} />
+                </td>
+                <td className="px-3 py-2.5 text-right font-mono font-semibold tabular-nums">{formatPHP(row.amount)}</td>
+                <td className="px-3 py-2.5 text-center text-muted-foreground tabular-nums">{date}</td>
+                {editable && <td className="px-3 py-2.5 text-center whitespace-nowrap">{actions}</td>}
+              </tr>
+            </Fragment>
           );
         })}
     </tbody>
@@ -377,7 +398,7 @@ function FilterSelect({
 }) {
   return (
     <Select items={items} value={value} onValueChange={(v) => onChange(v ?? ALL)}>
-      <SelectTrigger aria-label={label} size="sm" className="w-40 bg-white">
+      <SelectTrigger aria-label={label} size="sm" className="w-full bg-white sm:w-40">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

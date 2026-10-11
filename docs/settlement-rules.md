@@ -238,9 +238,10 @@ Meralco, Water (Manila Water) and PLDT email their bills. Each email is read
 - **Payment fee:** the fixed fee of the way PA pays each bill (a payment app's convenience
   fee, say) is added on top. The amounts are a setting, `BILL_PAYMENT_FEES` in
   `lib/household-config.ts`, changed when the way of paying changes. The fee is part of the
-  bill, so **everyone shares it**, and the column notes it ("Emailed bill ₱… + ₱… <what the
-  fee is>"). With the fees, August 2026 imports at exactly the sheet's amounts. Bills already
-  imported keep the fee they came in with (`bill_emails.fee`).
+  bill, so **everyone shares it**, and the column notes it (a "From email" tag under the
+  amount; its popover shows the emailed bill and the fee). With the fees, August 2026 imports
+  at exactly the sheet's amounts. Bills already imported keep the fee they came in with
+  (`bill_emails.fee`).
 - **Pending is ignored by the settlement** until someone confirms it. Before confirming, the
   amount can still be changed. **Discard** sets the column back to ₱0.00 (split and points
   unchanged) and sets the email aside for good.

@@ -52,7 +52,9 @@ function ColumnRow({ column, view, editable }: { column: ViewColumn; view: Perio
     <li className="rounded-lg border bg-zinc-50/60 px-4 py-3">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+          {/* On a phone the name gets the whole line and the mode pill drops below it, so a
+              long name isn't cut off. */}
+          <div className="flex flex-wrap items-center gap-2">
             {editable ? (
               <InlineInput
                 action={renameSharedColumn}
@@ -62,7 +64,7 @@ function ColumnRow({ column, view, editable }: { column: ViewColumn; view: Perio
                 label="Column name"
                 maxLength={60}
                 allowEmpty={false}
-                className="min-w-0"
+                className="w-full min-w-0 sm:w-auto"
                 inputClassName="w-full border-transparent bg-transparent px-1 font-semibold hover:border-input focus:bg-white"
               />
             ) : (

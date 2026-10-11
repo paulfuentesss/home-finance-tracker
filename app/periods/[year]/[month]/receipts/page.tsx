@@ -1,4 +1,5 @@
 import { ShieldCheck } from "lucide-react";
+import { Pair } from "@/components/member-pair";
 import { ReceiptsCard, ReceiptsNote, ReceiptsRow } from "@/components/receipts";
 import { dateLabel } from "@/lib/format";
 import { formatPHP } from "@/lib/money";
@@ -14,7 +15,7 @@ export default async function ReceiptsPage({ params }: PageProps<"/periods/[year
   const { year, month } = await parsePeriodParams(params);
   const view = (await getPeriodView(year, month))!;
   const all = await getPeriodReceipts(view.period.id);
-  const nameOf = new Map(view.members.map((m) => [m.id, m.name]));
+  const memberOf = new Map(view.members.map((m) => [m.id, m]));
   const status = view.period.status;
   const forBill = groupBy(all, (r) => r.billItemId);
   const forPayment = groupBy(all, (r) => r.paymentId);
@@ -60,7 +61,7 @@ export default async function ReceiptsPage({ params }: PageProps<"/periods/[year
                     <span className="font-mono font-semibold text-amber-700 tabular-nums">{formatPHP(bill.total)}</span>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Paid by {nameOf.get(bill.paidById) ?? "—"}
+                    Paid by {memberOf.get(bill.paidById)?.name ?? "—"}
                     {bill.paidOn && ` · ${dateLabel(bill.paidOn)}`}
                   </p>
                 </div>
@@ -81,7 +82,9 @@ export default async function ReceiptsPage({ params }: PageProps<"/periods/[year
         ) : (
           <ul className="divide-y rounded-xl border bg-white px-4 shadow-xs sm:px-5">
             {view.payments.map((p) => {
-              const label = `${nameOf.get(p.fromMemberId) ?? "?"} → ${nameOf.get(p.toMemberId) ?? "?"}`;
+              const from = memberOf.get(p.fromMemberId);
+              const to = memberOf.get(p.toMemberId);
+              const label = `${from?.name ?? "?"} → ${to?.name ?? "?"}`;
               return (
                 <ReceiptsRow
                   key={p.id}
@@ -90,13 +93,19 @@ export default async function ReceiptsPage({ params }: PageProps<"/periods/[year
                   status={status}
                   label={`${label}, ${formatPHP(p.amount)}`}
                 >
-                  <p className="font-medium">
-                    {label} <span className="font-mono tabular-nums">{formatPHP(p.amount)}</span>
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {dateLabel(p.paidOn)}
-                    {p.note && ` · ${p.note}`}
-                  </p>
+                  {/* Laid out like the bill cards above: who on the left, amount on the right. */}
+                  <div className="flex items-baseline justify-between gap-3">
+                    <div className="min-w-0 space-y-0.5">
+                      {from && to ? <Pair from={from} to={to} /> : <p className="text-sm font-medium">{label}</p>}
+                      <p className="text-xs text-muted-foreground">
+                        {dateLabel(p.paidOn)}
+                        {p.note && ` · ${p.note}`}
+                      </p>
+                    </div>
+                    <span className="shrink-0 font-mono font-semibold text-amber-700 tabular-nums">
+                      {formatPHP(p.amount)}
+                    </span>
+                  </div>
                 </ReceiptsRow>
               );
             })}

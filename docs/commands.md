@@ -88,7 +88,7 @@ the start of a session to "work in a new worktree".
 | Command | What it does | When to run it |
 |---|---|---|
 | `git worktree add ../home-finance-tracker-<task> -b <branch> origin/main` | Makes a new folder next to this one, on a new branch from the latest `main` | Before starting a second session; open the new folder in its own VS Code window |
-| `cp ../home-finance-tracker/.env.local . && npm install` | Copies the settings git ignores, installs dependencies | Once, inside the new folder |
+| `ln -s ../home-finance-tracker/.env.local . && npm install` | Links the settings git ignores to the main folder's (one file, so a change there reaches every worktree), installs dependencies | Once, inside the new folder |
 | `git worktree list` | Shows every folder and the branch it's on | Any time |
 | `npm run worktrees:clean` | Removes every finished worktree and its branch: PR merged, nothing committed after it, no uncommitted changes, nothing running from it (dev server, terminal, VS Code, a Claude session). Lists what it kept and why | After PRs merge — the startup check says when some are finished. Close their VS Code windows first |
 | `npm run worktrees:clean -- --dry-run` | Shows what it would remove, removes nothing | When unsure |

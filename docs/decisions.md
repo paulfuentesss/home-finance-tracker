@@ -367,3 +367,13 @@ help.
 **Trade-off:** in session mode each connection holds a database connection while it's open.
 The app uses one per server instance and closes it after 20 s idle; the free plan's pool (about
 15) is far more than a household needs.
+
+## 2026-10-11 — Worktrees link `.env.local` instead of copying it
+**Decision:** a new worktree gets `.env.local` as a symlink to the main folder's
+(`ln -s ../home-finance-tracker/.env.local .`, [commands.md](commands.md#working-in-parallel-git-worktrees)).
+**Why:** a copy is frozen at the moment the worktree is made. When the main folder's
+`DATABASE_URL` moved to the session pooler (above), a worktree made earlier that day kept the
+transaction pooler, so its local server hung on the month page while the live site was fine.
+With one real file, a settings change reaches every worktree.
+**Trade-off:** the link breaks if the main folder moves or is deleted, which would orphan the
+worktrees anyway.

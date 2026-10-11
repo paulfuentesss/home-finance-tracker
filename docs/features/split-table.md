@@ -11,7 +11,9 @@
 - "Who owes what" cards above the table: who pays the collector, who gets paid — readable on
   a phone where the wide table isn't.
 - Flags a Manual column whose amounts don't add up, and shows the Month Final total (₱0.00 when
-  everything adds up).
+  everything adds up). When it isn't, a short "should be ₱0.00 ⓘ" note opens a popover naming
+  the columns that are over or short (kept short so it doesn't widen the column).
+- On a phone the table scrolls sideways; a "›" on its right edge shows there's more, until the end.
 - Pending (emailed) bills are shown greyed out with Confirm / Discard ([email-bills.md](email-bills.md)).
 
 ## How it's built
@@ -22,7 +24,8 @@
   the client.
 - UI: `components/split-table.tsx` (table, `MoneyInput`, `DateCell`),
   `components/settle-summary.tsx` (Who owes what), `components/balance.tsx`,
-  `hooks/use-drag-scroll.ts` (drag to scroll the wide table).
+  `hooks/use-drag-scroll.ts` (drag to scroll the wide table; sets `data-more-right` for the
+  "›" hint).
 - Edits: `updateBillTotal`, `updateBillShare`, `updateBillDates`, `updateSharedColumnAmount` in
   `app/periods/[year]/[month]/actions.ts`, through `components/inline-input.tsx`
   (`onSubmit` + `startTransition` so a failed save keeps what was typed).

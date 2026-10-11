@@ -1,10 +1,11 @@
 "use client";
 
-import { ArrowRight, Lock, LockOpen, Pencil } from "lucide-react";
+import { Lock, LockOpen, Pencil } from "lucide-react";
 import { useState, useTransition } from "react";
 import { closeMonth, deletePayment, reopenMonth, type ActionState } from "@/app/periods/[year]/[month]/actions";
 import { ConfirmDeleteButton } from "@/components/confirm-button";
 import { EditPaymentDialog, RecordPaymentDialog } from "@/components/entry-dialogs";
+import { Pair } from "@/components/member-pair";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,7 +21,7 @@ import { useCanEdit, useViewer } from "@/components/viewer-context";
 import { dateLabel, monthLabel } from "@/lib/format";
 import { formatPHP } from "@/lib/money";
 import { isAdmin } from "@/lib/permissions";
-import type { PeriodView, ViewMember, ViewPayment } from "@/lib/periods";
+import type { PeriodView, ViewPayment } from "@/lib/periods";
 import { suggestedPayments } from "@/lib/settlement";
 import { cn } from "@/lib/utils";
 
@@ -80,29 +81,24 @@ function WhoStillOwes({ view }: { view: PeriodView }) {
             const from = memberOf.get(s.fromMemberId)!;
             const to = memberOf.get(s.toMemberId)!;
             return (
-              <li
-                key={`${s.fromMemberId}-${s.toMemberId}`}
-                className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="flex items-center justify-between gap-3 sm:justify-start">
+              // Phone: who over the amount, a small "Record" on the right. Wider: one line.
+              <li key={`${s.fromMemberId}-${s.toMemberId}`} className="flex items-center justify-between gap-3 py-3">
+                <div className="min-w-0 space-y-0.5 sm:flex sm:flex-1 sm:items-center sm:justify-between sm:gap-3 sm:space-y-0">
                   <Pair from={from} to={to} />
-                  <span className="font-mono font-semibold tabular-nums text-rose-600 sm:hidden">
-                    {formatPHP(s.amount)}
-                  </span>
+                  <span className="block font-mono font-semibold tabular-nums text-rose-600">{formatPHP(s.amount)}</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="hidden font-mono font-semibold tabular-nums text-rose-600 sm:inline">
-                    {formatPHP(s.amount)}
-                  </span>
-                  {editable && (
-                    <RecordPaymentDialog
-                      view={view}
-                      prefill={s}
-                      label="Record payment"
-                      className="w-full sm:w-auto"
-                    />
-                  )}
-                </div>
+                {editable && (
+                  <RecordPaymentDialog
+                    view={view}
+                    prefill={s}
+                    label={
+                      <>
+                        Record<span className="hidden sm:inline"> payment</span>
+                      </>
+                    }
+                    className="shrink-0"
+                  />
+                )}
               </li>
             );
           })}
@@ -114,6 +110,12 @@ function WhoStillOwes({ view }: { view: PeriodView }) {
           <span className="font-medium text-zinc-600">Settled:</span>{" "}
           {settled.map((r) => memberOf.get(r.memberId)?.name).join(", ")}
         </p>
+      )}
+
+      {/* No rows to tap (everyone settled, or the numbers can't be worked out): still a way to
+          record a payment. With rows, each row's form already lets PA change who paid whom. */}
+      {editable && (view.issue || suggestions.length === 0) && (
+        <RecordPaymentDialog view={view} label="Record a payment" variant="outline" className="mt-3" />
       )}
     </section>
   );
@@ -127,12 +129,9 @@ function PaymentsList({ view }: { view: PeriodView }) {
 
   return (
     <section aria-labelledby="payments-this-month" className="rounded-xl border bg-white p-4 shadow-xs sm:p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="payments-this-month" className="text-lg font-semibold">
-          Payments this month
-        </h2>
-        {editable && <RecordPaymentDialog view={view} label="Record other payment" variant="outline" />}
-      </div>
+      <h2 id="payments-this-month" className="text-lg font-semibold">
+        Payments this month
+      </h2>
 
       {view.payments.length === 0 ? (
         <p className="mt-4 rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
@@ -373,20 +372,4 @@ function ConfirmAction({
       </DialogContent>
     </Dialog>
   );
-}
-
-function Pair({ from, to }: { from: ViewMember; to: ViewMember }) {
-  return (
-    <span className="flex items-center gap-1.5 text-sm font-medium">
-      <Dot member={from} />
-      {from.name}
-      <ArrowRight className="size-3.5 text-muted-foreground" aria-label="pays" />
-      <Dot member={to} />
-      {to.name}
-    </span>
-  );
-}
-
-function Dot({ member }: { member: ViewMember }) {
-  return <span className={cn("size-2 rounded-full", member.dotClass)} aria-hidden />;
 }
