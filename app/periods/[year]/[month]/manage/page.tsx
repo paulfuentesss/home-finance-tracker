@@ -8,6 +8,7 @@ import { ManageSharedColumns } from "@/components/manage-shared-columns";
 import { MeralcoPoints } from "@/components/meralco-points";
 import { billEmails, db, members } from "@/db";
 import { getPreview, requireViewer } from "@/lib/auth";
+import { getLastBackupAt } from "@/lib/backup-status";
 import { dateInManila } from "@/lib/format";
 import { dotClassOf } from "@/lib/members";
 import { toCentavos } from "@/lib/money";
@@ -25,7 +26,7 @@ export default async function ManagePage({ params }: PageProps<"/periods/[year]/
   const { year, month } = await parsePeriodParams(params);
   const viewer = await requireViewer();
   if (!isAdmin(viewer)) redirect(`/periods/${year}/${month}`);
-  const [preview, period] = await Promise.all([getPreview(), getPeriodView(year, month)]);
+  const [preview, period, lastBackupAt] = await Promise.all([getPreview(), getPeriodView(year, month), getLastBackupAt()]);
   if (preview) redirect(`/periods/${year}/${month}`);
   const view = period!; // the layout already 404s a missing month
   // Everyone currently in the household (not just this month's members).
@@ -73,7 +74,7 @@ export default async function ManagePage({ params }: PageProps<"/periods/[year]/
             linked: m.authUserId !== null,
           }))}
         />
-        <BackupCard />
+        <BackupCard lastBackupAt={lastBackupAt} />
       </div>
     </div>
   );

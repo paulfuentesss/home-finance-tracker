@@ -133,6 +133,7 @@ Part of every change, in the same PR — not a separate chore.
 | `npm run auth:invite` / `storage:setup` / `storage:backup` fails: "Node.js detected but native WebSocket not found" | Node 20 or older; `@supabase/supabase-js` needs Node 22+ (nvm's default is 24 since 2026-10-11, so Claude's shell starts on it — no `source ~/.nvm/nvm.sh && nvm use` needed; check with `node --version`) | `nvm install && nvm use` (`.nvmrc` pins 24), `nvm alias default 24`, then `npm install` |
 | Every page is a plain "Login isn't configured" message | `proxy.ts` needs `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Add them to `.env.local` (`docs/setup.md` step 5), restart `npm run dev` |
 | Signed in with Google but told "not invited" | The Google address differs from the invited one (dots, a different account), or the member was removed | Invite the exact address Google shows (`docs/features/auth.md`); PA can always fix his own with `npm run auth:invite` |
+| Pages hang 20–100 s, then "Something went wrong"; the dev log shows a query that never returns | `DATABASE_URL` points at the transaction pooler (port 6543), which stops answering when two queries are sent back to back | Use the session pooler (port 5432) for `DATABASE_URL`, locally and in Vercel (`docs/decisions.md`, 2026-10-11) |
 | `CLAUDE.md` shows as modified after `npm run dev` | `next dev` appends the Next.js agent-rules block below | Expected — commit it |
 
 **Fast dev loop:** make the change → `npm run typecheck && npx eslint && npm test` once per chunk (tests run in a few seconds) →

@@ -7,7 +7,9 @@ import * as schema from "./schema";
 
 export function createClient(url: string, options: postgres.Options<Record<string, never>> = {}) {
   return postgres(url, {
-    // Supabase's transaction pooler (port 6543) doesn't support prepared statements.
+    // No prepared statements: the app used Supabase's transaction pooler (port 6543), which
+    // doesn't support them. It now uses the session pooler (5432, docs/setup.md), which does;
+    // kept off so the two poolers behave the same.
     prepare: false,
     // Close idle connections and recycle old ones, so a connection left behind by a dev
     // hot reload can't sit on locks (that once blocked a migration for 38 minutes).

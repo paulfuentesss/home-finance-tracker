@@ -48,7 +48,8 @@ Two ways, both covering the database and the receipt pictures:
 
 - **From the site (any device):** Manage → **Download backup**. Your browser saves
   `home-finance-tracker-backup-YYYY-MM-DD.zip`: a `.sql` file with every row, and `receipts/`
-  with every picture. Admin only.
+  with every picture. Admin only. After a month is started or closed, the month pages show the
+  admin a reminder until a download finishes ([months.md](features/months.md)).
 - **From the laptop:**
   ```bash
   npm run db:backup        # the database → backups/home-finance-tracker-YYYY-MM-DD.sql
@@ -188,7 +189,8 @@ hooks/          Client hooks (drag-to-scroll for the wide Split Table)
 lib/            Money, settlement, month-lock, advances log, bill emails (lib/bill-email/),
                 bill import, login (auth.ts, permissions.ts, invites.ts, supabase/),
                 receipt files (receipts.ts, receipt-image.ts, receipt-files.ts), the
-                Download backup (backup.ts) — with their tests
+                Download backup (backup.ts) and its reminder (backup-reminder.ts,
+                backup-status.ts) — with their tests
 scripts/        Seed, backup, bill-email import, invite and receipt-storage (setup, backup, restore) scripts;
                 gmail/ holds the reference copy of the Gmail bill script (it runs in Google Apps Script)
 ```
@@ -218,7 +220,7 @@ secrets or a password manager.
     no environment variables, so they'd fail or show nothing.
 - **Deploys:** every merge to `main` goes live by itself in a minute or two.
 - **Environment variables** (Settings → Environment Variables), Production only and marked
-  Sensitive: `DATABASE_URL` (the pooler, port 6543), `NEXT_PUBLIC_SUPABASE_URL`,
+  Sensitive: `DATABASE_URL` (the session pooler, port 5432), `NEXT_PUBLIC_SUPABASE_URL`,
   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `BILL_EMAIL_SECRET` (the
   Gmail script's shared secret; [setup.md](setup.md) step 7). Not `DIRECT_URL` — only
   scripts and migrations use it, and they run on PA's laptop. A changed value only takes

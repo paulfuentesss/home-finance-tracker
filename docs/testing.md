@@ -25,7 +25,8 @@ on the PR. It needs no secrets because no test touches the database — keep it 
 | `lib/permissions.test.ts` | Who may change which advance; `safeNext` blocking open redirects after sign-in |
 | `lib/actions-guard.test.ts` | Every Server Action goes through `run("admin" \| "member", …)`; only the three advance actions are open to members; no unknown Route Handlers; `/receipts/[id]` and `/backup` check the login first, and `/backup` the admin; the secret key and admin client stay out of the browser |
 | `lib/receipts.test.ts` | Which receipt files are accepted (real type from the first bytes, size limit), their names in the bucket, resizing long screenshots |
-| `lib/backup.test.ts` | Download backup: the real migrations in PGlite (Postgres inside the test), made-up rows backed up and restored exactly, id counters moved on, a restore into a non-empty database changing nothing; the zip holding the `.sql` and every picture byte for byte |
+| `lib/backup.test.ts` | Download backup: the real migrations in PGlite (Postgres inside the test), made-up rows backed up and restored exactly, id counters moved on, a restore into a non-empty database changing nothing; the zip holding the `.sql` and every picture byte for byte, dated on Manila's clock (meaningful under UTC, as in CI), recorded only when complete |
+| `lib/backup-reminder.test.ts` | When the backup reminder shows: a month started or closed after the last backup, none yet, a month reclosed |
 | `lib/invites.test.ts` | Inviting / un-inviting: the order of the database and Supabase calls, rolling back a new login, never reusing a leftover one |
 
 Money or rule changes: update the expectations in `lib/settlement.test.ts` (and the worked

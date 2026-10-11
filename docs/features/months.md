@@ -14,6 +14,9 @@
   unpaid amounts carry over. Months close oldest-first and reopen newest-first. Closing is
   blocked while the numbers can't be calculated, a bill is still pending, or someone with a
   balance isn't in the next month.
+- **Backup reminder** (the admin only, not while previewing): a banner on the month pages
+  after a month is started or closed, until a Download backup finishes, on any device. Without
+  any backup yet, it asks for a first one.
 - Loading placeholders while a month or tab loads.
 
 ## How it's built
@@ -25,15 +28,19 @@
 - Lock rules: `closeCheck`, `reopenCheck`, `vanishingBalances` in `lib/month-lock.ts` (pure,
   tested in `lib/month-lock.test.ts`).
 - Actions: `startNextMonth`, `closeMonth`, `reopenMonth` in `app/periods/[year]/[month]/actions.ts`.
+- Backup reminder: `backupReminder` in `lib/backup-reminder.ts` (pure, tested) compares every
+  month's `created_at` / `closed_at` with the latest row in `backups` (read in
+  `lib/backup-status.ts`, admin only); the banner is `components/backup-reminder.tsx`, shown by
+  `[month]/layout.tsx`. `/backup` adds the `backups` row once the zip has fully streamed.
 - Tables: `billing_periods` (status, closed at), `period_balances` (who's in the month,
-  opening and closing balances).
+  opening and closing balances), `backups` (the reminder).
 
 ## Rules
 [Months and carry-over](../settlement-rules.md#months-and-carry-over) ·
 [Closing and reopening a month](../settlement-rules.md#closing-and-reopening-a-month)
 
 ## Open items
-Back up after closing each month ([operations.md](../operations.md#backups)).
+None.
 
 ## Built in
 Early commits on `main` (month picker, Start next month, loading states); #1 (closing /

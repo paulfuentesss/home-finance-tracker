@@ -16,9 +16,12 @@ Getting My House running on a new machine. Afterwards, day to day you only need
    ```bash
    cp .env.example .env.local
    ```
-   In Supabase, open **Connect → ORMs → Drizzle** and paste the two URLs into `.env.local`:
-   - `DATABASE_URL`: the **transaction pooler** (port 6543), used by the app
-   - `DIRECT_URL`: the **session pooler** (port 5432), used by migrations, scripts and backups
+   In Supabase, open **Connect → ORMs → Drizzle** and paste the **session pooler** URL
+   (port 5432) into `.env.local` twice. Both are the same value today; they're kept apart so the
+   app's connection can change without touching the scripts':
+   - `DATABASE_URL`: used by the app. Not the transaction pooler (port 6543): it hangs on
+     queries sent back to back ([decisions.md](decisions.md))
+   - `DIRECT_URL`: used by migrations, scripts and backups
 
    `.env.local` is git-ignored: it holds the database password. Never commit it.
 4. **Create the tables and add PA**
