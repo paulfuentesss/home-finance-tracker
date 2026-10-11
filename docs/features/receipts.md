@@ -42,7 +42,8 @@ proof is next ([TODO.md](../TODO.md)).
   has committed (best effort: a leftover file is invisible and only takes space).
 - Uses the server-only secret key through `receiptStorage()` in `lib/supabase/admin-server.ts`;
   the publishable key can't see the bucket.
-- Backups: `npm run storage:backup` copies the files ([operations.md](../operations.md#backups)).
+- Backups: the Download backup zip (Manage) and `npm run storage:backup` include the files;
+  `npm run storage:restore` puts them back ([operations.md](../operations.md#backups)).
 
 ## Rules
 [Receipts](../settlement-rules.md#receipts)

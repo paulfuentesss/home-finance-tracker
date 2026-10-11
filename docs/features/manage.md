@@ -17,6 +17,8 @@
   `npm run auth:invite`.
 - The whole tab is PA's: anyone else is sent back to the month.
 - **Bill Inbox** card ([email-bills.md](email-bills.md)).
+- **Backup** card: **Download backup** saves a zip of every row (a `.sql` file) and every receipt
+  picture. How to restore: [operations.md → Backups](../operations.md#backups).
 
 ## How it's built
 - Route: `app/periods/[year]/[month]/manage/page.tsx` (tab 4).
@@ -31,6 +33,11 @@
 - Shares are written only through `computeBillShares` (`lib/settlement.ts`) and `writeShares`
   (`lib/bill-shares.ts`).
 - Household facts that aren't data (what the points are based on): `lib/household-config.ts`.
+- Backup: `components/backup-card.tsx` links to `app/backup/route.ts` (admin only; checks the
+  viewer itself, `lib/actions-guard.test.ts`). It reads every table in one REPEATABLE READ
+  snapshot (`buildBackupSql` in `lib/backup.ts`), lists the bucket (`listReceiptFiles` in
+  `lib/receipt-files.ts`), then streams the zip (`backupZipStream`, `fflate`). Tested by restoring
+  into PGlite (`lib/backup.test.ts`).
 - Tables: `members`, `bill_items`, `bill_item_shares`, `shared_columns`,
   `shared_column_members`, `period_balances`.
 

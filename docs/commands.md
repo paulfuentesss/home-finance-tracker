@@ -1,7 +1,7 @@
 # Commands
 
 **Day to day you only need `npm run dev`.** Add `db:generate` → `db:migrate` when the
-schema changes, `db:backup` after closing a month, and the code-quality checks before a PR.
+schema changes, a backup after closing a month, and the code-quality checks before a PR.
 
 **Where they're defined:** the `"scripts"` section of `package.json`. Each entry is a
 shortcut: `npm run db:seed` really runs
@@ -18,7 +18,7 @@ each one gets a shortcut or two:
 | ESLint | Catches mistakes and style issues | `lint` |
 | Vitest | Unit tests | `test`, `test:watch` |
 | Drizzle Kit | Database schema and migrations | `db:generate`, `db:migrate`, `db:studio` |
-| tsx + `scripts/` | Runs our own one-off TypeScript scripts | `db:seed`, `db:seed:august`, `db:backup`, `bills:import`, `auth:invite`, `storage:setup`, `storage:backup` |
+| tsx + `scripts/` | Runs our own one-off TypeScript scripts | `db:seed`, `db:seed:august`, `db:backup`, `bills:import`, `auth:invite`, `storage:setup`, `storage:backup`, `storage:restore` |
 | Husky | Git hooks | `prepare` (runs automatically) |
 
 The `db:` and `test:` prefixes are just a naming convention for grouping.
@@ -64,6 +64,7 @@ The `db:` and `test:` prefixes are just a naming convention for grouping.
 |---|---|---|
 | `npm run storage:setup` | Creates the private `receipts` Storage bucket, or puts its settings back (private, size limit, allowed types). Safe to run again | First-time setup, or after changing `MAX_RECEIPT_BYTES` / `RECEIPT_TYPES` in `lib/receipts.ts` ([features/receipts.md](features/receipts.md)) |
 | `npm run storage:backup` | Copies receipt files not backed up yet to `backups/receipts/` | With `db:backup`, after closing each month |
+| `npm run storage:restore -- <folder>` | Uploads receipt pictures from a backup's `receipts/` folder back into the bucket under their original names. Only adds missing files; `--dry-run` lists them | Restoring a backup ([operations.md → Backups](operations.md#restoring)) |
 
 ## Email-imported bills
 

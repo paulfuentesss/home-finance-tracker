@@ -1,5 +1,6 @@
 import { asc, desc, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
+import { BackupCard } from "@/components/backup-card";
 import { BillInbox } from "@/components/emailed-bills";
 import { ManageBills } from "@/components/manage-bills";
 import { ManageMembers } from "@/components/manage-members";
@@ -72,6 +73,7 @@ export default async function ManagePage({ params }: PageProps<"/periods/[year]/
             linked: m.authUserId !== null,
           }))}
         />
+        <BackupCard />
       </div>
     </div>
   );

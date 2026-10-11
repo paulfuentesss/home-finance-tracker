@@ -133,7 +133,7 @@ Part of every change, in the same PR — not a separate chore.
 | Signed in with Google but told "not invited" | The Google address differs from the invited one (dots, a different account), or the member was removed | Invite the exact address Google shows (`docs/features/auth.md`); PA can always fix his own with `npm run auth:invite` |
 | `CLAUDE.md` shows as modified after `npm run dev` | `next dev` appends the Next.js agent-rules block below | Expected — commit it |
 
-**Fast dev loop:** make the change → `npm run typecheck && npx eslint && npm test` once per chunk (tests run in < 1 s) →
+**Fast dev loop:** make the change → `npm run typecheck && npx eslint && npm test` once per chunk (tests run in a few seconds) →
 `curl` only confirms the redirect to `/login` (every page needs a login; no dev bypass) → let Paul check the signed-in
 pages in the browser. Money/settlement changes: update the expectations in
 `lib/settlement.test.ts`, worked out by hand from the rules (the made-up August fixture).

@@ -23,6 +23,7 @@
     "auth:invite": "tsx --env-file=.env.local scripts/invite.mts",
     "storage:setup": "tsx --env-file=.env.local scripts/storage-setup.mts",
     "storage:backup": "tsx --env-file=.env.local scripts/storage-backup.mts",
+    "storage:restore": "tsx --env-file=.env.local scripts/storage-restore.mts",
     "worktrees:clean": "bash scripts/worktrees-clean.sh",
     "prepare": "husky"
   },
@@ -33,6 +34,7 @@
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",
     "drizzle-orm": "^0.45.3",
+    "fflate": "^0.8.3",
     "lucide-react": "^1.48.0",
     "next": "16.3.6",
     "postgres": "^3.4.9",
@@ -46,6 +48,7 @@
   "devDependencies": {
     "@commitlint/cli": "^20.5.3",
     "@commitlint/config-conventional": "^20.5.3",
+    "@electric-sql/pglite": "^0.5.8",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
