@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { createContext, useContext, useEffect, useMemo, useTransition } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useTransition } from "react";
 import { isAdmin, type Viewer } from "@/lib/permissions";
 import { onPreviewChangedElsewhere, startPreview, stopPreview } from "@/lib/preview-browser";
 
@@ -26,7 +26,43 @@ export function ViewerProvider({
   const router = useRouter();
   // A preview started or ended in another tab: redraw, so this tab never shows the wrong view.
   useEffect(() => onPreviewChangedElsewhere(() => router.refresh()), [router]);
+  useRefreshOnReturn(router.refresh);
   return <ViewerContext.Provider value={value}>{children}</ViewerContext.Provider>;
+}
+
+/** How long the tab must have been left before coming back to it refreshes the month. */
+const STALE_AFTER_MS = 30_000;
+
+/**
+ * Coming back to the app's tab after a while redraws the month from the server. Moving between
+ * tabs keeps the month's header as it was, so without this, what someone else did meanwhile — a
+ * housemate's "I paid" (the count on Settle Up), an advance — only showed after a reload.
+ * Typed text and open dialogs stay as they are.
+ */
+function useRefreshOnReturn(refresh: () => void) {
+  const leftAt = useRef<number | null>(null);
+  useEffect(() => {
+    // "Left" = the tab was hidden (phones, other browser tabs) or the window lost focus (another
+    // app on a computer); "back" = the opposite. Whichever comes first counts.
+    const left = () => {
+      leftAt.current ??= Date.now();
+    };
+    const back = () => {
+      if (document.visibilityState === "hidden") return;
+      const since = leftAt.current;
+      leftAt.current = null;
+      if (since !== null && Date.now() - since > STALE_AFTER_MS) refresh();
+    };
+    const onVisibility = () => (document.visibilityState === "hidden" ? left() : back());
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("blur", left);
+    window.addEventListener("focus", back);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("blur", left);
+      window.removeEventListener("focus", back);
+    };
+  }, [refresh]);
 }
 
 function useViewerContext() {

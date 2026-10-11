@@ -19,6 +19,9 @@
   asks for a short reason, and it stays in the list as rejected — never counted. The housemate
   can **Cancel** their own while it's waiting or rejected, and send it again. On a member's
   row, a waiting amount shows ("₱X sent, waiting"), so PA doesn't record it a second time.
+- Nothing updates live: the count, like the rest of the month, is as of the page's last load.
+  Coming back to the app after 30 seconds or more away refreshes it (`useRefreshOnReturn` in
+  `components/viewer-context.tsx`); moving between tabs alone keeps the month's header as it was.
 - A payment's screenshot shows only for PA and the two people in it ([receipts.md](receipts.md)).
 - Lists the month's payments, which PA can edit or delete while the month is open (a waiting
   one can be edited before confirming; a rejected one only deleted).

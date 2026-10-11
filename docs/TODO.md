@@ -12,19 +12,16 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
       (2026-10-09). A test housemate still has a `+` alias of PA's Gmail; swap in their real
       address. Anyone signing in with Google also needs to be a test user on the consent screen.
 
-- [ ] **Bills to the My House Gmail** ([email-bills](features/email-bills.md)). The billing email
-      was changed in the Meralco, Manila Water and PLDT apps, but a PLDT bill still went to PA's
-      personal email — the app setting isn't always the e-bill address. **Next: email each biller**
-      asking them to send e-bills to the My House Gmail. Remove this once a bill from each has
-      arrived there. Steps in [setup.md](setup.md) step 5b.
+- [ ] **Bills to the My House Gmail** ([email-bills](features/email-bills.md)) — *waiting on the
+      billers.* Changed in their apps, and each biller was emailed (2026-10-11) after a PLDT bill
+      still went to PA's personal email. Remove this once a bill from each has arrived at the My
+      House Gmail. Steps in [setup.md](setup.md) step 5b.
 
-- [ ] **Turn on bills by email** ([email-bills](features/email-bills.md)) — built; needs setting
-      up once ([setup.md](setup.md) step 7): `BILL_EMAIL_SECRET` in Vercel + redeploy, the script
-      in the My House Gmail (`setup()`, `testRun()`), and the forwarding filter in PA's personal
-      Gmail. Then check on the first real bill from each biller that it shows as Pending — one
-      forwarded from the personal Gmail too (if that one is refused, its DKIM didn't survive
-      forwarding: switch to a second script there). Remove the filter once every biller sends
-      to the My House Gmail.
+- [ ] **See bills arrive by email** ([email-bills](features/email-bills.md)) — set up
+      (2026-10-11, [setup.md](setup.md) step 7); *waiting for the first real bills.* Check each
+      biller's first one shows as Pending — one forwarded from PA's personal Gmail too (if that
+      one is refused, its DKIM didn't survive forwarding: switch to a second script there).
+      Remove the forwarding filter once every biller sends to the My House Gmail.
 
 - [ ] **Watch where sign-in emails land** ([auth](features/auth.md)): the first code went to
       Promotions, a later one to Primary. If housemates' codes keep getting filed away, move to

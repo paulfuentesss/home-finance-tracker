@@ -103,6 +103,10 @@ function WhoStillOwes({ view }: { view: PeriodView }) {
   const suggestions = suggestedPayments(balances, collector?.id ?? null);
   const settled = view.rows.filter((r) => r.balance === 0 && r.memberId !== collector?.id);
   const collectorLeft = view.rows.find((r) => r.memberId === collector?.id)?.balance ?? 0;
+  const collectorName = collector?.name ?? "the collector";
+  // The housemate's own situation: they owe (their row has "I paid"), or are owed (PA pays them).
+  const owes = canSend && suggestions.some((s) => s.fromMemberId === viewer.memberId);
+  const isOwed = !editable && suggestions.some((s) => s.toMemberId === viewer.memberId);
 
   return (
     <section aria-labelledby="who-still-owes" className="rounded-xl border bg-white p-4 shadow-xs sm:p-5">
@@ -113,9 +117,11 @@ function WhoStillOwes({ view }: { view: PeriodView }) {
         Everyone settles with {collector?.name ?? "the collector"}.{" "}
         {editable
           ? "Record a payment when money changes hands; it comes off both people's Final. Housemates can send theirs with “I paid” for you to confirm."
-          : canSend
-            ? `Paid ${collector?.name ?? "the collector"}? Tap “I paid” and attach the screenshot of your transfer. It comes off your Final once ${collector?.name ?? "they"} confirms it.`
-            : `${collector?.name ?? "The collector"} records each payment when money changes hands; it comes off both people's Final.`}
+          : owes
+            ? `Paid ${collectorName}? Tap “I paid” on your row and attach the screenshot of your transfer. It comes off your Final once ${collectorName} confirms it.`
+            : isOwed
+              ? `You paid more than your share, so ${collectorName} pays you back. It shows here once ${collectorName} records it.`
+              : `${collector?.name ?? "The collector"} records each payment when money changes hands; it comes off both people's Final.`}
       </p>
 
       {view.issue ? (
