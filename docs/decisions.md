@@ -267,8 +267,9 @@ committed after the merge. The running-process check keeps it from pulling a fol
 under an open VS Code window, dev server or another session.
 
 ## 2026-10-10 — Develop against a local Supabase, not a second cloud project
+*Superseded 2026-10-11: one database plus backups, no test database (below).*
 **Decision:** for development and testing, run Supabase on the laptop (the Supabase CLI, in
-Docker) rather than creating a second free cloud project. Not built yet ([TODO.md](TODO.md)).
+Docker) rather than creating a second free cloud project.
 **Why:** today `localhost` and the live site share one database, so testing touches the
 household's real numbers. A local stack is free, unlimited and never pauses. The free plan
 allows only two active cloud projects (as of 2026-10), so a test project would use up the last slot that
@@ -295,3 +296,15 @@ real amounts and shop names that hint at the neighbourhood. Now that the app is 
 test data into the shared database would also overwrite real data.
 **Instead of:** making the repo private, or rewriting git history — the old values stay in past
 commits; a history rewrite would break every PR and worktree and still leave GitHub's PR copies.
+
+## 2026-10-11 — One database plus backups, no test database
+**Decision:** no local or second Supabase. Development, scripts and the live site share the one
+database; `npm run db:backup` runs after closing each month and before every migration, and
+the copies are kept off the laptop. The local-only guard on the test-data scripts stays.
+**Why:** one developer, a small household app, and migrations so far have all been additive.
+A local stack (Docker, a second `.env`, keeping two databases' schemas in step) costs more
+upkeep than it saves. The automated tests already run on made-up data without a database.
+**Instead of:** a local Supabase (2026-10-10), or a second free cloud project.
+**Trade-off:** trying things on `localhost` touches real data — test with removable entries and
+avoid hard-to-undo actions ([operations.md](operations.md#one-database-localhost-is-live-data));
+the sample bill emails can't be imported, since they're test data.
