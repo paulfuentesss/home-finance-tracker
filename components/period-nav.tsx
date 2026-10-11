@@ -42,7 +42,9 @@ export function TabNav({ base }: { base: string }) {
   // Manage is PA's (the page itself redirects anyone else).
   const tabs = isAdmin(useViewer()) ? TABS : TABS.filter((t) => t.href !== "/manage");
   return (
-    <nav aria-label="Sections" className="-mb-px flex gap-1 overflow-x-auto">
+    // Phone: every tab shares the width equally (icon over a small label), so all of them fit
+    // and none hide off the right edge. Wider: icon beside the full label, as before.
+    <nav aria-label="Sections" className="-mb-px flex overflow-x-auto sm:gap-1">
       {tabs.map(({ href, label, short, icon: Icon }) => {
         const active = suffix === href;
         return (
@@ -51,7 +53,7 @@ export function TabNav({ base }: { base: string }) {
             href={`${base}${href}`}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex shrink-0 items-center gap-2 rounded-t-md border-b-2 px-3 py-2.5 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+              "flex min-w-0 flex-1 flex-col items-center gap-1 rounded-t-md border-b-2 px-1 py-2 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:flex-none sm:shrink-0 sm:flex-row sm:gap-2 sm:px-3 sm:py-2.5 sm:text-sm",
               active
                 ? "border-amber-600 text-amber-700"
                 : "border-transparent text-muted-foreground hover:border-zinc-300 hover:text-foreground",
