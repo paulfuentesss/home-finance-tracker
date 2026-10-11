@@ -273,3 +273,13 @@ Docker) rather than creating a second free cloud project. Not built yet ([TODO.m
 household's real numbers. A local stack is free, unlimited and never pauses. The free plan
 allows only two active cloud projects (as of 2026-10), so a test project would use up the last slot that
 other apps might need.
+
+## 2026-10-11 — "How it works" answers use made-up examples, not a real month's numbers
+**Decision:** the FAQ answers on `/how-it-works` explain each rule in general terms with
+made-up round numbers (₱1,000.02 split 5 ways, and so on), instead of one month's figures or
+figures pulled from the latest month. Only the Meralco points table and its worked example
+show live numbers.
+**Why:** August's figures made the page read as if it were about one month, and the repo is
+public, so real amounts and names don't belong in the code. Pulling in live numbers would
+make the examples change every month and could stop showing a case at all (e.g. a month whose
+bills split evenly has no leftover centavos to explain).
