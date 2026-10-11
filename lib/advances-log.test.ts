@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { BILL_SPLIT, groupLogRows, oneOffColumnColors, sharedByLabel, splitForColumn, type LogRow } from "@/lib/advances-log";
 
 const members = [
-  { id: 1, name: "Ate Toni", dotClass: "a" },
-  { id: 2, name: "Skyler", dotClass: "b" },
+  { id: 1, name: "Ana", dotClass: "a" },
+  { id: 2, name: "Cara", dotClass: "b" },
   { id: 5, name: "PA", dotClass: "c" },
 ];
 const everyone = splitForColumn(undefined);
@@ -30,13 +30,13 @@ const rows = [
 describe("groupLogRows", () => {
   it("groups in household order, hides empty groups, former members last", () => {
     const groups = groupLogRows(rows, rows, members);
-    expect(groups.map((g) => g.name)).toEqual(["Skyler", "PA", "Former member"]);
+    expect(groups.map((g) => g.name)).toEqual(["Cara", "PA", "Former member"]);
   });
 
   it("puts bills first, then advances by date, undated last", () => {
-    const [skyler, pa] = groupLogRows(rows, rows, members);
+    const [cara, pa] = groupLogRows(rows, rows, members);
     expect(pa.rows.map((r) => r.key)).toEqual(["bill-1", "advance-3"]);
-    expect(skyler.rows.map((r) => r.key)).toEqual(["advance-2", "advance-1"]);
+    expect(cara.rows.map((r) => r.key)).toEqual(["advance-2", "advance-1"]);
   });
 
   it("subtotal follows the filter; fullSubtotal is always everything", () => {
@@ -87,6 +87,6 @@ describe("sharedByLabel", () => {
   it("says everyone when nobody is left out, otherwise names who is", () => {
     expect(sharedByLabel([1, 2, 5], members)).toBe("everyone");
     expect(sharedByLabel([1, 2], members)).toBe("everyone except PA");
-    expect(sharedByLabel([2], members)).toBe("everyone except Ate Toni, PA");
+    expect(sharedByLabel([2], members)).toBe("everyone except Ana, PA");
   });
 });

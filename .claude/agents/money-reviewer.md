@@ -25,7 +25,7 @@ Check:
 - **Everyone's Month Final still sums to ₱0.00.**
 - **`lib/settlement.ts` stays pure** — no imports from `@/db`, `db/`, or anything with I/O.
 - **Tests cover the change**: a rule change has a test in `lib/settlement.test.ts` or
-  `lib/money.test.ts`, and `lib/__fixtures__/august-2026.ts` still mirrors the household sheet.
+  `lib/money.test.ts`, and `lib/__fixtures__/august-2026.ts` stays made up (no real household names or amounts) and its expected values are worked out from the rules, not copied from the app's output.
   Run `npm test` and report the result.
 - **A rule changed → both docs changed**: `docs/settlement-rules.md` and
   `app/how-it-works/page.tsx`, saying the same thing as the code.

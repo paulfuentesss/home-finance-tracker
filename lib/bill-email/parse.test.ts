@@ -6,13 +6,13 @@ import {
 } from "@/lib/bill-email/__fixtures__/august-2026-emails";
 import { billMonth, parseBillEmail, parseDate, providerOf, type BillEmail } from "@/lib/bill-email/parse";
 
-describe("parseBillEmail — the real August 2026 emails", () => {
+describe("parseBillEmail — the August 2026 sample emails", () => {
   it("reads Meralco", () => {
     expect(parseBillEmail(MERALCO_AUGUST_2026)).toEqual({
       ok: true,
       bill: {
         provider: "meralco",
-        amount: 1_544_859,
+        amount: 1_249_254,
         dueDate: "2026-09-06",
         periodStart: "2026-07-27",
         periodEnd: "2026-08-26",
@@ -27,7 +27,7 @@ describe("parseBillEmail — the real August 2026 emails", () => {
       ok: true,
       bill: {
         provider: "water",
-        amount: 216_663,
+        amount: 194_163,
         dueDate: "2026-09-03",
         periodStart: "2026-07-26",
         periodEnd: "2026-08-26",
@@ -42,7 +42,7 @@ describe("parseBillEmail — the real August 2026 emails", () => {
       ok: true,
       bill: {
         provider: "pldt",
-        amount: 269_900,
+        amount: 189_900,
         dueDate: "2026-08-30",
         periodStart: null,
         periodEnd: null,

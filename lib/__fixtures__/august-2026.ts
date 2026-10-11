@@ -1,25 +1,29 @@
-// August 2026, taken from the household Google Sheet (the source of truth).
-// Used by the settlement tests and by `npm run db:seed:august`.
+// A made-up August 2026 — names, amounts and purchases are fictional (the repo is public; the
+// real household's data lives only in the database). It has the shape of a real month and
+// keeps the cases the tests need: a points tie decided by split order, leftover centavos, a
+// column shared without PA, and a Manual column ₱0.02 over. Expected values in the tests were
+// worked out by hand from docs/settlement-rules.md, not copied from the app's output.
+// Used by the settlement tests and by `npm run db:seed:august` (local database only).
 
 export const HOUSEHOLD_MEMBERS = [
-  { name: "Ate Toni", sortOrder: 1, isCollector: false },
-  { name: "Mayee", sortOrder: 2, isCollector: false },
-  { name: "Skyler", sortOrder: 3, isCollector: false },
-  { name: "PJ", sortOrder: 4, isCollector: false },
-  // PA (Paul) usually pays the bills upfront and collects from everyone.
+  { name: "Ana", sortOrder: 1, isCollector: false },
+  { name: "Ben", sortOrder: 2, isCollector: false },
+  { name: "Cara", sortOrder: 3, isCollector: false },
+  { name: "Dan", sortOrder: 4, isCollector: false },
+  // PA pays the bills upfront and collects from everyone.
   { name: "PA", sortOrder: 5, isCollector: true },
 ] as const;
 
 export type MemberName = (typeof HOUSEHOLD_MEMBERS)[number]["name"];
 type Category = "grocery" | "food" | "service" | "misc";
 
-/** Meralco point allocation as of April 2026 (8.3 points). */
+/** Meralco points (8.2 in all). Ben and Cara are equal, so their shares tie. */
 export const MERALCO_POINTS: Record<MemberName, number> = {
-  "Ate Toni": 2.5,
-  Mayee: 1.5,
-  Skyler: 1.5,
-  PJ: 1,
-  PA: 1.8,
+  Ana: 2.2,
+  Ben: 1.5,
+  Cara: 1.5,
+  Dan: 1,
+  PA: 2,
 };
 
 export const DEFAULT_COLUMN = "Advances Shared";
@@ -68,65 +72,68 @@ export const AUGUST_2026: {
   bills: [
     {
       name: "Meralco",
-      totalAmount: "15463.59",
+      totalAmount: "12507.54",
       paidBy: "PA",
       splitMode: "points",
       points: MERALCO_POINTS,
       dueDate: "2026-09-06",
       paidOn: "2026-08-31",
     },
-    { name: "Water", totalAmount: "2173.63", paidBy: "PA", splitMode: "equal", dueDate: "2026-09-03", paidOn: "2026-08-31" },
-    { name: "PLDT Wifi", totalAmount: "2699.00", paidBy: "PA", splitMode: "equal", dueDate: "2026-08-30", paidOn: "2026-08-31" },
-    { name: "Helper", totalAmount: "6400.00", paidBy: "PA", splitMode: "equal" },
+    { name: "Water", totalAmount: "1948.63", paidBy: "PA", splitMode: "equal", dueDate: "2026-09-03", paidOn: "2026-08-31" },
+    { name: "PLDT Wifi", totalAmount: "1899.00", paidBy: "PA", splitMode: "equal", dueDate: "2026-08-30", paidOn: "2026-08-31" },
+    { name: "Helper", totalAmount: "5500.00", paidBy: "PA", splitMode: "equal" },
   ],
   columns: [
     { name: DEFAULT_COLUMN, splitMode: "equal", isDefault: true },
-    // PA left for BKK on Aug 8, so most later advances were shared without him.
-    { name: WITHOUT_PA, splitMode: "equal", included: ["Ate Toni", "Mayee", "Skyler", "PJ"] },
-    // Typed as in the sheet: Ate Toni carries half, the others 12.5% — ₱0.02 over ₱3,761.
+    // PA was away for most of the month, so later advances were shared without him.
+    { name: WITHOUT_PA, splitMode: "equal", included: ["Ana", "Ben", "Cara", "Dan"] },
+    // Typed by hand: Ana carries half, the others 12.5% each — ₱0.02 over ₱3,201.
     {
       name: ICE_MAKER,
       splitMode: "manual",
-      amounts: { "Ate Toni": "1880.50", Mayee: "470.13", Skyler: "470.13", PJ: "470.13", PA: "470.13" },
+      amounts: { Ana: "1600.50", Ben: "400.13", Cara: "400.13", Dan: "400.13", PA: "400.13" },
     },
   ],
   advances: [
-    { payer: "Skyler", description: "SM North Edsa Groceries", category: "grocery", amount: "17834.00", spentOn: "2026-07-27" },
-    { payer: "Skyler", description: "SM Cherry Congre", category: "grocery", amount: "14533.00", spentOn: "2026-08-19", column: WITHOUT_PA },
-    { payer: "Skyler", description: "24 Chicken Congre", category: "food", amount: "540.00", spentOn: "2026-08-19", column: WITHOUT_PA },
-    { payer: "Skyler", description: "MR DIY SM Cherry Congre", category: "grocery", amount: "537.00", spentOn: "2026-08-19", column: WITHOUT_PA },
-    { payer: "Skyler", description: "Cirle C Robinsons Supermarket", category: "grocery", amount: "1112.00", spentOn: "2026-08-19", column: WITHOUT_PA },
-    { payer: "Skyler", description: "Chowking Congressional", category: "food", amount: "795.00", spentOn: "2026-08-31", column: WITHOUT_PA },
-    { payer: "Skyler", description: "Bigas and Groceries", category: "grocery", amount: "2500.00", spentOn: "2026-08-23", column: WITHOUT_PA },
-    { payer: "PA", description: "Liquid Detergent", category: "grocery", amount: "892.50", spentOn: "2026-08-03" },
+    { payer: "Cara", description: "Monthly groceries", category: "grocery", amount: "15420.00", spentOn: "2026-07-28" },
+    { payer: "Cara", description: "Groceries", category: "grocery", amount: "12860.00", spentOn: "2026-08-19", column: WITHOUT_PA },
+    { payer: "Cara", description: "Chicken dinner", category: "food", amount: "480.00", spentOn: "2026-08-19", column: WITHOUT_PA },
+    { payer: "Cara", description: "Hardware store", category: "grocery", amount: "465.00", spentOn: "2026-08-19", column: WITHOUT_PA },
+    { payer: "Cara", description: "Supermarket", category: "grocery", amount: "990.00", spentOn: "2026-08-19", column: WITHOUT_PA },
+    { payer: "Cara", description: "Takeout dinner", category: "food", amount: "710.00", spentOn: "2026-08-31", column: WITHOUT_PA },
+    { payer: "Cara", description: "Rice and groceries", category: "grocery", amount: "2200.00", spentOn: "2026-08-23", column: WITHOUT_PA },
+    { payer: "PA", description: "Laundry detergent", category: "grocery", amount: "745.50", spentOn: "2026-08-03" },
     {
       payer: "PA",
       description: "Ice Maker",
       category: "misc",
-      amount: "3761.00",
+      amount: "3201.00",
       spentOn: "2026-08-04",
       column: ICE_MAKER,
     },
-    { payer: "Ate Toni", description: "Gas Tank", category: "misc", amount: "5732.00", spentOn: "2026-08-17" },
-    { payer: "PJ", description: "Grocery", category: "grocery", amount: "13636.40", spentOn: "2026-08-19", column: WITHOUT_PA },
-    { payer: "Mayee", description: "Palengke", category: "grocery", amount: "1500.00", spentOn: null },
-    { payer: "Mayee", description: "Ulam", category: "food", amount: "550.00", spentOn: null, column: WITHOUT_PA },
-    { payer: "Mayee", description: "Dinner", category: "food", amount: "595.00", spentOn: null, column: WITHOUT_PA },
-    { payer: "Mayee", description: "Palengke", category: "grocery", amount: "1800.00", spentOn: null, column: WITHOUT_PA },
-    { payer: "Mayee", description: "Ulam", category: "food", amount: "700.00", spentOn: null, column: WITHOUT_PA },
-    { payer: "Mayee", description: "Bigas etc", category: "grocery", amount: "390.00", spentOn: null, column: WITHOUT_PA },
-    { payer: "Mayee", description: "Ulam ingredients", category: "grocery", amount: "400.00", spentOn: null },
-    { payer: "Mayee", description: "Bread", category: "grocery", amount: "100.00", spentOn: null },
-    { payer: "Mayee", description: "Washing Machine Down", category: "service", amount: "2000.00", spentOn: null, column: WITHOUT_PA },
-    { payer: "Mayee", description: "Washing Machine - Antirust", category: "service", amount: "750.00", spentOn: null },
+    { payer: "Ana", description: "Gas tank refill", category: "misc", amount: "4980.00", spentOn: "2026-08-17" },
+    { payer: "Dan", description: "Groceries", category: "grocery", amount: "11940.40", spentOn: "2026-08-19", column: WITHOUT_PA },
+    { payer: "Ben", description: "Palengke", category: "grocery", amount: "1320.00", spentOn: null },
+    { payer: "Ben", description: "Ulam", category: "food", amount: "520.00", spentOn: null, column: WITHOUT_PA },
+    { payer: "Ben", description: "Dinner", category: "food", amount: "560.00", spentOn: null, column: WITHOUT_PA },
+    { payer: "Ben", description: "Palengke", category: "grocery", amount: "1650.00", spentOn: null, column: WITHOUT_PA },
+    { payer: "Ben", description: "Ulam", category: "food", amount: "640.00", spentOn: null, column: WITHOUT_PA },
+    { payer: "Ben", description: "Rice etc", category: "grocery", amount: "345.00", spentOn: null, column: WITHOUT_PA },
+    { payer: "Ben", description: "Ulam ingredients", category: "grocery", amount: "380.00", spentOn: null },
+    { payer: "Ben", description: "Bread", category: "grocery", amount: "95.00", spentOn: null },
+    { payer: "Ben", description: "Washing machine repair", category: "service", amount: "1800.00", spentOn: null, column: WITHOUT_PA },
+    { payer: "Ben", description: "Washing machine - antirust", category: "service", amount: "650.00", spentOn: null },
   ],
 };
 
-/** Month Finals from the household sheet (it rounds each share on its own). */
+/**
+ * Month Finals the way a spreadsheet gets them when it rounds each share on its own (worked
+ * out by hand). The app splits leftover centavos exactly instead, so it may differ by ₱0.01.
+ */
 export const SHEET_MONTH_FINALS: Record<MemberName, string> = {
-  "Ate Toni": "18424.53",
-  Mayee: "12098.08",
-  Skyler: "-16967.92",
-  PJ: "6315.13",
-  PA: "-19869.82",
+  Ana: "15353.91",
+  Ben: "10105.82",
+  Cara: "-15059.18",
+  Dan: "5362.77",
+  PA: "-15763.29",
 };

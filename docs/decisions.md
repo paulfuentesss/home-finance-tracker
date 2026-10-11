@@ -273,3 +273,15 @@ Docker) rather than creating a second free cloud project. Not built yet ([TODO.m
 household's real numbers. A local stack is free, unlimited and never pauses. The free plan
 allows only two active cloud projects (as of 2026-10), so a test project would use up the last slot that
 other apps might need.
+
+## 2026-10-11 — Test data is made up; the test-data scripts are local-only
+**Decision:** the August 2026 fixture and its sample bill emails are fictional (Ana, Ben, Cara,
+Dan, PA; invented amounts and purchases), with the same edge cases as before. Their expected
+values were worked out from the rules by a separate calculator, which first reproduced the old
+real-data expectations exactly. `db:seed:august` and the sample `bills:import` run only against
+a database on this machine; `db:seed` now adds only PA. Follows up 2026-09-28.
+**Why:** the repo stays public, and the fixture showed the housemates' first names, a month's
+real amounts and shop names that hint at the neighbourhood. Now that the app is live, loading
+test data into the shared database would also overwrite real data.
+**Instead of:** making the repo private, or rewriting git history — the old values stay in past
+commits; a history rewrite would break every PR and worktree and still leave GitHub's PR copies.

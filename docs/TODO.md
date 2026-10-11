@@ -103,5 +103,7 @@ Live on Vercel since 2026-10-10 ([operations.md → Hosting](operations.md#hosti
 - [x] Signed in on the live site with Google and with an email code; a Google account that
       isn't invited is refused.
 - [x] Backups taken before the first deploy (`npm run db:backup`, `npm run storage:backup`).
-- [ ] Copy `backups/` somewhere off the laptop (cloud drive).
-- [ ] Review [operations.md → Privacy & security](operations.md#privacy--security).
+- [ ] Copy `backups/` and `.private/NOTES.md` somewhere off the laptop (cloud drive).
+- [x] Reviewed [operations.md → Privacy & security](operations.md#privacy--security) on the live
+      site: no secrets in git or in the browser code, the receipts bucket private, every table
+      locked; the real names and amounts in the test data replaced with made-up ones.

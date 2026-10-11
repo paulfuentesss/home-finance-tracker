@@ -37,8 +37,8 @@ export default async function HowItWorksPage() {
           </p>
           <p>
             When a bill doesn&apos;t divide evenly, the leftover centavo or two goes to <strong>the admin</strong> (who
-            collects), so it never lands on anyone else. Example: ₱2,173.63 Water ÷ 5 = ₱434.726…, so three people pay
-            ₱434.73 and two pay ₱434.72.
+            collects), so it never lands on anyone else. Example: ₱1,948.63 Water ÷ 5 = ₱389.726…, so three people pay
+            ₱389.73 and two pay ₱389.72.
           </p>
         </>
       ),
@@ -83,8 +83,8 @@ export default async function HowItWorksPage() {
             and everyone in that column pays an equal part — including the person who paid, who gets the rest back.
           </p>
           <p>
-            When the usual split doesn&apos;t fit, a separate column is added for that month. For example PA was away
-            from Aug 8, so those purchases went into &ldquo;Advances Shared w/o PA&rdquo;, shared by the other four.
+            When the usual split doesn&apos;t fit, a separate column is added for that month. For example when PA
+            is away, purchases made meanwhile go into &ldquo;Advances Shared w/o PA&rdquo;, shared by the other four.
           </p>
           <p>
             Logged something wrong, or in the wrong column? Edit it in the Advances Log (the pencil next to it) and
@@ -99,7 +99,7 @@ export default async function HowItWorksPage() {
       a: (
         <p>
           Switch a shared column to <strong>Manual</strong> and type each person&apos;s amount — like the{" "}
-          <strong>Ice Maker Adj.</strong>, where Ate Toni covers half and the other four split the rest. If the typed
+          <strong>Ice Maker Adj.</strong>, where one person covers half and the other four split the rest. If the typed
           amounts don&apos;t add up to the column&apos;s total, the table shows how much it&apos;s over or short.
         </p>
       ),
@@ -114,8 +114,8 @@ export default async function HowItWorksPage() {
             bills you paid).
           </p>
           <ul className="list-disc space-y-1 pl-5">
-            <li>Positive (e.g. ₱6,315.13): you still need to pay this amount.</li>
-            <li>Negative (e.g. −₱16,967.93): you paid more than your share and get this back.</li>
+            <li>Positive (e.g. ₱5,362.76): you still need to pay this amount.</li>
+            <li>Negative (e.g. −₱15,059.19): you paid more than your share and get this back.</li>
           </ul>
           <p>
             <strong>Final</strong> adds last month&apos;s unsettled balance, takes off any payments already made, and
@@ -220,7 +220,7 @@ export default async function HowItWorksPage() {
           </p>
           <p>
             A payment comes off the payer&apos;s Final and the receiver&apos;s, and shows in the Split Table&apos;s
-            Payments column. Pay back ₱12,098.09 you owed and your Final goes to ₱0.00 — Settled.
+            Payments column. Pay back ₱10,105.83 you owed and your Final goes to ₱0.00 — Settled.
           </p>
         </>
       ),

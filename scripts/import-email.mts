@@ -1,11 +1,13 @@
 // Imports bill emails into the database exactly as the inbound-email webhook will, so the
 // whole flow can be tried locally (docs/settlement-rules.md → "Email-imported bills").
 //
-//   npm run bills:import -- meralco water pldt   # the August 2026 sample emails
+//   npm run bills:import -- meralco water pldt   # the made-up August 2026 sample emails
 //   npm run bills:import -- path/to/email.json   # { messageId, from, subject, receivedAt, text }
 //
-// The August samples land in August 2026 — which already has its bills, so they go to the
-// Bill inbox. To see them arrive as pending bills, set August's columns to ₱0 first.
+// The samples are test data, so they're refused on the live database (lib/local-database.ts);
+// a real email file is imported anywhere. They land in August 2026 — which already has its
+// bills, so they go to the Bill inbox. To see them arrive as pending bills, set August's
+// columns to ₱0 first.
 
 import { readFile } from "node:fs/promises";
 import { createDb } from "../db/client";
@@ -16,6 +18,7 @@ import {
 } from "../lib/bill-email/__fixtures__/august-2026-emails";
 import type { BillEmail } from "../lib/bill-email/parse";
 import { importBillEmail } from "../lib/bill-import";
+import { refuseLiveDatabase } from "../lib/local-database";
 
 const SAMPLES: Record<string, BillEmail> = {
   meralco: MERALCO_AUGUST_2026,
@@ -30,6 +33,7 @@ if (args.length === 0) {
   console.log("Usage: npm run bills:import -- <meralco|water|pldt|path/to/email.json> …");
   process.exit(1);
 }
+if (args.some((arg) => arg in SAMPLES)) refuseLiveDatabase(url, "npm run bills:import with the sample emails");
 
 const { db, client } = createDb(url, { max: 1 });
 try {

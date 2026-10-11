@@ -163,7 +163,7 @@ function AdvanceForm({ view, advance, onDone }: Props & { advance?: ViewAdvance;
             ref={descriptionRef}
             id="description"
             name="description"
-            placeholder="SM Cherry groceries"
+            placeholder="Weekly groceries"
             defaultValue={advance?.description}
             required
             maxLength={120}

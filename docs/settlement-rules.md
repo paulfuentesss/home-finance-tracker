@@ -6,14 +6,13 @@ the code. The household-facing version is the **How it works** page
 (`app/how-it-works/page.tsx`) — keep the two in sync. This file holds the rules only: what
 each feature does and how it's built is in [features/](features/README.md).
 
-The examples use the real **August 2026** numbers from the household Google Sheet, which
-are also the test fixture (`lib/__fixtures__/august-2026.ts`).
+The examples use a **made-up August 2026** (Ana, Ben, Cara, Dan and PA), which is also the test
+fixture (`lib/__fixtures__/august-2026.ts`). The repo is public, so the household's real names
+and amounts never appear here; they live only in the database.
 
 ## Members and the collector
 
-The household: **Ate Toni, Mayee, Skyler, PJ and PA**.
-
-**PA (Paul) is the collector**: he usually pays Meralco, Water, PLDT and the Helper upfront
+**PA is the collector**: he usually pays Meralco, Water, PLDT and the Helper upfront
 and everyone settles with him (`members.is_collector`, at most one). Being the collector
 only means two things in the math:
 
@@ -48,27 +47,27 @@ shown on that column ("₱0.02 over") and in the Month Final total, like the she
 > `bill_items.paid_by_id`. The Advances Log *shows* them as read-only "Direct Bill Pay" rows,
 > but they are not stored as advances, so nothing is counted twice.
 
-### August 2026
+### August 2026 (made up)
 
-Bills (all paid by PA): Meralco ₱15,463.59 · Water ₱2,173.63 · PLDT ₱2,699.00 ·
-Helper ₱6,400.00 = **₱26,736.22**. Shared advances: **₱70,657.90**.
+Bills (all paid by PA): Meralco ₱12,507.54 · Water ₱1,948.63 · PLDT ₱1,899.00 ·
+Helper ₱5,500.00 = **₱21,855.17**. Shared advances: **₱61,951.90**.
 
-| | Ate Toni | Mayee | Skyler | PJ | PA |
+| | Ana | Ben | Cara | Dan | PA |
 |---|---:|---:|---:|---:|---:|
-| Meralco (points) | 4,657.71 | 2,794.63 | 2,794.62 | 1,863.08 | 3,353.55 |
-| Water | 434.73 | 434.73 | 434.72 | 434.72 | 434.73 |
-| PLDT Wifi | 539.80 | 539.80 | 539.80 | 539.80 | 539.80 |
-| Helper | 1,280.00 | 1,280.00 | 1,280.00 | 1,280.00 | 1,280.00 |
-| Advances Shared | 5,441.70 | 5,441.70 | 5,441.70 | 5,441.70 | 5,441.70 |
-| Advances Shared w/o PA | 9,922.10 | 9,922.10 | 9,922.10 | 9,922.10 | — |
-| Ice Maker Adj. (Manual) | 1,880.50 | 470.13 | 470.13 | 470.13 | 470.13 |
-| **Total** | 24,156.54 | 20,883.09 | 20,883.07 | 19,951.53 | 11,519.91 |
-| Own Adv (−) | 5,732.00 | 8,785.00 | 37,851.00 | 13,636.40 | 31,389.72 |
-| **Month Final** | **18,424.54** | **12,098.09** | **−16,967.93** | **6,315.13** | **−19,869.81** |
+| Meralco (points) | 3,355.68 | 2,287.97 | 2,287.96 | 1,525.31 | 3,050.62 |
+| Water | 389.73 | 389.73 | 389.72 | 389.72 | 389.73 |
+| PLDT Wifi | 379.80 | 379.80 | 379.80 | 379.80 | 379.80 |
+| Helper | 1,100.00 | 1,100.00 | 1,100.00 | 1,100.00 | 1,100.00 |
+| Advances Shared | 4,718.10 | 4,718.10 | 4,718.10 | 4,718.10 | 4,718.10 |
+| Advances Shared w/o PA | 8,790.10 | 8,790.10 | 8,790.10 | 8,790.10 | — |
+| Ice Maker Adj. (Manual) | 1,600.50 | 400.13 | 400.13 | 400.13 | 400.13 |
+| **Total** | 20,333.91 | 18,065.83 | 18,065.81 | 17,303.16 | 10,038.38 |
+| Own Adv (−) | 4,980.00 | 7,960.00 | 33,125.00 | 11,940.40 | 25,801.67 |
+| **Month Final** | **15,353.91** | **10,105.83** | **−15,059.19** | **5,362.76** | **−15,763.29** |
 
-Sum: **₱0.02** — the Ice Maker's typed amounts add up to ₱3,761.02, ₱0.02 over, exactly as
-in the sheet (the app flags it). Each Month Final is within ₱0.01 of the sheet, which rounds
-each bill share on its own; the app's bill shares always add up to the bill.
+Sum: **₱0.02** — the Ice Maker's typed amounts add up to ₱3,201.02, ₱0.02 over (the app
+flags it). Each Month Final is within ₱0.01 of what a spreadsheet gets by rounding each share
+on its own; the app's bill shares always add up to the bill.
 
 ## Rounding: everything in centavos
 
@@ -76,10 +75,11 @@ Money is stored as `numeric(12,2)` and all arithmetic is done in whole centavos
 (`lib/money.ts`), never with floating-point numbers.
 
 - **Equal splits:** leftover centavos go one each in **`splitOrder`**: the collector first,
-  then by `sort_order`. Water ₱2,173.63 ÷ 5 = 434.726 → PA, Ate Toni and Mayee pay ₱434.73;
-  Skyler and PJ pay ₱434.72.
+  then by `sort_order`. Water ₱1,948.63 ÷ 5 = 389.726 → PA, Ana and Ben pay ₱389.73;
+  Cara and Dan pay ₱389.72.
 - **Points / weighted splits:** largest-remainder method — leftovers go to the largest
-  fractional parts, ties broken in `splitOrder`. Shares always add up to the total. Points
+  fractional parts, ties broken in `splitOrder`. (August's Meralco: Ben and Cara have equal
+  points, so they tie for the last leftover centavo; Ben comes first in sort order and gets it.) Shares always add up to the total. Points
   (2 decimals) are converted to whole hundredths first (2.5 → 250) so the remainders are
   compared exactly; floating-point decimals could otherwise break a tie the wrong way.
 
@@ -98,17 +98,17 @@ Shares are computed in one place: `computeBillShares` in `lib/settlement.ts`.
 ### Meralco point system
 
 Meralco is split by points (`bill_item_shares.points`) because aircon and PCs use more
-electricity. Allocation as of **April 2026** — **8.3 points**, edited in *Manage Columns &
-People → Meralco Points*:
+electricity. Points are edited in *Manage Columns & People → Meralco Points*. In the made-up
+August — **8.2 points**:
 
-| Ate Toni | PA | Skyler | Mayee | PJ |
+| Ana | PA | Ben | Cara | Dan |
 |---:|---:|---:|---:|---:|
-| 2.5 | 1.8 | 1.5 | 1.5 | 1 |
+| 2.2 | 2 | 1.5 | 1.5 | 1 |
 
-Items the points are built from: General electricity 1 · Aircon 1 · PA's PC 0.3
-(`lib/household-config.ts`).
+The items the points are built from are a setting (`MERALCO_POINT_ITEMS` in
+`lib/household-config.ts`).
 
-**Cost per point = bill ÷ total points.** August: ₱15,463.59 ÷ 8.3 ≈ ₱1,863.08 per point.
+**Cost per point = bill ÷ total points.** August: ₱12,507.54 ÷ 8.2 ≈ ₱1,525.31 per point.
 
 ## Shared columns (advances)
 
@@ -129,9 +129,9 @@ it among everyone who had an amount.
 Every month has **Advances Shared** (`is_default`, everyone, Auto equal), the usual column.
 Situational columns are added when needed:
 
-> August: PA was away from Aug 8, so later purchases went into **Advances Shared w/o PA**
-> (₱39,688.40 → ₱9,922.10 × 4). **Ice Maker Adj.** (₱3,761.00, paid by PA) is Manual: Ate
-> Toni ₱1,880.50, the others ₱470.13 each.
+> August: PA was away for most of the month, so later purchases went into **Advances Shared
+> w/o PA** (₱35,160.40 → ₱8,790.10 × 4). **Ice Maker Adj.** (₱3,201.00, paid by PA) is Manual:
+> Ana ₱1,600.50, the others ₱400.13 each.
 
 A column with advances can't be deleted — move them first by editing each advance and
 picking another column (or delete them) — and Advances Shared always stays.
@@ -159,8 +159,8 @@ the collector's, which keeps only what doesn't add up (a Manual column that's ov
 Any other pair and partial amounts are allowed. Payments can be edited or deleted while the
 month is open.
 
-> August: Ate Toni → PA ₱18,424.54 · PA → Skyler ₱16,967.93 · Mayee → PA ₱12,098.09 ·
-> PJ → PA ₱6,315.13. Afterwards PA's Final is ₱0.02 (the Ice Maker difference).
+> August: Ana → PA ₱15,353.91 · PA → Cara ₱15,059.19 · Ben → PA ₱10,105.83 ·
+> Dan → PA ₱5,362.76. Afterwards PA's Final is ₱0.02 (the Ice Maker difference).
 
 **Carry-over is live:** an open month's opening balance is the previous month's Final,
 computed on the fly back to the first month (or to the last closed month, whose stored
