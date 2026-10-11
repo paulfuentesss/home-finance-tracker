@@ -1,13 +1,16 @@
 "use client";
 
-import { Columns3, HandCoins, Plus, UserPlus } from "lucide-react";
+import { Columns3, HandCoins, KeyRound, Plus, UserPlus } from "lucide-react";
 import { startTransition, useActionState, useRef, useState } from "react";
 import {
   addAdvance,
   addBill,
+  addBiller,
+  addBillerField,
   addMember,
   addPayment,
   addSharedColumn,
+  setBillerSecret,
   submitPayment,
   updateAdvance,
   updatePayment,
@@ -677,6 +680,176 @@ function AddSharedColumnForm({ view, onDone }: Props & { onDone: () => void }) {
 }
 
 /** A Select whose value is submitted with the form under `id` as its name. */
+// ---------- Billers (docs/features/billers.md) ----------
+
+export function AddBillerDialog() {
+  const [open, setOpen] = useState(false);
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={<Button variant="outline" />}>
+        <Plus />
+        Add biller
+      </DialogTrigger>
+      <DialogContent>
+        <AddBillerForm onDone={() => setOpen(false)} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AddBillerForm({ onDone }: { onDone: () => void }) {
+  const { state, pending, previewing, onSubmit } = useDialogForm(addBiller, onDone);
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>Add biller</DialogTitle>
+        <DialogDescription>A company the household pays. Add its account details as lines after.</DialogDescription>
+      </DialogHeader>
+      <form onSubmit={onSubmit} className="grid gap-4">
+        <Field label="Name" htmlFor="biller-name">
+          <Input id="biller-name" name="name" placeholder="Meralco" required maxLength={60} />
+        </Field>
+        {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
+        <DialogFooter>
+          <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
+          <Button type="submit" disabled={pending || previewing}>
+            {pending ? "Adding…" : "Add biller"}
+          </Button>
+        </DialogFooter>
+      </form>
+    </>
+  );
+}
+
+type BillerFieldKind = "text" | "link" | "secret" | "heading";
+
+const BILLER_FIELD_KINDS: { value: BillerFieldKind; label: string }[] = [
+  { value: "text", label: "Text (account number, name…)" },
+  { value: "link", label: "Link" },
+  { value: "secret", label: "Password (stored encrypted)" },
+  { value: "heading", label: "Heading (e.g. FAQs)" },
+];
+
+export function AddBillerFieldDialog({ billerId, billerName }: { billerId: number; billerName: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={<Button variant="ghost" size="sm" />}>
+        <Plus />
+        Add line
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <AddBillerFieldForm billerId={billerId} billerName={billerName} onDone={() => setOpen(false)} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AddBillerFieldForm({ billerId, billerName, onDone }: { billerId: number; billerName: string; onDone: () => void }) {
+  const { state, pending, previewing, onSubmit } = useDialogForm(addBillerField, onDone);
+  const [kind, setKind] = useState<BillerFieldKind>("text");
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>Add a line to {billerName}</DialogTitle>
+        <DialogDescription>An account number, a link, a password, or a heading to group the lines below it.</DialogDescription>
+      </DialogHeader>
+      <form onSubmit={onSubmit} className="grid gap-4" autoComplete="off">
+        <input type="hidden" name="billerId" value={billerId} />
+        <Field label="Kind" htmlFor="kind">
+          <Select name="kind" items={BILLER_FIELD_KINDS} value={kind} onValueChange={(v) => setKind((v as BillerFieldKind) ?? "text")}>
+            <SelectTrigger id="kind" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {BILLER_FIELD_KINDS.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label={kind === "heading" ? "Heading" : "Label"} htmlFor="field-label">
+          <Input
+            id="field-label"
+            name="label"
+            placeholder={kind === "heading" ? "FAQs" : kind === "secret" ? "Wi-Fi password" : "Account number"}
+            required
+            maxLength={60}
+          />
+        </Field>
+        {kind !== "heading" && (
+          <Field label={kind === "secret" ? "Password" : kind === "link" ? "Link" : "Value"} htmlFor="field-value">
+            <Input
+              id="field-value"
+              name="value"
+              // "new-password": the browser shouldn't offer to save it as the My House login.
+              type={kind === "secret" ? "password" : kind === "link" ? "url" : "text"}
+              autoComplete={kind === "secret" ? "new-password" : "off"}
+              placeholder={kind === "link" ? "https://" : undefined}
+              maxLength={kind === "secret" ? 200 : 500}
+            />
+          </Field>
+        )}
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" name="housematesCanSee" defaultChecked className="accent-amber-600" />
+          Housemates can see this
+        </label>
+        {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
+        <DialogFooter>
+          <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
+          <Button type="submit" disabled={pending || previewing}>
+            {pending ? "Adding…" : "Add line"}
+          </Button>
+        </DialogFooter>
+      </form>
+    </>
+  );
+}
+
+/** A password is never shown back here: the field always starts empty, and saving replaces it. */
+export function ChangeBillerSecretDialog({ fieldId, label }: { fieldId: number; label: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`Change ${label}`} className="text-muted-foreground" />}>
+        <KeyRound />
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <ChangeBillerSecretForm fieldId={fieldId} label={label} onDone={() => setOpen(false)} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ChangeBillerSecretForm({ fieldId, label, onDone }: { fieldId: number; label: string; onDone: () => void }) {
+  const { state, pending, previewing, onSubmit } = useDialogForm(setBillerSecret, onDone);
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>Change {label}</DialogTitle>
+        <DialogDescription>
+          Saved encrypted, in place of the old one. Leave it empty and save to clear it.
+        </DialogDescription>
+      </DialogHeader>
+      <form onSubmit={onSubmit} className="grid gap-4" autoComplete="off">
+        <input type="hidden" name="fieldId" value={fieldId} />
+        <Field label="New password" htmlFor="new-secret">
+          <Input id="new-secret" name="secret" type="password" autoComplete="new-password" maxLength={200} />
+        </Field>
+        {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
+        <DialogFooter>
+          <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
+          <Button type="submit" disabled={pending || previewing}>
+            {pending ? "Saving…" : "Save"}
+          </Button>
+        </DialogFooter>
+      </form>
+    </>
+  );
+}
+
 function SelectField({
   id,
   items,

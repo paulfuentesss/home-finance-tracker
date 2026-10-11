@@ -22,6 +22,8 @@ connects directly ([decisions.md](decisions.md)).
 | `payments` | Money changing hands to settle up; `status` (confirmed / pending = a housemate's "I paid" waiting for PA / rejected, with `rejected_reason`) | [settle up](features/settle-up.md) |
 | `receipts` | A proof image (screenshot or photo) for exactly one bill or payment: its name in the private `receipts` Storage bucket, type, size, who uploaded it | [receipts](features/receipts.md) |
 | `bill_emails` | A bill email received: parsed values, payment fee, status (imported / unmatched / dismissed), the bill it filled | [email bills](features/email-bills.md) |
+| `billers` | A company the household pays (electricity, water, internet…): its name and place on the Billers tab. Not tied to a month | [billers](features/billers.md) |
+| `biller_fields` | A line on a biller's card: `kind` (`text` / `link` / `secret` / `heading`), label, `value` — or, for a password, `secret_value`, only ever encrypted (checks keep a password out of `value`) — and `housemates_can_see` | [billers](features/billers.md) |
 | `keep_alive` | One row: when the keep-alive job last wrote. Not used by the app | [operations](operations.md#supabase-free-plan-the-project-goes-to-sleep) |
 | `backups` | A Download backup that finished: when, and who took it. Turns off the backup reminder | [months](features/months.md), [operations](operations.md#backups) |
 
@@ -42,6 +44,7 @@ Add a line here with every new one.
 | `0007_receipts` | `receipts` (proof for bills and payments); drops the never-used `receipt_path` columns on `bill_items` and `advances` |
 | `0008_backups` | `backups`, one row per finished Download backup (for the reminder) |
 | `0009_payment-status` | `status` (the `payment_status` enum, default `confirmed` so existing payments are unchanged) and `rejected_reason` on `payments`, with a check that only rejected ones have a reason |
+| `0010_billers` | `billers` and `biller_fields` (the `biller_field_kind` enum) for the Billers tab; adds tables only |
 
 The receipt files themselves live in Supabase Storage (the private `receipts` bucket), not in
 the database; `receipts.storage_path` names one.

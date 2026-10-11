@@ -242,6 +242,11 @@ The app holds household finances, and **this repo is public**, so:
   receipt file. Never give it
   a `NEXT_PUBLIC_` name, never commit it; only `lib/supabase/admin-server.ts` and the invite
   script read it (checked by `lib/actions-guard.test.ts`).
+- **`BILLER_SECRET_KEY` encrypts the Billers tab's passwords** ([features/billers.md](features/billers.md)).
+  Server-only; only `lib/biller-secrets.ts` reads it (checked by `lib/actions-guard.test.ts`).
+  The same value in `.env.local` and Vercel, and **a copy in a password manager**: without it
+  the saved passwords can't be read by anyone, and a restored backup's passwords need it too.
+  The database and backups hold only the encrypted form.
 - **File storage (receipts, member pictures):** private buckets, and policies must never grant
   access to every `authenticated` user. The app reads and writes receipts with the secret key
   after its own login check; files are shown through `/receipts/<id>`, which redirects to a

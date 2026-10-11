@@ -104,6 +104,12 @@ Getting My House running on a new machine. Afterwards, day to day you only need
 
    **f. Check once:** sign in with Google as yourself (Supabase links Google to the invited
    login), and try a Google account that isn't invited — it should say "not invited".
+   **g. The passwords key** (for the Billers tab: [features/billers.md](features/billers.md)).
+   Run `openssl rand -base64 32` and put the result in `.env.local` as `BILLER_SECRET_KEY`.
+   Add **the same value** in Vercel → Settings → Environment Variables (Production, Sensitive),
+   then redeploy — localhost and the live site share one database, so a different key on each
+   would lock one out of the other's passwords. Save a copy in a password manager: if it's lost,
+   the saved passwords are lost with it.
 6. **Start the app**
    ```bash
    npm run dev

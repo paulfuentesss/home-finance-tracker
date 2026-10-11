@@ -16,6 +16,7 @@ begins, then it gets a page here.
 | Login | ✅ | Google or an emailed code; invite-only; the admin edits everything, housemates log their own advances; the admin can preview as a housemate | [auth.md](auth.md) |
 | Email-imported bills | 🚧 | Bill emails, sent hourly by a script in the My House Gmail, become Pending bills with the payment fee added; Bill Inbox. Waiting for its first real bill | [email-bills.md](email-bills.md) |
 | Receipts | ✅ | Proof (screenshots) on each bill and payment, in a private bucket; the admin attaches | [receipts.md](receipts.md) |
+| Billers & Accounts | ✅ | Each company the household pays, with account numbers, how it's paid, links and passwords (encrypted, revealed on tap); the admin edits, housemates see what's shared | [billers.md](billers.md) |
 
 Also running, not features of the app itself:
 - **How it works page** (`/how-it-works`) — the household-facing explanation of the rules;

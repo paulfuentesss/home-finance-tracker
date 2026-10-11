@@ -42,6 +42,9 @@ export const memberRole = pgEnum("member_role", ["admin", "member"]);
 // confirmed = counts (PA recorded it, or confirmed a housemate's) · pending = a housemate's
 // "I paid", waiting for PA · rejected = PA said no, with a reason. Only confirmed ones count.
 export const paymentStatus = pgEnum("payment_status", ["confirmed", "pending", "rejected"]);
+// A line on the Billers tab: text · link (http/https) · secret (a password, stored encrypted) ·
+// heading (a sub-title such as "FAQs", label only).
+export const billerFieldKind = pgEnum("biller_field_kind", ["text", "link", "secret", "heading"]);
 
 // ---------- Shared column helpers ----------
 
@@ -360,6 +363,44 @@ export const backups = pgTable("backups", {
     .references(() => members.id, { onDelete: "restrict" }),
 }).enableRLS();
 
+// A company the household pays (docs/features/billers.md): Meralco, the water company, PLDT…
+// Not tied to a month or a bill column — it's the reference card on the Billers tab.
+export const billers = pgTable("billers", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  name: text("name").notNull().unique(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+}).enableRLS();
+
+// One line on a biller's card: an account number, a link, a password, a sub-title…
+// A secret's value is only ever stored encrypted, in `secret_value` (lib/biller-secrets.ts);
+// it never goes to the browser with the page — Reveal fetches it (app/biller-secrets/[id]).
+export const billerFields = pgTable(
+  "biller_fields",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    billerId: integer("biller_id")
+      .notNull()
+      .references(() => billers.id, { onDelete: "cascade" }),
+    kind: billerFieldKind("kind").notNull(),
+    label: text("label").notNull(),
+    value: text("value"),
+    secretValue: text("secret_value"),
+    // Off = admin-only (lib/permissions.ts → canSeeBillerField).
+    housematesCanSee: boolean("housemates_can_see").notNull().default(true),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    // A password never sits in plain `value`; only a secret has an encrypted one.
+    check("biller_fields_secret_not_plain", sql`${t.kind} <> 'secret' OR ${t.value} IS NULL`),
+    check("biller_fields_only_secret_encrypted", sql`${t.kind} = 'secret' OR ${t.secretValue} IS NULL`),
+    index("biller_fields_biller_id").on(t.billerId),
+  ],
+).enableRLS();
+
 // ---------- Relations (for typed db.query.* joins) ----------
 
 export const membersRelations = relations(members, ({ many }) => ({
@@ -428,6 +469,14 @@ export const periodBalancesRelations = relations(periodBalances, ({ one }) => ({
   member: one(members, { fields: [periodBalances.memberId], references: [members.id] }),
 }));
 
+export const billersRelations = relations(billers, ({ many }) => ({
+  fields: many(billerFields),
+}));
+
+export const billerFieldsRelations = relations(billerFields, ({ one }) => ({
+  biller: one(billers, { fields: [billerFields.billerId], references: [billers.id] }),
+}));
+
 // ---------- Row types ----------
 
 export type Member = typeof members.$inferSelect;
@@ -444,3 +493,5 @@ export type Payment = typeof payments.$inferSelect;
 export type BillEmailRow = typeof billEmails.$inferSelect;
 export type Receipt = typeof receipts.$inferSelect;
 export type PeriodBalance = typeof periodBalances.$inferSelect;
+export type Biller = typeof billers.$inferSelect;
+export type BillerField = typeof billerFields.$inferSelect;

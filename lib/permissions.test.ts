@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   canCancelPayment,
   canManageAdvance,
+  canSeeBillerField,
   canSeePaymentProof,
   canSubmitPayment,
   isAdmin,
@@ -17,6 +18,18 @@ describe("isAdmin", () => {
   it("is true only for the admin role", () => {
     expect(isAdmin(pa)).toBe(true);
     expect(isAdmin(housemate)).toBe(false);
+  });
+});
+
+describe("canSeeBillerField", () => {
+  it("shows the admin every line, shared or not", () => {
+    expect(canSeeBillerField(pa, { housematesCanSee: true })).toBe(true);
+    expect(canSeeBillerField(pa, { housematesCanSee: false })).toBe(true);
+  });
+
+  it("shows a housemate only the lines shared with them", () => {
+    expect(canSeeBillerField(housemate, { housematesCanSee: true })).toBe(true);
+    expect(canSeeBillerField(housemate, { housematesCanSee: false })).toBe(false);
   });
 });
 

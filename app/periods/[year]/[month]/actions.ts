@@ -16,6 +16,8 @@ import { z } from "zod";
 import {
   advances,
   billEmails,
+  billerFields,
+  billers,
   billingPeriods,
   billItems,
   billItemShares,
@@ -29,6 +31,7 @@ import {
 } from "@/db";
 import { getViewer, previewFor } from "@/lib/auth";
 import { placeBill } from "@/lib/bill-import";
+import { encryptSecret } from "@/lib/biller-secrets";
 import { pointsFor, pointsOf, writeShares, type Tx } from "@/lib/bill-shares";
 import { domainTakesMail } from "@/lib/email-domain";
 import { ActionError, isUniqueViolation } from "@/lib/errors";
@@ -1150,7 +1153,214 @@ export async function reopenMonth(periodId: number): Promise<ActionState> {
   });
 }
 
+// ---------- Billers (docs/features/billers.md) ----------
+// Not tied to a month: the same cards show on every month's Billers tab. Passwords are
+// encrypted before anything reaches the database, so they never appear in a query or its errors.
+
+const billerName = z.string().trim().min(1, "Enter a biller name").max(60, "Keep the name under 60 characters");
+const billerFieldLabel = z.string().trim().min(1, "Enter a label").max(60, "Keep the label under 60 characters");
+const MAX_FIELD_VALUE = 500;
+const MAX_SECRET = 200;
+const billerFieldValue = z.string().trim().max(MAX_FIELD_VALUE, `Keep it under ${MAX_FIELD_VALUE} characters`);
+// Not trimmed: a space can be part of a password.
+const billerSecret = z.string().max(MAX_SECRET, `Keep the password under ${MAX_SECRET} characters`);
+const moveDirection = z.enum(["up", "down"]);
+
+export async function addBiller(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  return run("admin", z.object({ name: billerName }), formData, async ({ name }) => {
+    const [{ top }] = await db.select({ top: max(billers.sortOrder) }).from(billers);
+    await uniqueBillerName(() => db.insert(billers).values({ name, sortOrder: (top ?? 0) + 1 }));
+  });
+}
+
+export async function renameBiller(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const schema = z.object({ billerId: id, name: billerName });
+  return run("admin", schema, formData, async ({ billerId, name }) => {
+    const rows = await uniqueBillerName(() =>
+      db.update(billers).set({ name }).where(eq(billers.id, billerId)).returning({ id: billers.id }),
+    );
+    if (rows.length === 0) throw new ActionError("That biller was deleted.");
+  });
+}
+
+export async function deleteBiller(billerId: number): Promise<ActionState> {
+  return run("admin", z.object({ billerId: id }), { billerId }, async ({ billerId }) => {
+    // Its lines go with it (ON DELETE CASCADE).
+    await db.delete(billers).where(eq(billers.id, billerId));
+  });
+}
+
+export async function moveBiller(billerId: number, direction: "up" | "down"): Promise<ActionState> {
+  const schema = z.object({ billerId: id, direction: moveDirection });
+  return run("admin", schema, { billerId, direction }, async ({ billerId, direction }) => {
+    await db.transaction(async (tx) => {
+      const rows = await tx
+        .select({ id: billers.id })
+        .from(billers)
+        .orderBy(asc(billers.sortOrder), asc(billers.id))
+        .for("update");
+      for (const [i, rowId] of swapped(rows, billerId, direction).entries()) {
+        await tx.update(billers).set({ sortOrder: i }).where(eq(billers.id, rowId));
+      }
+    });
+  });
+}
+
+export async function addBillerField(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const schema = z.object({
+    billerId: id,
+    kind: z.enum(["text", "link", "secret", "heading"], { message: "Choose what kind of line it is" }),
+    label: billerFieldLabel,
+    // Trimmed and checked below, by kind: a password keeps its spaces.
+    value: z.string().max(MAX_FIELD_VALUE, `Keep it under ${MAX_FIELD_VALUE} characters`).optional().default(""),
+    // A checkbox: sent as "on" when ticked, left out when not.
+    housematesCanSee: z
+      .string()
+      .optional()
+      .transform((v) => v === "on"),
+  });
+  return run("admin", schema, formData, async ({ billerId, kind, label, value, housematesCanSee }) => {
+    const values =
+      kind === "secret"
+        ? { value: null, secretValue: sealedSecret(value) }
+        : { value: plainFieldValue(kind, value), secretValue: null };
+    await db.transaction(async (tx) => {
+      const [biller] = await tx.select({ id: billers.id }).from(billers).where(eq(billers.id, billerId)).for("update");
+      if (!biller) throw new ActionError("That biller was deleted.");
+      const [{ top }] = await tx
+        .select({ top: max(billerFields.sortOrder) })
+        .from(billerFields)
+        .where(eq(billerFields.billerId, billerId));
+      await tx.insert(billerFields).values({ billerId, kind, label, housematesCanSee, sortOrder: (top ?? 0) + 1, ...values });
+    });
+  });
+}
+
+export async function updateBillerFieldLabel(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const schema = z.object({ fieldId: id, label: billerFieldLabel });
+  return run("admin", schema, formData, async ({ fieldId, label }) => {
+    const rows = await db
+      .update(billerFields)
+      .set({ label })
+      .where(eq(billerFields.id, fieldId))
+      .returning({ id: billerFields.id });
+    if (rows.length === 0) throw new ActionError("That line was deleted.");
+  });
+}
+
+/** Text and links. A password goes through setBillerSecret; a heading has no value. */
+export async function updateBillerFieldValue(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const schema = z.object({ fieldId: id, value: billerFieldValue });
+  return run("admin", schema, formData, async ({ fieldId, value }) => {
+    const field = await loadBillerField(fieldId);
+    if (field.kind === "secret") throw new ActionError("Use Change password for a password.");
+    if (field.kind === "heading") throw new ActionError("A heading has only its label.");
+    await db.update(billerFields).set({ value: plainFieldValue(field.kind, value) }).where(eq(billerFields.id, fieldId));
+  });
+}
+
+/** Saves a new password (an empty one clears it). Never shown back: the form always starts empty. */
+export async function setBillerSecret(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const schema = z.object({ fieldId: id, secret: billerSecret });
+  return run("admin", schema, formData, async ({ fieldId, secret }) => {
+    const field = await loadBillerField(fieldId);
+    if (field.kind !== "secret") throw new ActionError("That line isn't a password.");
+    await db.update(billerFields).set({ secretValue: sealedSecret(secret) }).where(eq(billerFields.id, fieldId));
+  });
+}
+
+export async function setBillerFieldVisibility(fieldId: number, housematesCanSee: boolean): Promise<ActionState> {
+  const schema = z.object({ fieldId: id, housematesCanSee: z.boolean() });
+  return run("admin", schema, { fieldId, housematesCanSee }, async ({ fieldId, housematesCanSee }) => {
+    await loadBillerField(fieldId);
+    await db.update(billerFields).set({ housematesCanSee }).where(eq(billerFields.id, fieldId));
+  });
+}
+
+export async function moveBillerField(fieldId: number, direction: "up" | "down"): Promise<ActionState> {
+  const schema = z.object({ fieldId: id, direction: moveDirection });
+  return run("admin", schema, { fieldId, direction }, async ({ fieldId, direction }) => {
+    await db.transaction(async (tx) => {
+      const { billerId } = await loadBillerField(fieldId, tx);
+      const rows = await tx
+        .select({ id: billerFields.id })
+        .from(billerFields)
+        .where(eq(billerFields.billerId, billerId))
+        .orderBy(asc(billerFields.sortOrder), asc(billerFields.id))
+        .for("update");
+      for (const [i, rowId] of swapped(rows, fieldId, direction).entries()) {
+        await tx.update(billerFields).set({ sortOrder: i }).where(eq(billerFields.id, rowId));
+      }
+    });
+  });
+}
+
+export async function deleteBillerField(fieldId: number): Promise<ActionState> {
+  return run("admin", z.object({ fieldId: id }), { fieldId }, async ({ fieldId }) => {
+    await db.delete(billerFields).where(eq(billerFields.id, fieldId));
+  });
+}
+
 // ---------- Helpers ----------
+
+async function loadBillerField(fieldId: number, executor: Tx | typeof db = db) {
+  const [field] = await executor
+    .select({ kind: billerFields.kind, billerId: billerFields.billerId })
+    .from(billerFields)
+    .where(eq(billerFields.id, fieldId));
+  if (!field) throw new ActionError("That line was deleted.");
+  return field;
+}
+
+/** A biller name that's taken gets its own message (run()'s is about month columns). */
+async function uniqueBillerName<T>(write: () => Promise<T>): Promise<T> {
+  try {
+    return await write();
+  } catch (error) {
+    if (isUniqueViolation(error)) throw new ActionError("There's already a biller with that name.");
+    throw error;
+  }
+}
+
+/** A text or link line's value as stored: null when empty; a link must be http(s) (no javascript: links). */
+function plainFieldValue(kind: "text" | "link" | "heading", raw: string): string | null {
+  const value = raw.trim();
+  if (kind === "heading" || value === "") return null;
+  if (value.length > MAX_FIELD_VALUE) throw new ActionError(`Keep it under ${MAX_FIELD_VALUE} characters.`);
+  if (kind === "link") {
+    let url: URL | null = null;
+    try {
+      url = new URL(value);
+    } catch {}
+    if (!url || (url.protocol !== "http:" && url.protocol !== "https:")) {
+      throw new ActionError("Enter a full link starting with https:// (or http://).");
+    }
+  }
+  return value;
+}
+
+/** Checked by hand, not with zod's parse: a zod error carries the input, and run() logs errors. */
+function sealedSecret(secret: string): string | null {
+  if (secret.length > MAX_SECRET) throw new ActionError(`Keep the password under ${MAX_SECRET} characters.`);
+  if (secret === "") return null;
+  try {
+    return encryptSecret(secret);
+  } catch (error) {
+    // The key is missing or malformed: say so, rather than "Something went wrong".
+    throw new ActionError(error instanceof Error ? error.message : "Passwords aren't set up.");
+  }
+}
+
+/** The ids in their new order, with `id` swapped with its neighbour (unchanged at either end). */
+function swapped(rows: { id: number }[], id: number, direction: "up" | "down"): number[] {
+  const ids = rows.map((r) => r.id);
+  const from = ids.indexOf(id);
+  if (from === -1) throw new ActionError("That was deleted.");
+  const to = direction === "up" ? from - 1 : from + 1;
+  if (to < 0 || to >= ids.length) return ids;
+  [ids[from], ids[to]] = [ids[to], ids[from]];
+  return ids;
+}
 
 /** Locks a month's row until the transaction ends (closing, starting and "I paid" take turns). */
 async function lockPeriod(tx: Tx, periodId: number) {

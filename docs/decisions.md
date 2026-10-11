@@ -440,3 +440,18 @@ in the last hour (`edit-overlap.sh`, a log inside `.git`).
 **Instead of:** one dev server pointed at whichever worktree is current (swapping folders under
 a running server), or keeping worktrees and just stopping old servers by hand (the pile-up
 comes back with every new session).
+
+## 2026-10-12 — Biller passwords are encrypted by the app and revealed one at a time
+**Decision:** the Billers tab ([features/billers.md](features/billers.md)) keeps the billers'
+logins and the Wi-Fi details too. A password is encrypted (AES-256-GCM) before it's saved, with
+a key (`BILLER_SECRET_KEY`) that lives only in `.env.local` and Vercel; the page never carries
+one — Reveal fetches it from `/biller-secrets/<id>`, which checks the login and that it's
+shared with the viewer. Every line, passwords included, is shared with housemates unless PA
+switches it to admin only.
+**Why:** PA wanted the sheet's details, logins included, in one place the household can look
+them up. Encrypting means the database, its backups and anyone with database access see only
+locked text; fetching on Reveal keeps passwords out of the page's HTML and the browser's cache.
+The cost: losing the key loses the passwords, so a copy of it is kept in a password manager.
+**Instead of:** plain text hidden from housemates (readable by anyone with the database or a
+backup), or no passwords on the site and a shared password manager only (safest, but a second
+place to look, and PA wanted it in My House).
