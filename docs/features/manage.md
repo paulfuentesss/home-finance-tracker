@@ -18,7 +18,9 @@
 - The whole tab is PA's: anyone else is sent back to the month.
 - **Bill Inbox** card ([email-bills.md](email-bills.md)).
 - **Backup** card: **Download backup** saves a zip of every row (a `.sql` file) and every receipt
-  picture. How to restore: [operations.md → Backups](../operations.md#backups).
+  picture, and shows when the last one was downloaded. A reminder banner asks for one after a
+  month is started or closed ([months.md](months.md)). How to restore:
+  [operations.md → Backups](../operations.md#backups).
 
 ## How it's built
 - Route: `app/periods/[year]/[month]/manage/page.tsx` (tab 4).

@@ -2,10 +2,13 @@ import { Lock, TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { BackupReminderBanner } from "@/components/backup-reminder";
 import { PeriodHeader } from "@/components/period-header";
 import { PreviewBanner } from "@/components/preview-banner";
 import { ViewerProvider } from "@/components/viewer-context";
 import { getPreview, getPreviewChoices, requireViewer } from "@/lib/auth";
+import { backupReminderText } from "@/lib/backup-reminder";
+import { getBackupReminder } from "@/lib/backup-status";
 import { monthLabel } from "@/lib/format";
 import { isAdmin } from "@/lib/permissions";
 import { getPeriodView } from "@/lib/periods";
@@ -24,11 +27,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 // drawn for that housemate under a banner saying so.
 export default async function PeriodLayout({ params, children }: Props) {
   const { year, month } = await parsePeriodParams(params);
-  const [real, preview, view, previewChoices] = await Promise.all([
-    requireViewer(),
+  const real = await requireViewer();
+  const [preview, view, previewChoices, reminder] = await Promise.all([
     getPreview(),
     getPeriodView(year, month),
     getPreviewChoices(),
+    getBackupReminder(real),
   ]);
   if (!view) notFound();
   // Who the page is drawn for. Only this layout decides; the tabs read it from the context.
@@ -41,6 +45,8 @@ export default async function PeriodLayout({ params, children }: Props) {
       <PreviewBanner />
       <PeriodHeader view={view} viewer={viewer} previewChoices={previewChoices} />
       <main className="mx-auto w-full max-w-7xl space-y-6 px-4 py-8">
+        {/* The admin's own reminder: hidden while previewing as a housemate. */}
+        {admin && reminder && <BackupReminderBanner text={backupReminderText(reminder)} />}
         {view.period.status === "closed" && (
           <div className="flex items-start gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700">
             <Lock className="mt-0.5 size-4 shrink-0" />

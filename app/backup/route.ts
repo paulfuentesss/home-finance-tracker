@@ -4,7 +4,7 @@
 // as an error page; a picture failing mid-download makes the browser report a failed download.
 
 import { sql } from "drizzle-orm";
-import { db } from "@/db";
+import { backups, db } from "@/db";
 import { getViewer } from "@/lib/auth";
 import { backupZipStream, buildBackupSql } from "@/lib/backup";
 import { dateInManila } from "@/lib/format";
@@ -35,6 +35,7 @@ export async function GET() {
   const zip = backupZipStream({
     sqlName: `home-finance-tracker-data-${date}.sql`,
     sql: dump,
+    now,
     paths,
     async download(path) {
       const { data, error } = await bucket.download(path);
@@ -46,6 +47,10 @@ export async function GET() {
       return new Uint8Array(await data.arrayBuffer());
     },
     onSkip: (path) => console.warn(`Backup: receipt ${path} was deleted during the backup; skipped.`),
+    // The whole zip went out: this is what turns off the month pages' backup reminder.
+    async onDone() {
+      await db.insert(backups).values({ takenAt: now, takenById: viewer.memberId });
+    },
   });
   return new Response(zip, {
     headers: {

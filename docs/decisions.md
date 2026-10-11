@@ -342,3 +342,28 @@ script, in one mailbox: no script reads the personal Gmail. Duplicates were alre
 **Instead of:** an inbound-email service (CloudMailin's free plan caps each email at 512 KB;
 Postmark charges for inbound), or a second copy of the script in the personal Gmail — the
 fallback if forwarded bills fail the DKIM check.
+
+## 2026-10-11 — The backup reminder is tracked in the database
+**Decision:** each finished Download backup adds a row to `backups`. The month pages show the
+admin a banner while a month was started or closed after the latest row. The zip's file times
+are written on Manila's clock.
+**Why:** a reminder that remembers backups goes away by itself and works on any device. A
+cookie would nag on the laptop after a backup from the phone, and a one-time prompt after Start
+next month is easy to dismiss and forget. The row is written only once the whole zip has
+streamed, so a failed download leaves the reminder up. Zip times have no timezone and Vercel runs
+in UTC, so without the shift a 3 PM backup showed as 7 AM.
+
+## 2026-10-11 — The app connects through the session pooler, not the transaction pooler
+**Decision:** `DATABASE_URL` is Supabase's session pooler (port 5432), the same one the scripts
+use, instead of the transaction pooler (port 6543).
+**Why:** the transaction pooler stops answering when postgres.js sends a query while another is
+still running on the same connection. postgres.js does that ("pipelining") for any query
+without parameters, and the month page hung for over a minute and then errored. Adding the
+backup reminder's query was enough to trigger it, so any future query could have done the same
+on the live site. In tests (3 runs, each with 12 queries at once plus a transaction) the
+transaction pooler hung every time and the session pooler never did. Turning pipelining off
+(`max_pipeline: 0`) stopped the hang but broke transactions, and prepared statements didn't
+help.
+**Trade-off:** in session mode each connection holds a database connection while it's open.
+The app uses one per server instance and closes it after 20 s idle; the free plan's pool (about
+15) is far more than a household needs.

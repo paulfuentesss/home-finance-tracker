@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import { unzipSync } from "fflate";
 import { describe, expect, it } from "vitest";
-import { backupZipStream, buildBackupSql, orderTables, type Query } from "./backup";
+import { backupZipStream, buildBackupSql, manilaClock, orderTables, type Query } from "./backup";
 
 const MIGRATIONS = join(__dirname, "..", "drizzle");
 const NOW = new Date("2026-10-11T06:03:00Z");
@@ -52,6 +52,7 @@ const SAMPLE = `
   INSERT INTO receipts (storage_path, content_type, size_bytes, original_name, payment_id, uploaded_by_id) VALUES
     ('2026/08/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.jpg', 'image/jpeg', 1234, NULL, 1, 1);
   INSERT INTO keep_alive (id, pinged_at) VALUES (1, '2026-10-08T07:13:20Z');
+  INSERT INTO backups (taken_at, taken_by_id) VALUES ('2026-10-01T07:00:00Z', 1);
 `;
 
 /** Every table's rows as text, to compare two databases. */
@@ -171,6 +172,7 @@ describe("backupZipStream", () => {
       backupZipStream({
         sqlName: "data.sql",
         sql: "-- hello ₱\nBEGIN;\n",
+        now: NOW,
         paths: ["2026/08/a.jpg", "2026/08/deleted.jpg", "2026/09/b.png"],
         download: async (path) => pictures[path] ?? null,
         onSkip: (path) => skipped.push(path),
@@ -185,19 +187,59 @@ describe("backupZipStream", () => {
   });
 
   it("works with no pictures at all", async () => {
-    const zip = await collect(backupZipStream({ sqlName: "data.sql", sql: "x", paths: [], download: async () => null }));
+    const zip = await collect(backupZipStream({ sqlName: "data.sql", sql: "x", now: NOW, paths: [], download: async () => null }));
     expect(Object.keys(unzipSync(zip))).toEqual(["data.sql"]);
   });
 
   it("fails the stream when a picture can't be downloaded", async () => {
+    let done = false;
     const stream = backupZipStream({
       sqlName: "data.sql",
       sql: "x",
+      now: NOW,
       paths: ["2026/08/a.jpg"],
+      onDone: async () => {
+        done = true;
+      },
       download: async () => {
         throw new Error("Storage is down");
       },
     });
     await expect(collect(stream)).rejects.toThrow("Storage is down");
+    expect(done).toBe(false); // a failed backup isn't recorded, so the reminder stays
+  });
+
+  it("is recorded once every file is in, before the stream ends", async () => {
+    const events: string[] = [];
+    const stream = backupZipStream({
+      sqlName: "data.sql",
+      sql: "x",
+      now: NOW,
+      paths: ["2026/08/a.jpg"],
+      download: async (path) => pictures[path],
+      onDone: async () => {
+        events.push("done");
+      },
+    });
+    const zip = await collect(stream);
+    events.push("read");
+    expect(events).toEqual(["done", "read"]);
+    expect(Object.keys(unzipSync(zip))).toHaveLength(2);
+  });
+
+  it("dates the files on Manila's clock, whatever the server's timezone", async () => {
+    // 07:00 UTC is 3:00 PM in Manila. A zip stores the time without a timezone.
+    const clock = manilaClock(new Date("2026-10-11T07:00:00Z"));
+    expect([clock.getFullYear(), clock.getMonth() + 1, clock.getDate(), clock.getHours(), clock.getMinutes()]).toEqual([2026, 10, 11, 15, 0]);
+    // Just after midnight in Manila is still the previous day in UTC.
+    expect(manilaClock(new Date("2026-10-11T16:30:00Z")).getDate()).toBe(12);
+
+    // The first file's header (offset 0): time at bytes 10–11, date at 12–13 (MS-DOS format).
+    const zip = await collect(backupZipStream({ sqlName: "data.sql", sql: "x", now: NOW, paths: [], download: async () => null }));
+    const view = new DataView(zip.buffer, zip.byteOffset);
+    const time = view.getUint16(10, true);
+    const date = view.getUint16(12, true);
+    // NOW is 06:03 UTC → 14:03 in Manila.
+    expect([1980 + (date >> 9), (date >> 5) & 15, date & 31, time >> 11, (time >> 5) & 63]).toEqual([2026, 10, 11, 14, 3]);
   });
 });

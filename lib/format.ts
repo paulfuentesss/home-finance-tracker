@@ -28,6 +28,12 @@ export function dateInManila(moment: Date): string {
   return moment.toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
 }
 
+/** A moment in Manila as "Oct. 11, 2026, 3:00 PM" (e.g. when the last backup was taken). */
+export function momentLabel(moment: Date): string {
+  const time = moment.toLocaleTimeString("en-US", { timeZone: "Asia/Manila", hour: "numeric", minute: "2-digit" });
+  return `${dateLabel(dateInManila(moment))}, ${time}`;
+}
+
 /** Today's date in Manila as "YYYY-MM-DD" (for date inputs). */
 export function todayInManila(): string {
   return dateInManila(new Date());

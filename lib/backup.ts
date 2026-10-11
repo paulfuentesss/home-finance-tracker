@@ -135,15 +135,42 @@ export async function buildBackupSql(query: Query, info: BackupInfo): Promise<st
   ].join("\n\n") + "\n";
 }
 
+/**
+ * `moment` as a Date whose local fields (getHours…) read Manila's clock. Zip files store a
+ * time with no timezone, written from those local fields, and Vercel runs in UTC: without this
+ * a 3 PM backup unzips as 7 AM.
+ */
+export function manilaClock(moment: Date): Date {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Manila",
+      hourCycle: "h23",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    })
+      .formatToParts(moment)
+      .map((p) => [p.type, Number(p.value)]),
+  );
+  return new Date(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+}
+
 export type ZipInput = {
   /** The .sql file's name inside the zip. */
   sqlName: string;
   sql: string;
+  /** When the backup was made; every file in the zip gets this time, on Manila's clock. */
+  now: Date;
   /** Receipt paths in the bucket; each goes into the zip under `receipts/`. */
   paths: string[];
   /** One file's bytes, or null if it was deleted since the listing (it's skipped). */
   download: (path: string) => Promise<Uint8Array | null>;
   onSkip?: (path: string) => void;
+  /** Called once every file is in the zip, just before its last bytes (the route records the backup). */
+  onDone?: () => Promise<void>;
 };
 
 /**
@@ -151,7 +178,8 @@ export type ZipInput = {
  * fetched only when the browser has taken the last. A failed download errors the stream — the
  * browser shows a failed download, and a cut-off zip (no index at the end) won't open.
  */
-export function backupZipStream({ sqlName, sql, paths, download, onSkip }: ZipInput): ReadableStream<Uint8Array> {
+export function backupZipStream({ sqlName, sql, now, paths, download, onSkip, onDone }: ZipInput): ReadableStream<Uint8Array> {
+  const mtime = manilaClock(now);
   let zip: Zip;
   let next = 0;
   let cancelled = false;
@@ -164,17 +192,26 @@ export function backupZipStream({ sqlName, sql, paths, download, onSkip }: ZipIn
         if (final) controller.close();
       });
       const file = new ZipDeflate(sqlName, { level: 6 });
+      file.mtime = mtime;
       zip.add(file);
       file.push(new TextEncoder().encode(sql), true);
     },
     async pull() {
-      if (next === paths.length) return zip.end();
+      if (next === paths.length) {
+        // Every file is in: record it now, while the response is still open — on Vercel, work
+        // left running after the response ends may never finish. A failed record mustn't fail
+        // the download.
+        await onDone?.().catch((e) => console.error("Backup finished but couldn't be recorded", e));
+        if (!cancelled) zip.end(); // the zip's index: its last bytes; closes the stream
+        return;
+      }
       const path = paths[next++];
       const bytes = await download(path);
       if (cancelled) return;
       if (bytes === null) return onSkip?.(path);
       // Pictures are already compressed: stored as they are.
       const file = new ZipPassThrough(`receipts/${path}`);
+      file.mtime = mtime;
       zip.add(file);
       file.push(bytes, true);
     },

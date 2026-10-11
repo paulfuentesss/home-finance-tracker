@@ -341,6 +341,16 @@ export const keepAlive = pgTable(
   (t) => [check("keep_alive_single_row", sql`${t.id} = 1`)],
 ).enableRLS();
 
+// A Download backup that finished streaming (app/backup/route.ts). The month pages remind the
+// admin to back up when a month was started or closed since the latest one (lib/backup-reminder.ts).
+export const backups = pgTable("backups", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  takenAt: timestamp("taken_at", { withTimezone: true }).notNull().defaultNow(),
+  takenById: integer("taken_by_id")
+    .notNull()
+    .references(() => members.id, { onDelete: "restrict" }),
+}).enableRLS();
+
 // ---------- Relations (for typed db.query.* joins) ----------
 
 export const membersRelations = relations(members, ({ many }) => ({
