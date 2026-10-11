@@ -7,7 +7,9 @@
 - Lists who still owes whom — everyone settles with the collector — with the suggested
   payment for each person.
 - **PA:** one tap records a payment (the amount is pre-filled; partial amounts are fine, and
-  any pair of members is allowed). It counts right away.
+  the form lets PA change who paid whom). It counts right away. When there's nothing to tap
+  (everyone settled, or a problem stops the numbers), a plain "Record a payment" button takes
+  its place.
 - **A housemate: "I paid"** on their own row, in the latest open month — the amount (what they
   owe, pre-filled), the date, a note and the **transfer's screenshot (required)**. It goes to
   the collector and shows as **Waiting for PA**: not counted yet. If they already have one

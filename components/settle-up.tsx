@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Check, Lock, LockOpen, Pencil, X } from "lucide-react";
+import { Check, Lock, LockOpen, Pencil, X } from "lucide-react";
 import { useState, useTransition } from "react";
 import {
   cancelPayment,
@@ -13,6 +13,7 @@ import {
 } from "@/app/periods/[year]/[month]/actions";
 import { ConfirmDeleteButton } from "@/components/confirm-button";
 import { EditPaymentDialog, RecordPaymentDialog, SubmitPaymentDialog } from "@/components/entry-dialogs";
+import { Pair } from "@/components/member-pair";
 import { ProofThumbs } from "@/components/receipts";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,7 +31,7 @@ import { useCanEdit, useIsPreviewing, useViewer } from "@/components/viewer-cont
 import { dateLabel, monthLabel } from "@/lib/format";
 import { formatPHP, sumCentavos, type Centavos } from "@/lib/money";
 import { canCancelPayment, canSubmitPayment, isAdmin } from "@/lib/permissions";
-import type { PeriodView, ViewMember, ViewPayment, ViewReceipt } from "@/lib/periods";
+import type { PeriodView, ViewPayment, ViewReceipt } from "@/lib/periods";
 import { suggestedPayments } from "@/lib/settlement";
 import { cn } from "@/lib/utils";
 
@@ -140,16 +141,12 @@ function WhoStillOwes({ view }: { view: PeriodView }) {
             const waiting = s.toMemberId === collector?.id ? waitingFrom(view, s.fromMemberId) : 0;
             const own = canSend && s.fromMemberId === viewer.memberId;
             return (
-              <li
-                key={`${s.fromMemberId}-${s.toMemberId}`}
-                className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="space-y-0.5">
-                  <div className="flex items-center justify-between gap-3 sm:justify-start">
+              // Phone: who over the amount, a small button on the right. Wider: one line.
+              <li key={`${s.fromMemberId}-${s.toMemberId}`} className="flex items-center justify-between gap-3 py-3">
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <div className="space-y-0.5 sm:flex sm:items-center sm:justify-between sm:gap-3 sm:space-y-0">
                     <Pair from={from} to={to} />
-                    <span className="font-mono font-semibold tabular-nums text-rose-600 sm:hidden">
-                      {formatPHP(s.amount)}
-                    </span>
+                    <span className="block font-mono font-semibold tabular-nums text-rose-600">{formatPHP(s.amount)}</span>
                   </div>
                   {waiting > 0 && (
                     <p className="text-xs text-amber-700">
@@ -159,21 +156,20 @@ function WhoStillOwes({ view }: { view: PeriodView }) {
                     </p>
                   )}
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="hidden font-mono font-semibold tabular-nums text-rose-600 sm:inline">
-                    {formatPHP(s.amount)}
-                  </span>
-                  {editable && (
-                    <RecordPaymentDialog
-                      view={view}
-                      prefill={s}
-                      label="Record payment"
-                      variant={waiting > 0 ? "outline" : "default"}
-                      className="w-full sm:w-auto"
-                    />
-                  )}
-                  {own && <SubmitPaymentDialog view={view} owed={s.amount} waiting={waiting} className="w-full sm:w-auto" />}
-                </div>
+                {editable && (
+                  <RecordPaymentDialog
+                    view={view}
+                    prefill={s}
+                    label={
+                      <>
+                        Record<span className="hidden sm:inline"> payment</span>
+                      </>
+                    }
+                    variant={waiting > 0 ? "outline" : "default"}
+                    className="shrink-0"
+                  />
+                )}
+                {own && <SubmitPaymentDialog view={view} owed={s.amount} waiting={waiting} className="shrink-0" />}
               </li>
             );
           })}
@@ -186,22 +182,23 @@ function WhoStillOwes({ view }: { view: PeriodView }) {
           {settled.map((r) => memberOf.get(r.memberId)?.name).join(", ")}
         </p>
       )}
+
+      {/* No rows to tap (everyone settled, or the numbers can't be worked out): still a way to
+          record a payment. With rows, each row's form already lets PA change who paid whom. */}
+      {editable && (view.issue || suggestions.length === 0) && (
+        <RecordPaymentDialog view={view} label="Record a payment" variant="outline" className="mt-3" />
+      )}
     </section>
   );
 }
 
 function PaymentsList({ view, receipts }: { view: PeriodView; receipts: ViewReceipt[] }) {
-  // Only PA records payments (in an open month); housemates' own come from "I paid".
-  const editable = useCanEdit(view.period.status);
-
+  // PA records payments (in an open month); housemates' own come from "I paid".
   return (
     <section aria-labelledby="payments-this-month" className="rounded-xl border bg-white p-4 shadow-xs sm:p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="payments-this-month" className="text-lg font-semibold">
-          Payments this month
-        </h2>
-        {editable && <RecordPaymentDialog view={view} label="Record other payment" variant="outline" />}
-      </div>
+      <h2 id="payments-this-month" className="text-lg font-semibold">
+        Payments this month
+      </h2>
 
       {view.payments.length === 0 ? (
         <p className="mt-4 rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
@@ -591,20 +588,4 @@ function ConfirmAction({
       </DialogContent>
     </Dialog>
   );
-}
-
-function Pair({ from, to }: { from: ViewMember; to: ViewMember }) {
-  return (
-    <span className="flex items-center gap-1.5 text-sm font-medium">
-      <Dot member={from} />
-      {from.name}
-      <ArrowRight className="size-3.5 text-muted-foreground" aria-label="pays" />
-      <Dot member={to} />
-      {to.name}
-    </span>
-  );
-}
-
-function Dot({ member }: { member: ViewMember }) {
-  return <span className={cn("size-2 rounded-full", member.dotClass)} aria-hidden />;
 }

@@ -29,18 +29,18 @@ export function SettleSummary({ view }: { view: PeriodView }) {
   const collectorNet = collector ? -(rowOf.get(collector.id)?.balance ?? 0) : collects - paysOut;
 
   return (
-    <section aria-labelledby="settle-summary" className="rounded-xl border bg-white p-4 shadow-xs">
+    <section aria-labelledby="settle-summary" className="rounded-xl border bg-white p-4 shadow-xs sm:p-5">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 id="settle-summary" className="text-sm font-semibold">
+        <h2 id="settle-summary" className="text-base font-semibold">
           Who owes what
         </h2>
         <SettleUpLink period={view.period} />
       </div>
-      <p className="text-xs text-muted-foreground">
+      <p className="mt-1 text-sm text-muted-foreground">
         Each person&apos;s Final, including last month&apos;s unsettled balance and payments recorded.
       </p>
 
-      <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:max-w-3xl">
+      <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:max-w-3xl">
         {payers.length > 0 && (
           <Group id="settle-pays" title={`Pays ${collectorName}`} total={collects} tone="owes" entries={payers} />
         )}
@@ -49,7 +49,7 @@ export function SettleSummary({ view }: { view: PeriodView }) {
         )}
       </div>
 
-      <div className="mt-3 space-y-1 border-t pt-3 text-xs text-muted-foreground lg:max-w-3xl">
+      <div className="mt-4 space-y-2 border-t pt-4 text-sm text-muted-foreground lg:max-w-3xl">
         {collector && (
           <p>
             <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
@@ -72,8 +72,9 @@ export function SettleSummary({ view }: { view: PeriodView }) {
                 overall
               </>
             )}{" "}
-            <span className="whitespace-nowrap">
-              ({formatPHP(collects)} in − {formatPHP(paysOut)} out)
+            {/* Its own line, so the breakdown never splits mid-sentence on a phone. */}
+            <span className="mt-0.5 block text-xs">
+              {formatPHP(collects)} in − {formatPHP(paysOut)} out
             </span>
           </p>
         )}
@@ -110,9 +111,9 @@ function Group({
         </h3>
         <span className="font-mono text-xs font-semibold tabular-nums text-muted-foreground">{formatPHP(total)}</span>
       </div>
-      <ul aria-labelledby={id} className="mt-1">
+      <ul aria-labelledby={id} className="mt-1.5">
         {entries.map(({ member, balance }) => (
-          <li key={member.id} className="flex items-center justify-between gap-2 px-2 py-1">
+          <li key={member.id} className="flex items-center justify-between gap-2 px-2 py-1.5">
             <span className="flex items-center gap-2 text-sm font-medium">
               <span className={cn("size-2 rounded-full", member.dotClass)} aria-hidden />
               {member.name}

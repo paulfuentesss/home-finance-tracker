@@ -13,7 +13,8 @@ counts as working once a real bill has arrived this way ([TODO.md](../TODO.md)).
   biller still sends to it. A bill that reaches both inboxes counts once.
 - Reads each email: amount, due date, billing period, and the month the bill is for.
 - Fills that month's bill column as **Pending**, with the usual payment fee added and noted
-  ("Emailed bill ₱… + ₱… <what the fee is>"). Pending bills aren't counted until confirmed.
+  (a "From email ⓘ" tag under the amount; hover or tap it for the emailed bill and the fee).
+  Pending bills aren't counted until confirmed.
 - **Confirm** / **Discard** under a pending bill in the Split Table; the amount stays editable
   before confirming.
 - Emails that don't fit (month not started or closed, column missing or Manual, an amount

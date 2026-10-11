@@ -77,7 +77,9 @@ export function InlineInput({
       {Object.entries(hidden).map(([k, v]) => (
         <input key={k} type="hidden" name={k} value={v} />
       ))}
-      <span className="relative inline-flex items-center gap-1">
+      {/* Block-level so a `w-full` form (via className) lets a `w-full` input stretch; the
+          inline-block form still shrinks to the input's own width otherwise. */}
+      <span className="relative flex items-center gap-1">
         {prefix && <span className="pointer-events-none absolute left-2 text-xs text-muted-foreground">{prefix}</span>}
         <input
           key={value}

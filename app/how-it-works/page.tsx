@@ -22,7 +22,6 @@ export default async function HowItWorksPage() {
     .map((provider) => ({ column: BILL_EMAIL_COLUMNS[provider], ...paymentFee(provider) }))
     .filter((f) => f.fee > 0);
   const fees = feeList.map((f) => `${formatPHP(f.fee)} for ${f.column}${f.note ? `, the ${f.note}` : ""}`);
-  const firstFeeNote = feeList[0]?.note ?? "payment fee";
 
   const faqs = [
     {
@@ -162,8 +161,8 @@ export default async function HowItWorksPage() {
           </p>
           <p>
             The small fee for paying it is added and shared like the bill
-            {fees.length > 0 ? `: ${fees.join("; ")}` : ""}. The column says so, e.g. &ldquo;Emailed bill ₱… + ₱…
-            {fees.length > 0 ? ` ${firstFeeNote}` : " payment fee"}&rdquo;.
+            {fees.length > 0 ? `: ${fees.join("; ")}` : ""}. Tap <strong>From email</strong> under the amount to see
+            the emailed bill and the fee that was added.
           </p>
           <p>
             A pending bill is <strong>not counted yet</strong>: nobody&apos;s totals change until the admin checks it and taps{" "}
@@ -280,7 +279,7 @@ export default async function HowItWorksPage() {
       <header className="border-b bg-white">
         <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-4 px-4 py-5">
           <div className="flex items-center gap-3">
-            <div className="flex size-11 items-center justify-center rounded-xl border border-amber-200 bg-amber-50 text-amber-600">
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-amber-200 bg-amber-50 text-amber-600">
               <CircleHelp className="size-5" />
             </div>
             <div>
@@ -288,9 +287,14 @@ export default async function HowItWorksPage() {
               <p className="text-sm text-muted-foreground">How My House splits the house costs</p>
             </div>
           </div>
-          <Link href={back} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+          {/* Phone: just "Back", so it stays on one line and leaves the title its room. */}
+          <Link
+            href={back}
+            className="inline-flex shrink-0 items-center gap-1.5 text-sm whitespace-nowrap text-muted-foreground hover:text-foreground"
+          >
             <ArrowLeft className="size-4" />
-            {period ? `Back to ${monthLabel(period.year, period.month)}` : "Back"}
+            Back
+            {period && <span className="hidden sm:inline">to {monthLabel(period.year, period.month)}</span>}
           </Link>
         </div>
       </header>

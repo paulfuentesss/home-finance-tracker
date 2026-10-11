@@ -82,7 +82,8 @@ export function ManageMembers({ members, viewerId }: { members: Member[]; viewer
                     label={`${m.name}'s login email`}
                     inputMode="email"
                     maxLength={254}
-                    inputClassName="w-64 px-2 py-1 text-sm text-foreground"
+                    className="w-full sm:w-auto"
+                    inputClassName="w-full px-2 py-1 text-sm text-foreground sm:w-64"
                   />
                 </div>
               )}

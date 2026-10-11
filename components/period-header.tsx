@@ -46,33 +46,9 @@ export function PeriodHeader({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {/* A popover like the stat cards' (hover or tap), with the link inside — a tooltip
-              never shows on a phone. */}
-          <Popover>
-            <PopoverTrigger
-              openOnHover
-              aria-label="How it works"
-              className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors outline-none hover:bg-zinc-100 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-popup-open:bg-zinc-100 data-popup-open:text-foreground"
-            >
-              <CircleHelp className="size-5" />
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-64">
-              <div>
-                <PopoverTitle>How it works</PopoverTitle>
-                <PopoverDescription className="text-xs">
-                  How bills and advances are split, what Month Final and Final mean, settling up, and who can
-                  change what.
-                </PopoverDescription>
-              </div>
-              <Link
-                href="/how-it-works"
-                className="text-xs font-medium text-amber-700 underline-offset-2 hover:underline"
-              >
-                Read how it works →
-              </Link>
-            </PopoverContent>
-          </Popover>
+        {/* Phone: the two totals share a full-width second row. Wider: they sit on the right,
+            before the help and account buttons. */}
+        <div className="order-last grid w-full grid-cols-2 gap-2 sm:order-none sm:ml-auto sm:flex sm:w-auto">
           <Stat
             label="Total core bills"
             value={view.stats.coreBills}
@@ -91,6 +67,35 @@ export function PeriodHeader({
             lines={view.columns.map((c) => ({ id: c.id, label: c.name, amount: c.total }))}
             accent
           />
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* A popover like the stat cards' (hover or tap), with the link inside — a tooltip
+              never shows on a phone. */}
+          <Popover>
+            <PopoverTrigger
+              openOnHover
+              aria-label="How it works"
+              className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors outline-none hover:bg-zinc-100 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-popup-open:bg-zinc-100 data-popup-open:text-foreground"
+            >
+              <CircleHelp className="size-5" />
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-64">
+              <div>
+                <PopoverTitle>How it works</PopoverTitle>
+                <PopoverDescription className="text-xs">
+                  How bills and advances are split, what Month Final and Final mean, settling up, and who can
+                  change what.
+                </PopoverDescription>
+              </div>
+              <Link
+                href="/how-it-works"
+                className="text-xs font-medium text-amber-700 underline-offset-2 hover:underline"
+              >
+                Read how it works →
+              </Link>
+            </PopoverContent>
+          </Popover>
           <AccountMenu
             dotClass={
               [...view.members, ...previewChoices].find((m) => m.id === viewer.memberId)?.dotClass ?? "bg-zinc-400"
