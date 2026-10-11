@@ -127,7 +127,9 @@ checklist for keeping the docs up to date.
 proxy.ts        Runs before every page: refreshes the login, sends logged-out visitors to /login
 app/            Next.js routes: /periods/[year]/[month] (5 tabs), /how-it-works,
                 /login and /auth/callback (sign-in), /receipts/[id] (opens a receipt file)
-.claude/        Claude Code: review agents (agents/), the startup check (hooks/, settings.json)
+.claude/        Claude Code: review agents (agents/), the startup check (hooks/, settings.json), and
+                the commands it may run without asking (settings.json → permissions.allow:
+                read-only checks only — typecheck, test, lint, git fetch)
 .github/        Workflows (checks on every PR, keep-alive), PR template
 components/     App components (inline-input.tsx = the shared edit-in-place field)
 components/ui/  shadcn/ui components
