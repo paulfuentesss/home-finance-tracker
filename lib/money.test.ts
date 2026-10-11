@@ -3,12 +3,12 @@ import { formatPHP, fromCentavos, parseMoneyInput, splitByWeights, splitEqually,
 
 describe("toCentavos / fromCentavos", () => {
   it.each([
-    ["15463.59", 1546359],
-    ["2699.00", 269900],
-    ["2699", 269900],
-    ["892.5", 89250],
+    ["12507.54", 1250754],
+    ["1899.00", 189900],
+    ["1899", 189900],
+    ["745.5", 74550],
     ["0.01", 1],
-    ["-1880.50", -188050],
+    ["-1600.50", -160050],
   ])("parses %s", (input, expected) => {
     expect(toCentavos(input)).toBe(expected);
   });
@@ -20,21 +20,21 @@ describe("toCentavos / fromCentavos", () => {
   });
 
   it("round-trips", () => {
-    for (const c of [0, 1, 99, 100, 1546359, -188050]) expect(toCentavos(fromCentavos(c))).toBe(c);
+    for (const c of [0, 1, 99, 100, 1250754, -160050]) expect(toCentavos(fromCentavos(c))).toBe(c);
     expect(fromCentavos(5)).toBe("0.05");
-    expect(fromCentavos(-188050)).toBe("-1880.50");
+    expect(fromCentavos(-160050)).toBe("-1600.50");
   });
 
   it("formats pesos", () => {
-    expect(formatPHP(1546359)).toBe("₱15,463.59");
+    expect(formatPHP(1250754)).toBe("₱12,507.54");
   });
 });
 
 describe("parseMoneyInput", () => {
   it("accepts what people type", () => {
-    expect(parseMoneyInput("15,463.59")).toBe(1546359);
-    expect(parseMoneyInput("₱ 2,699")).toBe(269900);
-    expect(parseMoneyInput(" 892.5 ")).toBe(89250);
+    expect(parseMoneyInput("12,507.54")).toBe(1250754);
+    expect(parseMoneyInput("₱ 1,899")).toBe(189900);
+    expect(parseMoneyInput(" 745.5 ")).toBe(74550);
   });
 
   it("returns null for junk", () => {
@@ -43,16 +43,16 @@ describe("parseMoneyInput", () => {
 });
 
 describe("splitEqually", () => {
-  const five = ["Ate Toni", "Mayee", "Skyler", "PJ", "PA"];
+  const five = ["Ana", "Ben", "Cara", "Dan", "PA"];
 
   it("gives leftover centavos to the first members in order", () => {
-    // ₱15,463.59 / 5 = 3,092.718 → four get 3,092.72, one gets 3,092.71.
-    const shares = splitEqually(toCentavos("15463.59"), five);
-    expect([...shares.values()]).toEqual([309272, 309272, 309272, 309272, 309271]);
+    // ₱12,507.54 / 5 = 2,501.508 → four get 2,501.51, one gets 2,501.50.
+    const shares = splitEqually(toCentavos("12507.54"), five);
+    expect([...shares.values()]).toEqual([250151, 250151, 250151, 250151, 250150]);
   });
 
   it("always sums exactly to the total (the prototype's toFixed drifted)", () => {
-    for (const total of ["15463.59", "2173.63", "2699.00", "6400.00", "1000.01", "0.04"]) {
+    for (const total of ["12507.54", "1948.63", "1899.00", "5500.00", "1000.01", "0.04"]) {
       expect(sumCentavos(splitEqually(toCentavos(total), five).values())).toBe(toCentavos(total));
     }
   });
@@ -64,21 +64,21 @@ describe("splitEqually", () => {
 
 describe("splitByWeights", () => {
   it("splits the Ice Maker 50% / 12.5% × 4 and sums exactly", () => {
-    const shares = splitByWeights(toCentavos("3761.00"), [
+    const shares = splitByWeights(toCentavos("3201.00"), [
       ["PA", 4],
-      ["Ate Toni", 1],
-      ["Mayee", 1],
-      ["Skyler", 1],
-      ["PJ", 1],
+      ["Ana", 1],
+      ["Ben", 1],
+      ["Cara", 1],
+      ["Dan", 1],
     ]);
     expect(Object.fromEntries(shares)).toEqual({
-      PA: 188050,
-      "Ate Toni": 47013,
-      Mayee: 47013,
-      Skyler: 47012,
-      PJ: 47012,
+      PA: 160050,
+      Ana: 40013,
+      Ben: 40013,
+      Cara: 40012,
+      Dan: 40012,
     });
-    expect(sumCentavos(shares.values())).toBe(376100);
+    expect(sumCentavos(shares.values())).toBe(320100);
   });
 
   it("whole-number weights use exact integer remainders", () => {

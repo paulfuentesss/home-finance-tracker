@@ -18,7 +18,7 @@ Everyone signs in with Google or an emailed code; only invited household members
 ```bash
 npm install
 cp .env.example .env.local   # then fill in the Supabase URLs and keys (see docs/setup.md)
-npm run db:migrate && npm run db:seed && npm run db:seed:august
+npm run db:migrate && npm run db:seed   # tables + PA; on a local database also db:seed:august
 npm run auth:invite -- PA you@gmail.com   # after login setup (docs/setup.md step 5)
 npm run dev                  # http://localhost:3000
 ```

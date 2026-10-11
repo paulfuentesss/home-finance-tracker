@@ -51,7 +51,7 @@ export interface ViewBill {
   shares: Record<string, { amount: Centavos; points: number | null }>;
   /** Sum of points (points mode only). */
   totalPoints: number;
-  /** "₱434.73 / person" or "₱1,863.08 / point" (rounded, for display only). */
+  /** "₱389.73 / person" or "₱1,525.31 / point" (rounded, for display only). */
   perUnit: { amount: Centavos; unit: "person" | "point" } | null;
 }
 

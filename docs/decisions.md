@@ -283,3 +283,15 @@ show live numbers.
 public, so real amounts and names don't belong in the code. Pulling in live numbers would
 make the examples change every month and could stop showing a case at all (e.g. a month whose
 bills split evenly has no leftover centavos to explain).
+
+## 2026-10-11 — Test data is made up; the test-data scripts are local-only
+**Decision:** the August 2026 fixture and its sample bill emails are fictional (Ana, Ben, Cara,
+Dan, PA; invented amounts and purchases), with the same edge cases as before. Their expected
+values were worked out from the rules by a separate calculator, which first reproduced the old
+real-data expectations exactly. `db:seed:august` and the sample `bills:import` run only against
+a database on this machine; `db:seed` now adds only PA. Follows up 2026-09-28.
+**Why:** the repo stays public, and the fixture showed the housemates' first names, a month's
+real amounts and shop names that hint at the neighbourhood. Now that the app is live, loading
+test data into the shared database would also overwrite real data.
+**Instead of:** making the repo private, or rewriting git history — the old values stay in past
+commits; a history rewrite would break every PR and worktree and still leave GitHub's PR copies.

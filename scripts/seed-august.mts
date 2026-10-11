@@ -1,10 +1,11 @@
-// Loads August 2026 from the household sheet (lib/__fixtures__/august-2026.ts) as test data.
+// Loads the made-up August 2026 (lib/__fixtures__/august-2026.ts) as test data, adding its
+// members (Ana, Ben, Cara, Dan, PA) if they're missing.
 //
 //   npm run db:seed:august              # load it if August 2026 doesn't exist yet
 //   npm run db:seed:august -- --replace # delete August 2026 and load it fresh (resets test data)
 //
-// Only ever touches the 2026-08 period (and, with --replace, its receipt files). Run
-// `npm run db:seed` first (members).
+// Local database only (refuses the live one — lib/local-database.ts). Only ever touches the
+// 2026-08 period (and, with --replace, its receipt files).
 
 import { and, eq, inArray, or } from "drizzle-orm";
 import { createDb } from "../db/client";
@@ -21,7 +22,8 @@ import {
   sharedColumnMembers,
   sharedColumns,
 } from "../db/schema";
-import { AUGUST_2026, DEFAULT_COLUMN, type MemberName } from "../lib/__fixtures__/august-2026";
+import { AUGUST_2026, DEFAULT_COLUMN, HOUSEHOLD_MEMBERS, type MemberName } from "../lib/__fixtures__/august-2026";
+import { refuseLiveDatabase } from "../lib/local-database";
 import { fromCentavos, toCentavos } from "../lib/money";
 import { RECEIPTS_BUCKET } from "../lib/receipts";
 import { computeBillShares, splitOrder } from "../lib/settlement";
@@ -29,6 +31,7 @@ import { createAdminClient } from "../lib/supabase/admin";
 
 const url = process.env.DIRECT_URL;
 if (!url) throw new Error("DIRECT_URL is not set — fill in .env.local first.");
+refuseLiveDatabase(url, "npm run db:seed:august");
 const replace = process.argv.includes("--replace");
 
 const { db, client } = createDb(url, { max: 1 });
@@ -71,14 +74,19 @@ try {
       console.log("Deleted the existing August 2026.");
     }
 
+    // The fixture's members, if this database doesn't have them yet (PA may already be there).
+    await tx
+      .insert(members)
+      .values(HOUSEHOLD_MEMBERS.map((m) => ({ ...m, role: m.isCollector ? ("admin" as const) : ("member" as const) })))
+      .onConflictDoNothing();
+
     const allMembers = await tx.query.members.findMany({
       where: eq(members.active, true),
       orderBy: (m, { asc }) => [asc(m.sortOrder), asc(m.id)],
     });
-    if (allMembers.length === 0) throw new Error("No members — run npm run db:seed first.");
     const idOf = (name: MemberName) => {
       const member = allMembers.find((m) => m.name === name);
-      if (!member) throw new Error(`Member "${name}" not found — run npm run db:seed first.`);
+      if (!member) throw new Error(`Member "${name}" isn't active — reactivate them in Manage, or reset the local database.`);
       return member.id;
     };
     const byName = (record: Partial<Record<MemberName, number>>) =>

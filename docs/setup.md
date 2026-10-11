@@ -21,13 +21,14 @@ Getting My House running on a new machine. Afterwards, day to day you only need
    - `DIRECT_URL`: the **session pooler** (port 5432), used by migrations, scripts and backups
 
    `.env.local` is git-ignored: it holds the database password. Never commit it.
-4. **Create the tables and add the members**
+4. **Create the tables and add PA**
    ```bash
    npm run db:migrate
-   npm run db:seed
+   npm run db:seed         # adds PA, the collector; housemates are added later in Manage
    npm run storage:setup   # the private bucket for receipts
    ```
-   Then load the August 2026 test data with `npm run db:seed:august` ([testing.md](testing.md)).
+   On a **local** database, also load the made-up August 2026 with `npm run db:seed:august`
+   ([testing.md](testing.md)); it refuses the live database.
 5. **Set up login** (once per Supabase project — how login works: [features/auth.md](features/auth.md)).
    Everyone signs in with Google or with a code emailed to them; only invited emails get in.
 

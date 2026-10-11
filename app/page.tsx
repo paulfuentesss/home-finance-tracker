@@ -31,7 +31,7 @@ export default async function Home() {
       <CardHeader>
         <CardTitle>No months yet</CardTitle>
         <CardDescription>
-          Run <code>npm run db:seed:august</code> to load the August 2026 test data.
+          On a local database, run <code>npm run db:seed:august</code> to load the made-up August 2026.
         </CardDescription>
       </CardHeader>
     </Card>

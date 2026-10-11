@@ -14,41 +14,45 @@ on the PR. It needs no secrets because no test touches the database — keep it 
 | Test file | Covers |
 |---|---|
 | `lib/money.test.ts` | Centavo conversion, parsing typed amounts, equal and weighted splits |
-| `lib/settlement.test.ts` | August 2026 reproduces the household sheet; bill shares; Month Final rules; shared columns; split order; suggested payments |
+| `lib/settlement.test.ts` | The made-up August 2026 worked example; bill shares; Month Final rules; shared columns; split order; suggested payments |
 | `lib/month-lock.test.ts` | Closing / reopening rules, pending bills blocking a close, balances that would vanish |
 | `lib/advances-log.test.ts` | Advances Log grouping and split labels |
-| `lib/bill-email/parse.test.ts` | Reading the real August bill emails; refusing other senders; bill month; dates |
-| `lib/bill-email/fees.test.ts` | The payment fee setting matches the August receipts |
+| `lib/bill-email/parse.test.ts` | Reading the August sample bill emails; refusing other senders; bill month; dates |
+| `lib/bill-email/fees.test.ts` | The payment fee setting turns the sample emails into the fixture's bills |
+| `lib/local-database.test.ts` | Test-data scripts recognise only a database on this machine as local |
 | `lib/permissions.test.ts` | Who may change which advance; `safeNext` blocking open redirects after sign-in |
 | `lib/actions-guard.test.ts` | Every Server Action goes through `run("admin" \| "member", …)`; only the three advance actions are open to members; no unknown Route Handlers, and `/receipts/[id]` checks the login first; the secret key and admin client stay out of the browser |
 | `lib/receipts.test.ts` | Which receipt files are accepted (real type from the first bytes, size limit), their names in the bucket, resizing long screenshots |
 | `lib/invites.test.ts` | Inviting / un-inviting: the order of the database and Supabase calls, rolling back a new login, never reusing a leftover one |
 
-Money or rule changes: update the expectations in `lib/__fixtures__/august-2026.ts`, which
-mirror the household sheet — if the app and the sheet disagree, find out why before changing
-either.
+Money or rule changes: update the expectations in `lib/settlement.test.ts` (and the worked
+example in `docs/settlement-rules.md`). Work the new values out by hand from the rules — never
+copy them from the app's output, or the test only checks the app against itself.
 
 ## Fixtures (test data)
 
+All test data is **made up**: the repo is public, so real names and amounts never go in it
+(the household's real data is only in the database).
+
 | Fixture | What it is | Used by |
 |---|---|---|
-| `lib/__fixtures__/august-2026.ts` | August 2026 from the household Google Sheet: members, bills, points, advances, expected Month Finals | `settlement.test.ts`, `npm run db:seed:august` |
-| `lib/bill-email/__fixtures__/august-2026-emails.ts` | The three bill emails behind August's bills, **scrubbed** | `parse.test.ts`, `npm run bills:import` |
+| `lib/__fixtures__/august-2026.ts` | A made-up August 2026 (Ana, Ben, Cara, Dan, PA): members, bills, points, advances, rounded-per-share Month Finals. Keeps the edge cases: a points tie decided by split order, leftover centavos, a column without PA, a Manual column ₱0.02 over | `settlement.test.ts`, `npm run db:seed:august` |
+| `lib/bill-email/__fixtures__/august-2026-emails.ts` | Bill emails for those bills in the providers' real formats, amounts made up | `parse.test.ts`, `npm run bills:import` |
 
-**Adding an email fixture:** copy the plain-text body, then remove account and contract
-numbers, names, phone numbers, invoice numbers and tracking links before saving — this repo
-is public ([operations.md → Privacy & security](operations.md#privacy--security)).
+**Adding an email fixture:** copy the plain-text body, then replace account and contract
+numbers, names, phone numbers, invoice numbers, tracking links and amounts before saving —
+this repo is public ([operations.md → Privacy & security](operations.md#privacy--security)).
 
 ## Test data in the database
 
-August 2026 in the database is test data loaded from the fixture:
+`npm run db:seed:august` loads the made-up August (adding its members), and
+`npm run bills:import -- meralco water pldt` imports the sample emails. Both run **only
+against a local database** and refuse the live one (`lib/local-database.ts`), which holds the
+household's real data:
 
 ```bash
-npm run db:seed:august -- --replace   # reset August (and its bill emails) to the sheet
+npm run db:seed:august -- --replace   # reset the local August (and its bill emails)
 ```
-
-It deletes and reloads only August 2026. Safe while August is the only month; once real
-months follow it, a reset changes their carry-over — back up first (`npm run db:backup`).
 
 ## Trying things by hand
 
@@ -93,7 +97,7 @@ so PA stays signed in in the main one.
    to `/login`.
 7. Close the month: Attach and Delete disappear; reopen it.
 
-**Email-imported bills, start to finish:**
+**Email-imported bills, start to finish** (needs a local database — the scripts refuse the live one):
 1. `npm run db:seed:august -- --replace`, then `npm run bills:import -- meralco water pldt` —
    all three go to the Bill Inbox (August already has its bills).
 2. Split Table: set Meralco's amount to `0` (Enter). Manage → Bill Inbox → Meralco → **Retry**.

@@ -1,10 +1,10 @@
-// The real bill emails behind the August 2026 sheet (Gmail, plain-text bodies), with account
-// numbers, names, phone numbers and tracking links scrubbed. Used by the parser tests and by
-// `npm run bills:import` for trying the import locally.
+// Bill emails for the made-up August 2026 (lib/__fixtures__/august-2026.ts), in the providers'
+// real formats (Gmail, plain-text bodies). Account numbers, names, phone numbers, tracking
+// links and amounts are not real. Used by the parser tests and by `npm run bills:import` for
+// trying the import locally.
 //
-// The sheet's Meralco (₱15,463.59) and Water (₱2,173.63) are ₱15.00 and ₱7.00 above these
-// emails: the Bayad convenience fee and the Dragonpay fee (receipts from Aug 31), which the
-// import adds (BILL_PAYMENT_FEES in lib/household-config.ts).
+// The fixture's Meralco (₱12,507.54) and Water (₱1,948.63) are ₱15.00 and ₱7.00 above these
+// emails: the payment fees the import adds (BILL_PAYMENT_FEES in lib/household-config.ts).
 
 import type { BillEmail } from "@/lib/bill-email/parse";
 
@@ -27,7 +27,7 @@ Billing Period: 27 July 2026 to 26 August 2026
 
 kWh Consumption: 949
 
-Current Amount Due: PHP 15,448.59
+Current Amount Due: PHP 12,492.54
 
 Due Date: 06 September 2026
 
@@ -51,7 +51,7 @@ Below is a summary of your monthly billing for your reference.
 | Contract Account Number (CAN): | 00000000 |
 | Invoice Number: | XXX0000-0000000000 |
 | Consumption (cu.m.): | 44 |
-| Total Amount Due: | PHP 2,166.63 |
+| Total Amount Due: | PHP 1,941.63 |
 | Due Date: | 03 Sep 2026 |
 
 Please settle your account on or before the due date to avoid possible service disruptions.
@@ -77,9 +77,9 @@ export const PLDT_AUGUST_2026: BillEmail = {
 | Statement Date | : | August 6, 2026 |
 | Account Name | : | XXXXX XXXXX |
 | Balance from Last Bill | : | 0.00 |
-| Current Charges | : | 2,699.00 |
+| Current Charges | : | 1,899.00 |
 | Due Date | : | August 30, 2026 |
-| Total Amount Due | : | 2,699.00 |
+| Total Amount Due | : | 1,899.00 |
 
 | IMPORTANT REMINDER: Your balance from last bill should be paid IMMEDIATELY and current charges should be paid ON or BEFORE your DUE DATE to prevent service interruptions. |`,
 };

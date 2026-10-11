@@ -64,7 +64,7 @@ const moneyField = (allowZero: boolean) =>
     if (centavos === null || centavos < 0 || (!allowZero && centavos === 0)) {
       ctx.addIssue({
         code: "custom",
-        message: allowZero ? "Enter an amount like 2,699.00 (0 is fine)" : "Enter an amount greater than 0, like 2,699.00",
+        message: allowZero ? "Enter an amount like 1,899.00 (0 is fine)" : "Enter an amount greater than 0, like 1,899.00",
       });
       return z.NEVER;
     }

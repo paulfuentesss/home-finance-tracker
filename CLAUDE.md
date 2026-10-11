@@ -59,8 +59,10 @@ Part of every change, in the same PR — not a separate chore.
   `fromCentavos`. Splits must always sum exactly to the total.
 - Split leftover centavos in `splitOrder()` order (the collector first).
 - Keep `lib/settlement.ts` pure (no DB access) and covered by tests. The August 2026
-  fixture in `lib/__fixtures__/` mirrors the household sheet and is the reference data
-  (`npm run db:seed:august -- --replace` resets it in the database).
+  fixture in `lib/__fixtures__/` is **made up** (Ana, Ben, Cara, Dan, PA) and is the reference
+  data; work new expected values out by hand from the rules, never copy the app's output.
+  Never put the household's real names, amounts or places in fixtures, tests or docs.
+  `npm run db:seed:august` loads it into a **local** database only (`lib/local-database.ts`).
 - App code imports the DB from `@/db` (server-only). Scripts under `scripts/` run under
   tsx and must use `createDb` from `db/client.ts` instead, because `server-only` throws
   outside Next.
@@ -121,7 +123,7 @@ Part of every change, in the same PR — not a separate chore.
 | `npm run db:migrate` spins then exits 1 with no message | Another session holds a lock on the table (a stale dev/studio connection sat in an open transaction for 38 min) | Stop `npm run dev` and `db:studio`, then retry. Inspect with `pg_stat_activity` / `pg_locks` (script via `DIRECT_URL`). Idle connections now close after 20 s (`db/client.ts`) |
 | `drizzle-kit generate` fails: "Interactive prompts require a TTY" | It asks whether a new table/column is a rename of a dropped one | Run it in your own terminal (choose "create"), or pipe Enter through a pty (`script -q /dev/null …`). Always read the SQL before migrating |
 | Migration fails adding a NOT NULL column | Existing rows have no value | Hand-edit the generated SQL (backfill, or clear test data) and note why in a comment — see `drizzle/0002_shared-columns.sql` |
-| August numbers look wrong / points reset | Test data was edited while experimenting | `npm run db:seed:august -- --replace` resets only 2026-08 |
+| `db:seed:august` / `bills:import` say they "only run against a local database" | `DIRECT_URL` points at the live database, which holds real data | Expected — they load made-up test data. Use a local Supabase (`docs/TODO.md`); fix real data in the app |
 | `tsc` errors about `LayoutProps` / `PageProps` | Route types are generated | Use `npm run typecheck` (runs `next typegen` first) |
 | A form loses everything typed when the server returns an error | `<form action={…}>` makes React reset the form after the action, even when it returns `{ ok: false }` | Submit via `onSubmit` + `startTransition(() => dispatch(formData))` — see `InlineInput` / `useDialogForm` |
 | A `loading.tsx` doesn't show when switching months | `loading.tsx` doesn't cover the `layout.tsx` in its own folder, and `[month]/layout.tsx` loads the data | Month switches use `app/periods/loading.tsx`; tab switches use `[month]/loading.tsx` |
@@ -133,8 +135,8 @@ Part of every change, in the same PR — not a separate chore.
 
 **Fast dev loop:** make the change → `npm run typecheck && npx eslint && npm test` once per chunk (tests run in < 1 s) →
 `curl` only confirms the redirect to `/login` (every page needs a login; no dev bypass) → let Paul check the signed-in
-pages in the browser. Money/settlement changes: update
-`lib/__fixtures__/august-2026.ts` expectations, which mirror the household sheet.
+pages in the browser. Money/settlement changes: update the expectations in
+`lib/settlement.test.ts`, worked out by hand from the rules (the made-up August fixture).
 
 <!-- BEGIN:nextjs-agent-rules -->
 

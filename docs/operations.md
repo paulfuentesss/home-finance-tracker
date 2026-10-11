@@ -5,12 +5,13 @@ commits, troubleshooting, where things live, and keeping household data private.
 
 ## One database: localhost is live data
 
-There is one Supabase project. `npm run dev`, every script (`db:seed:august`, `bills:import`,
-`auth:invite`, …) and the live site all use the same database, logins and receipt files.
+There is one Supabase project. `npm run dev`, the scripts (`auth:invite`, `db:migrate`, …) and
+the live site all use the same database, logins and receipt files.
 
 - Whatever you add, edit or delete on `localhost` the household sees on the live site at once.
-- `npm run db:seed:august -- --replace` rewrites August 2026 for everyone: only while August
-  is still test data.
+- The test-data scripts (`db:seed:august`, `bills:import` with its sample emails) refuse to
+  run here: they load a made-up August and run only against a local database
+  (`lib/local-database.ts`).
 - `npm run db:migrate` changes the live database immediately, before the code that needs the
   change is merged — see the next section for the safe order.
 

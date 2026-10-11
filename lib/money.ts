@@ -1,12 +1,12 @@
 // Money helpers. All arithmetic happens in integer centavos (₱1.00 = 100).
-// Postgres numeric(12,2) values arrive from Drizzle as strings like "15463.59";
+// Postgres numeric(12,2) values arrive from Drizzle as strings like "12507.54";
 // parse them with toCentavos — never parseFloat — so no floating-point drift creeps in.
 
 export type Centavos = number;
 
 const MONEY_PATTERN = /^(-)?(\d+)(?:\.(\d{1,2}))?$/;
 
-/** "15463.59" → 1546359. Throws on anything that isn't a plain 2-dp decimal string. */
+/** "12507.54" → 1250754. Throws on anything that isn't a plain 2-dp decimal string. */
 export function toCentavos(value: string): Centavos {
   const match = MONEY_PATTERN.exec(value.trim());
   if (!match) throw new Error(`Invalid money value: "${value}"`);
@@ -16,7 +16,7 @@ export function toCentavos(value: string): Centavos {
 }
 
 /**
- * Parses an amount the way people type it ("15,463.59", "₱ 2699", "892.5") into centavos.
+ * Parses an amount the way people type it ("12,507.54", "₱ 1899", "745.5") into centavos.
  * Returns null for anything that isn't a valid amount.
  */
 export function parseMoneyInput(raw: string): Centavos | null {
@@ -27,7 +27,7 @@ export function parseMoneyInput(raw: string): Centavos | null {
   }
 }
 
-/** 1546359 → "15463.59" (the string form Postgres numeric expects). */
+/** 1250754 → "12507.54" (the string form Postgres numeric expects). */
 export function fromCentavos(centavos: Centavos): string {
   assertInteger(centavos);
   const sign = centavos < 0 ? "-" : "";
@@ -37,7 +37,7 @@ export function fromCentavos(centavos: Centavos): string {
 
 const phpFormatter = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
 
-/** 1546359 → "₱15,463.59" */
+/** 1250754 → "₱12,507.54" */
 export function formatPHP(centavos: Centavos): string {
   assertInteger(centavos);
   return phpFormatter.format(centavos / 100);
@@ -49,7 +49,7 @@ export function formatPHP(centavos: Centavos): string {
  * collector absorbs them.
  * The result always sums exactly to the total.
  *
- * splitEqually(1546359, [a, b, c, d, e]) → a..d get 309272, e gets 309271.
+ * splitEqually(1250754, [a, b, c, d, e]) → a..d get 250151, e gets 250150.
  */
 export function splitEqually<Id extends string | number>(
   total: Centavos,
