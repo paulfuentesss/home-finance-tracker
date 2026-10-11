@@ -8,6 +8,7 @@ import {
   addMember,
   addPayment,
   addSharedColumn,
+  submitPayment,
   updateAdvance,
   updatePayment,
   type ActionState,
@@ -31,6 +32,8 @@ import { CATEGORY_LABELS, todayInManila } from "@/lib/format";
 import { formatPHP, fromCentavos, parseMoneyInput, type Centavos } from "@/lib/money";
 import { isAdmin } from "@/lib/permissions";
 import type { PeriodView, ViewAdvance, ViewPayment } from "@/lib/periods";
+import { prepareReceiptFile } from "@/lib/receipt-image";
+import { MAX_RECEIPT_BYTES } from "@/lib/receipts";
 
 interface Props {
   view: PeriodView;
@@ -45,22 +48,43 @@ type Action = (prev: ActionState, formData: FormData) => Promise<ActionState>;
  * Submits through onSubmit instead of <form action>: React resets a form after every
  * `action` — even one that returned an error — which would wipe everything typed so far
  * because of one mistyped amount.
+ *
+ * `prepare` runs first, in the browser (e.g. shrinking a screenshot); it returns the form data
+ * to send, or an error to show instead of sending.
  */
-function useDialogForm(action: Action, onSuccess: (formData: FormData) => void) {
+function useDialogForm(
+  action: Action,
+  onSuccess: (formData: FormData) => void,
+  prepare?: (formData: FormData) => Promise<FormData | { error: string }>,
+) {
   const [state, dispatch, pending] = useActionState<ActionState, FormData>(async (prev, formData) => {
     const result = await action(prev, formData);
     if (result?.ok) onSuccess(formData);
     return result;
   }, null);
+  const [preparing, setPreparing] = useState(false);
+  const [prepareError, setPrepareError] = useState<string | null>(null);
   // While PA previews as a housemate the form can be looked at, not sent.
   const previewing = useIsPreviewing();
-  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (previewing) return;
+    if (previewing || preparing) return;
     const formData = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter);
-    startTransition(() => dispatch(formData));
+    let ready: FormData | { error: string } = formData;
+    if (prepare) {
+      setPrepareError(null);
+      setPreparing(true);
+      try {
+        ready = await prepare(formData);
+      } finally {
+        setPreparing(false);
+      }
+    }
+    if (!(ready instanceof FormData)) return setPrepareError(ready.error);
+    startTransition(() => dispatch(ready));
   };
-  return { state, pending, previewing, onSubmit };
+  const shown: ActionState = prepareError ? { ok: false, error: prepareError } : state;
+  return { state: shown, pending: pending || preparing, previewing, onSubmit };
 }
 
 export function AddAdvanceDialog({ view }: Props) {
@@ -278,6 +302,116 @@ export function EditPaymentDialog({
         {payment && <PaymentForm key={payment.id} view={view} payment={payment} onDone={onClose} />}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * A housemate's "I paid" (docs/features/settle-up.md): the amount (pre-filled with what they
+ * owe), the date, and the transfer's screenshot, which is required. It goes to the collector
+ * and waits for them to confirm it; the server sets who paid whom.
+ */
+export function SubmitPaymentDialog({
+  view,
+  owed,
+  waiting,
+  className,
+}: Props & {
+  /** What they owe now (confirmed payments only), pre-filled. */
+  owed: Centavos;
+  /** What they've already sent that's still waiting for PA. */
+  waiting: Centavos;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={<Button className={className} />}>
+        <HandCoins />I paid
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <SubmitPaymentForm view={view} owed={owed} waiting={waiting} onDone={() => setOpen(false)} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Shrinks the screenshot in the browser (like Attach proof) before it's sent. */
+async function prepareProof(formData: FormData): Promise<FormData | { error: string }> {
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) return { error: "Attach the screenshot of your transfer." };
+  const smaller = await prepareReceiptFile(file);
+  if (smaller.size > MAX_RECEIPT_BYTES) {
+    return { error: `That screenshot is too large (the limit is ${MAX_RECEIPT_BYTES / 1024 / 1024} MB).` };
+  }
+  formData.set("file", smaller);
+  return formData;
+}
+
+function SubmitPaymentForm({
+  view,
+  owed,
+  waiting,
+  onDone,
+}: Props & { owed: Centavos; waiting: Centavos; onDone: () => void }) {
+  const { state, pending, previewing, onSubmit } = useDialogForm(submitPayment, onDone, prepareProof);
+  const [typed, setTyped] = useState(owed > 0 ? fromCentavos(owed) : "");
+  const typedAmount = parseMoneyInput(typed);
+  const collector = view.members.find((m) => m.isCollector)?.name ?? "PA";
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>I paid {collector}</DialogTitle>
+        <DialogDescription>
+          Attach the screenshot of your transfer. It shows as waiting until {collector} checks it arrived, then it
+          comes off what you owe.
+        </DialogDescription>
+      </DialogHeader>
+      <form onSubmit={onSubmit} className="grid gap-4">
+        <input type="hidden" name="periodId" value={view.period.id} />
+        {waiting > 0 && (
+          <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+            {formatPHP(waiting)} you sent is already waiting for {collector}. Only send this if it&apos;s another
+            payment.
+          </p>
+        )}
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Amount (₱)" htmlFor="amount">
+            <Input
+              id="amount"
+              name="amount"
+              inputMode="decimal"
+              placeholder="1,500.00"
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+              required
+            />
+          </Field>
+          <Field label="Date paid" htmlFor="paidOn">
+            <Input id="paidOn" name="paidOn" type="date" defaultValue={todayInManila()} required />
+          </Field>
+        </div>
+        {owed > 0 && typedAmount !== null && typedAmount > owed && (
+          <p className="text-xs text-amber-700">
+            More than the {formatPHP(owed)} you owe. {collector} will owe you the difference.
+          </p>
+        )}
+        <Field label="Screenshot of the transfer" htmlFor="file">
+          {/* No `capture`: that would force the camera, and most proofs are screenshots. */}
+          <Input id="file" name="file" type="file" accept="image/*" required />
+        </Field>
+        <Field label="Note (optional)" htmlFor="note">
+          <Input id="note" name="note" placeholder="GCash" maxLength={120} />
+        </Field>
+        {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
+        <DialogFooter>
+          <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
+          <Button type="submit" disabled={pending || previewing}>
+            {pending ? "Sending…" : "Send to " + collector}
+          </Button>
+        </DialogFooter>
+      </form>
+    </>
   );
 }
 

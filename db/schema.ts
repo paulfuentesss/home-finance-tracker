@@ -39,6 +39,9 @@ export const billSplitMode = pgEnum("bill_split_mode", ["equal", "points", "manu
 // admin = PA: can change everything. member = sees everything (except Manage) and logs their
 // own advances in the default column (lib/permissions.ts).
 export const memberRole = pgEnum("member_role", ["admin", "member"]);
+// confirmed = counts (PA recorded it, or confirmed a housemate's) · pending = a housemate's
+// "I paid", waiting for PA · rejected = PA said no, with a reason. Only confirmed ones count.
+export const paymentStatus = pgEnum("payment_status", ["confirmed", "pending", "rejected"]);
 
 // ---------- Shared column helpers ----------
 
@@ -234,12 +237,18 @@ export const payments = pgTable(
     amount: money("amount").notNull(),
     paidOn: date("paid_on", { mode: "string" }).notNull(),
     note: text("note"),
+    // A housemate's "I paid" starts pending; PA's own records are confirmed (docs/settlement-rules.md).
+    status: paymentStatus("status").notNull().default("confirmed"),
+    // Why PA rejected it, shown to the housemate.
+    rejectedReason: text("rejected_reason"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (t) => [
     check("payments_amount_positive", sql`${t.amount} > 0`),
     check("payments_distinct_members", sql`${t.fromMemberId} <> ${t.toMemberId}`),
+    // A rejected payment always has its reason, and nothing else has one.
+    check("payments_rejected_reason", sql`(${t.status} = 'rejected') = (${t.rejectedReason} IS NOT NULL)`),
   ],
 ).enableRLS();
 

@@ -37,10 +37,12 @@ function useTabSuffix() {
   return pathname.replace(/^\/periods\/\d+\/\d+/, "");
 }
 
-export function TabNav({ base }: { base: string }) {
+/** `waiting`: housemates' "I paid" waiting for PA — shown as a count on Settle Up, for PA only. */
+export function TabNav({ base, waiting = 0 }: { base: string; waiting?: number }) {
   const suffix = useTabSuffix();
+  const admin = isAdmin(useViewer());
   // Manage is PA's (the page itself redirects anyone else).
-  const tabs = isAdmin(useViewer()) ? TABS : TABS.filter((t) => t.href !== "/manage");
+  const tabs = admin ? TABS : TABS.filter((t) => t.href !== "/manage");
   return (
     <nav aria-label="Sections" className="-mb-px flex gap-1 overflow-x-auto">
       {tabs.map(({ href, label, short, icon: Icon }) => {
@@ -60,6 +62,12 @@ export function TabNav({ base }: { base: string }) {
             <Icon className="size-4" />
             <span className="sm:hidden">{short}</span>
             <span className="hidden sm:inline">{label}</span>
+            {href === "/settle" && admin && waiting > 0 && (
+              <span className="rounded-full bg-amber-500 px-1.5 text-xs font-semibold text-white tabular-nums">
+                {waiting}
+                <span className="sr-only"> waiting for you</span>
+              </span>
+            )}
           </Link>
         );
       })}

@@ -12,13 +12,6 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
       (2026-10-09). A test housemate still has a `+` alias of PA's Gmail; swap in their real
       address. Anyone signing in with Google also needs to be a test user on the consent screen.
 
-- [ ] **Housemates send their payment with proof** ([settle-up](features/settle-up.md),
-      [receipts](features/receipts.md)). On Settle Up a housemate taps "I paid", types the amount
-      and attaches the bank-transfer screenshot. It shows as **Waiting for PA** and doesn't count
-      until PA checks his bank and taps **Confirm** (or rejects it); a month can't close while one
-      waits — like pending bills. Needs `payments.status`, member actions in the guard test, and
-      the settlement ignoring pending payments.
-
 - [ ] **Bills to the My House Gmail** ([email-bills](features/email-bills.md)). The billing email
       was changed in the Meralco, Manila Water and PLDT apps, but a PLDT bill still went to PA's
       personal email — the app setting isn't always the e-bill address. **Next: email each biller**

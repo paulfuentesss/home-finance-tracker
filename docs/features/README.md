@@ -10,7 +10,7 @@ begins, then it gets a page here.
 |---|---|---|---|
 | Monthly Split Table | ✅ | Every bill and shared column split per person, Month Final, carry-over, Final; "Who owes what" cards | [split-table.md](split-table.md) |
 | Advances | ✅ | Log household purchases into shared columns; per-person report | [advances.md](advances.md) |
-| Settle Up | ✅ | Who owes whom, one tap to record a payment | [settle-up.md](settle-up.md) |
+| Settle Up | ✅ | Who owes whom; PA records a payment in one tap, a housemate sends theirs with “I paid” and a screenshot for PA to confirm | [settle-up.md](settle-up.md) |
 | Months | ✅ | Month picker, starting the next month, live carry-over, closing / reopening, the backup reminder | [months.md](months.md) |
 | Manage Columns & People | ✅ | Bill and shared columns, Meralco points, housemates moving in and out, Download backup | [manage.md](manage.md) |
 | Login | ✅ | Google or an emailed code; invite-only; the admin edits everything, housemates log their own advances; the admin can preview as a housemate | [auth.md](auth.md) |

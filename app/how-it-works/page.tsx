@@ -216,12 +216,21 @@ export default async function HowItWorksPage() {
       a: (
         <>
           <p>
-            Pay the admin, who records it in the <strong>Settle Up</strong> tab, which lists who still owes whom — everyone
-            settles with the admin. &ldquo;Record payment&rdquo; fills in the amount; the admin changes it if you only paid part.
+            Everyone settles with the admin. After you transfer the money, open <strong>Settle Up</strong>, tap{" "}
+            <strong>I paid</strong> on your row and attach the screenshot of the transfer. The amount is filled in with
+            what you owe; change it if you only paid part.
           </p>
           <p>
-            A payment comes off the payer&apos;s Final and the receiver&apos;s, and shows in the Split Table&apos;s
-            Payments column. Pay back everything you owed and your Final goes to ₱0.00 — Settled.
+            It shows as <strong>Waiting for the admin</strong> until they check it arrived and confirm it — until then it
+            doesn&apos;t count. If it didn&apos;t arrive, they <strong>reject</strong> it with a short reason (say, not in
+            their GCash yet); a rejected payment never counts, and you can cancel it and send it again. You can also
+            cancel your own while it&apos;s waiting. Only you and the admin can see your screenshot; the others see that
+            you paid and how much.
+          </p>
+          <p>
+            Once confirmed, a payment comes off the payer&apos;s Final and the receiver&apos;s, and shows in the Split
+            Table&apos;s Payments column. Pay back everything you owed and your Final goes to ₱0.00 — Settled. The admin
+            can also record a payment directly, which counts right away.
           </p>
         </>
       ),
@@ -237,8 +246,9 @@ export default async function HowItWorksPage() {
           </p>
           <p>
             You can log your own advances into <strong>Advances Shared</strong>, and edit or delete them while
-            they&apos;re there. Everything else — bills, points, other shared columns, payments, attaching proof of
-            payment (Receipts), moving in and out, closing months — is done by the admin. If one of your advances should be split differently (say, not with
+            they&apos;re there, and send your own payments to the admin with <strong>I paid</strong>. Everything else —
+            bills, points, other shared columns, confirming payments, attaching proof of bills (Receipts), moving in and
+            out, closing months — is done by the admin. If one of your advances should be split differently (say, not with
             everyone), the admin moves it to the right column; after that, only the admin can change it.
           </p>
         </>
@@ -256,7 +266,8 @@ export default async function HowItWorksPage() {
           </p>
           <p>
             Months close in order, oldest first — a month can&apos;t be closed while an earlier one is still open, or
-            while a bill in it is still pending. If something
+            while a bill in it is still pending or a payment is still waiting for the admin. The next month also
+            isn&apos;t started while a payment waits, so nobody is shown the amount again and pays twice. If something
             needs fixing, the admin can <strong>reopen</strong> the latest closed month, fix it, and close it again.
           </p>
         </>

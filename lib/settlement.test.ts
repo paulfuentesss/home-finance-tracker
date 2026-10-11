@@ -213,10 +213,43 @@ describe("computeMonth — rules", () => {
   it("carry-over uses one formula for everyone: opening + final − paid out + received", () => {
     const input = helperOnly("PA");
     input.openingBalances = byName({ Ben: 50000, PA: -50000 });
-    input.payments = [{ fromMemberId: idOf("Ben"), toMemberId: idOf("PA"), amount: "1600.00" }];
+    input.payments = [{ fromMemberId: idOf("Ben"), toMemberId: idOf("PA"), amount: "1600.00", status: "confirmed" }];
     const result = computeMonth(input);
     expect(rowOf(result, "Ben").balance).toBe(50000 + 110000 - 160000);
     expect(rowOf(result, "PA").balance).toBe(-50000 + (110000 - 550000) + 160000);
+  });
+
+  // Helper ₱5,500 ÷ 5 = ₱1,100 each, paid by PA: Ben's Final is +₱1,100, PA's −₱4,400.
+  it("ignores a housemate's waiting or rejected payment, Finals and carry-over alike", () => {
+    const input = helperOnly("PA");
+    input.payments = [
+      { fromMemberId: idOf("Ben"), toMemberId: idOf("PA"), amount: "1100.00", status: "pending" },
+      { fromMemberId: idOf("Cara"), toMemberId: idOf("PA"), amount: "500.00", status: "rejected" },
+    ];
+    const result = computeMonth(input);
+    for (const r of result.rows) expect([r.paidOut, r.received]).toEqual([0, 0]);
+    expect(rowOf(result, "Ben").balance).toBe(110000);
+    expect(rowOf(result, "Cara").balance).toBe(110000);
+    expect(rowOf(result, "PA").balance).toBe(-440000);
+    const next = openingBalancesFrom(result);
+    expect(next.get(idOf("Ben"))).toBe(110000);
+    expect(next.get(idOf("PA"))).toBe(-440000);
+  });
+
+  it("counts it once PA confirms it, like a payment PA recorded", () => {
+    const input = helperOnly("PA");
+    input.payments = [{ fromMemberId: idOf("Ben"), toMemberId: idOf("PA"), amount: "1100.00", status: "confirmed" }];
+    const result = computeMonth(input);
+    expect(rowOf(result, "Ben").balance).toBe(110000 - 110000);
+    expect(rowOf(result, "PA").balance).toBe(-440000 + 110000);
+  });
+
+  it("doesn't trip over a rejected payment from someone who has left the month", () => {
+    const input = helperOnly("PA");
+    input.payments = [{ fromMemberId: 999, toMemberId: idOf("PA"), amount: "100.00", status: "rejected" }];
+    expect(() => computeMonth(input)).not.toThrow();
+    input.payments[0].status = "confirmed";
+    expect(() => computeMonth(input)).toThrow(SettlementError);
   });
 
   it("chains live: this month's Final is next month's opening", () => {
@@ -330,7 +363,7 @@ describe("suggestedPayments", () => {
 
   it("recording them all brings every Final to ₱0 except what doesn't add up", () => {
     const input = augustInput();
-    input.payments = suggestions.map((s) => ({ ...s, amount: fromCentavos(s.amount) }));
+    input.payments = suggestions.map((s) => ({ ...s, amount: fromCentavos(s.amount), status: "confirmed" as const }));
     const settled = computeMonth(input);
     for (const r of settled.rows) {
       // The collector keeps only the Ice Maker's ₱0.02 difference.

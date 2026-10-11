@@ -91,11 +91,17 @@ export default async function ReceiptsPage({ params }: PageProps<"/periods/[year
                   label={`${label}, ${formatPHP(p.amount)}`}
                 >
                   <p className="font-medium">
-                    {label} <span className="font-mono tabular-nums">{formatPHP(p.amount)}</span>
+                    {label}{" "}
+                    <span className={p.status === "rejected" ? "font-mono text-muted-foreground tabular-nums line-through" : "font-mono tabular-nums"}>
+                      {formatPHP(p.amount)}
+                    </span>
                   </p>
                   <p className="text-sm text-muted-foreground">
                     {dateLabel(p.paidOn)}
                     {p.note && ` · ${p.note}`}
+                    {/* A housemate's "I paid": it only counts once PA confirms it (Settle Up). */}
+                    {p.status === "pending" && " · waiting for PA"}
+                    {p.status === "rejected" && ` · rejected: ${p.rejectedReason}`}
                   </p>
                 </ReceiptsRow>
               );

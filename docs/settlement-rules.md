@@ -157,7 +157,17 @@ The Settle Up tab suggests the payments that settle everyone with the collector
 and the collector pays whoever is owed. Recording all of them brings every Final to ₱0 except
 the collector's, which keeps only what doesn't add up (a Manual column that's over or short).
 Any other pair and partial amounts are allowed. Payments can be edited or deleted while the
-month is open.
+month is open (a rejected one only deleted; a waiting one keeps who paid whom).
+
+**A housemate's "I paid"** (`payments.status`): a housemate sends their own payment, always
+to the collector, in the latest month, with the transfer's screenshot (required). It is
+**pending** — shown as waiting, **not counted** — until the collector checks it arrived and
+**confirms** it, after which it counts exactly like one the collector recorded. If it didn't
+arrive the collector **rejects** it with a reason: it stays visible as rejected and **never
+counts**. The housemate can cancel their own while it's pending or rejected. Payments the
+collector records himself are confirmed at once. Only confirmed payments enter the ledger
+(`computeMonth`), the carry-over and the suggested payments. A payment's screenshot is seen
+only by the collector and the two people in the payment; everyone sees the payment itself.
 
 > August: Ana → PA ₱15,353.91 · PA → Cara ₱15,059.19 · Ben → PA ₱10,105.83 ·
 > Dan → PA ₱5,362.76. Afterwards PA's Final is ₱0.02 (the Ice Maker difference).
@@ -168,7 +178,9 @@ computed on the fly back to the first month (or to the last closed month, whose 
 automatically, like the sheet's "Prev Month Unsettled".
 
 **Starting a month** ("Start <next month>" at the bottom of the month picker, on the latest month) creates the next month with
-everyone currently active and carries over:
+everyone currently active and carries over (not while a housemate's payment is still waiting
+in the latest month — the new month's carry-over would show them owing it all again, and they
+might pay twice):
 
 - the bill columns — name, split, Meralco's points and payer — at **₱0.00**
   (`bill_items.total_amount >= 0`), ready for the new bills;
@@ -196,8 +208,9 @@ Rules (`lib/month-lock.ts`):
   clears the closing balances; the next month goes back to live carry-over by itself.
 - **Blocked** while the month's numbers can't be calculated, or when someone with a non-zero
   Final isn't in the next month (their balance would vanish — record the payment first).
-- **Blocked while a bill is pending** (emailed, not yet confirmed or discarded): once the
-  month and the one after it are closed, it could never be.
+- **Blocked while a bill is pending** (emailed, not yet confirmed or discarded), **or a
+  housemate's payment is waiting** (not yet confirmed or rejected): once the month and the one
+  after it are closed, it could never be. Rejected payments don't block.
 - The confirmation lists who is still unsettled, bills still at ₱0.00, and Manual columns
   that don't add up; none of them block closing. (A bill still at ₱0.00 may simply not have
   arrived: bills belong to the month they're for, which has usually ended when they arrive.)

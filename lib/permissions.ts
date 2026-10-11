@@ -26,6 +26,33 @@ export function canManageAdvance(viewer: Viewer, advance: { payerId: number; inD
   return isAdmin(viewer) || (advance.payerId === viewer.memberId && advance.inDefaultColumn);
 }
 
+export type PaymentStatus = "confirmed" | "pending" | "rejected";
+
+/**
+ * Whether the viewer may send an "I paid" (docs/features/settle-up.md): any member but the
+ * collector — the payment always goes to the collector, and the server sets both people.
+ */
+export function canSubmitPayment(viewer: Viewer, collectorId: number | null): boolean {
+  return collectorId !== null && viewer.memberId !== collectorId;
+}
+
+/**
+ * Whether the viewer may cancel (delete) a payment. The admin can delete any; a member only
+ * their own "I paid" while it's waiting or rejected — once confirmed, it's the admin's.
+ */
+export function canCancelPayment(viewer: Viewer, payment: { fromMemberId: number; status: PaymentStatus }): boolean {
+  return isAdmin(viewer) || (payment.fromMemberId === viewer.memberId && payment.status !== "confirmed");
+}
+
+/**
+ * Whether the viewer may see a payment's proof. A bank-transfer screenshot can show someone's
+ * bank and balance, so only the admin and the two people in the payment see it; everyone still
+ * sees the payment and its amount. (Bill proofs are for everyone.)
+ */
+export function canSeePaymentProof(viewer: Viewer, payment: { fromMemberId: number; toMemberId: number }): boolean {
+  return isAdmin(viewer) || payment.fromMemberId === viewer.memberId || payment.toMemberId === viewer.memberId;
+}
+
 /**
  * Who the admin is previewing as ("Preview as…" in the account menu), shaped like that
  * housemate's own login, or null for no preview. Only the admin may preview, and only an active

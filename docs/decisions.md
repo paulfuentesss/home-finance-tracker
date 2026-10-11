@@ -367,3 +367,26 @@ help.
 **Trade-off:** in session mode each connection holds a database connection while it's open.
 The app uses one per server instance and closes it after 20 s idle; the free plan's pool (about
 15) is far more than a household needs.
+
+## 2026-10-11 — Housemates send "I paid"; PA confirms
+**Decision:** a housemate sends their own payment with the transfer's screenshot; it waits
+(`payments.status = 'pending'`, not counted) until PA confirms it, or rejects it with a reason
+(kept, never counted). Choices made with PA:
+- The screenshot is **required** — it's what PA checks against the bank.
+- A rejected payment **stays visible with the reason**, so the housemate knows what to fix.
+- PA finds out **in the app** (a "Waiting for you" section and a count on the Settle Up tab) —
+  no email to set up or maintain.
+- It goes to **the collector only**, in **the latest month**; the server sets both people.
+- **One screenshot per "I paid"** — a Server Action carries one file (`bodySizeLimit`); PA can
+  attach more.
+- A payment's screenshot is seen only by **PA and the two people in it** (a bank screenshot can
+  show someone's bank and balance); bill proofs stay visible to everyone.
+- **Closing a month, and starting the next one, wait for waiting payments.** In a closed month
+  one could never be decided; and the next month's carry-over counts only confirmed payments,
+  so it would show the housemate the full amount again, away from the "waiting" note.
+
+**Why:** PA still checks the bank before anything counts, as before, but no longer types every
+payment; the housemate gets a record that they paid. It reuses the pending-bill pattern
+(skipped by `computeMonth`, blocking `closeCheck`) and the receipts upload.
+**Instead of:** housemates' payments counting straight away (nothing to check against), or a
+separate table for submissions (a status on `payments` keeps one list and one delete path).
