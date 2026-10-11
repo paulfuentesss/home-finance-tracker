@@ -7,7 +7,8 @@
 - Shows the month like the household sheet: one row per member, a column per bill and per
   shared column, then Total, Own Advance (−), Month Final, Prev Month Unsettled, Payments, Final.
 - Bill totals and Manual amounts are edited in place (Enter or click away saves, Escape undoes).
-- Due date and date paid per bill.
+- Due date and date paid per bill, except bills that have none (the Helper:
+  `BILLS_WITHOUT_DATES` in `lib/household-config.ts`), whose cells stay blank.
 - "Who owes what" cards above the table: who pays the collector, who gets paid — readable on
   a phone where the wide table isn't.
 - Flags a Manual column whose amounts don't add up, and shows the Month Final total (₱0.00 when

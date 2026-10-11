@@ -28,6 +28,7 @@ on the PR. It needs no secrets because no test touches the database — keep it 
 | `lib/backup.test.ts` | Download backup: the real migrations in PGlite (Postgres inside the test), made-up rows backed up and restored exactly, id counters moved on, a restore into a non-empty database changing nothing; the zip holding the `.sql` and every picture byte for byte, dated on Manila's clock (meaningful under UTC, as in CI), recorded only when complete |
 | `lib/backup-reminder.test.ts` | When the backup reminder shows: a month started or closed after the last backup, none yet, a month reclosed |
 | `lib/invites.test.ts` | Inviting / un-inviting: the order of the database and Supabase calls, rolling back a new login, never reusing a leftover one |
+| `lib/email-domain.test.ts` | Whether an invited email's domain takes mail, with a fake DNS: a missing domain, a null MX, an address-only domain, a timeout. Only a definite "no" blocks the invite |
 
 Money or rule changes: update the expectations in `lib/settlement.test.ts` (and the worked
 example in `docs/settlement-rules.md`). Work the new values out by hand from the rules — never

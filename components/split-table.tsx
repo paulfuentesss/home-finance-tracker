@@ -16,6 +16,7 @@ import { InlineInput, type FormAction } from "@/components/inline-input";
 import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { useDragScroll } from "@/hooks/use-drag-scroll";
 import { dayLabel, monthLabel } from "@/lib/format";
+import { BILLS_WITHOUT_DATES } from "@/lib/household-config";
 import { formatPHP, fromCentavos, sumCentavos } from "@/lib/money";
 import type { PeriodView, ViewBill, ViewColumn, ViewRow } from "@/lib/periods";
 import { cn } from "@/lib/utils";
@@ -164,7 +165,7 @@ export function SplitTable({ view }: { view: PeriodView }) {
                   </th>
                   {bills.map((bill) => (
                     <td key={bill.id} className={cn(cellBase, "text-center")}>
-                      <DateCell bill={bill} field={field} editable={editable} />
+                      {hasDates(bill) && <DateCell bill={bill} field={field} editable={editable} />}
                     </td>
                   ))}
                   <td colSpan={columns.length} />
@@ -328,6 +329,9 @@ function MoneyInput({
     />
   );
 }
+
+/** False for bills like the Helper that have no due date or date paid. */
+const hasDates = (bill: ViewBill) => !BILLS_WITHOUT_DATES.some((name) => name.toLowerCase() === bill.name.trim().toLowerCase());
 
 /**
  * Shows the date as "Sept. 6". A transparent native date input sits on top, so clicking the
