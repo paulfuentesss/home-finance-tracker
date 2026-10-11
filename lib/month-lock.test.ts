@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { closeCheck, reopenCheck, vanishingBalances } from "@/lib/month-lock";
+import { closeCheck, reopenCheck, startCheck, vanishingBalances } from "@/lib/month-lock";
 
 const july = { year: 2026, month: 7, status: "closed" as const };
 const august = { year: 2026, month: 8, status: "open" as const };
@@ -22,9 +22,32 @@ describe("closeCheck", () => {
     });
   });
 
+  it("refuses while a housemate's payment waits for PA", () => {
+    expect(closeCheck(august, null, null, [], ["Ben ₱1,000.00"])).toEqual({
+      ok: false,
+      reason: "Confirm or reject the waiting payment first (Settle Up): Ben ₱1,000.00.",
+    });
+    expect(closeCheck(august, null, null, [], ["Ben ₱1,000.00", "Cara ₱500.00"]).reason).toBe(
+      "Confirm or reject the waiting payments first (Settle Up): Ben ₱1,000.00, Cara ₱500.00.",
+    );
+  });
+
   it("refuses when the numbers can't be calculated, or it's already closed", () => {
     expect(closeCheck(august, null, "Shares for Water add up to ₱1.00").ok).toBe(false);
     expect(closeCheck({ ...august, status: "closed" }, null, null).ok).toBe(false);
+  });
+});
+
+describe("startCheck", () => {
+  it("starts the next month when nothing waits", () => {
+    expect(startCheck([])).toEqual({ ok: true });
+  });
+
+  it("waits for a housemate's waiting payment, which next month wouldn't show", () => {
+    expect(startCheck(["Ben ₱1,000.00"])).toEqual({
+      ok: false,
+      reason: "Confirm or reject the waiting payment first (Settle Up): Ben ₱1,000.00.",
+    });
   });
 });
 

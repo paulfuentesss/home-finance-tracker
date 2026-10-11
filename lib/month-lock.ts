@@ -20,13 +20,15 @@ interface MonthRef {
 /**
  * Months close oldest-first: a closed month's opening balance must itself be locked, or
  * editing an earlier month could still change it. Pending (emailed) bills must be confirmed
- * or discarded first: in a closed month they could never be.
+ * or discarded first, and housemates' waiting payments confirmed or rejected: in a closed
+ * month they could never be.
  */
 export function closeCheck(
   current: MonthRef,
   prev: MonthRef | null,
   issue: string | null,
   pendingBills: readonly string[] = [],
+  waitingPayments: readonly string[] = [],
 ): LockCheck {
   if (current.status === "closed") return { ok: false, reason: "This month is already closed." };
   if (prev && prev.status !== "closed") {
@@ -37,7 +39,23 @@ export function closeCheck(
     const bills = `${pendingBills.join(", ")} bill${pendingBills.length > 1 ? "s" : ""}`;
     return { ok: false, reason: `Confirm or discard the pending ${bills} first (Split Table).` };
   }
+  if (waitingPayments.length) return { ok: false, reason: waitingReason(waitingPayments) };
   return { ok: true };
+}
+
+/**
+ * The next month can't start while a housemate's payment waits in this one: the next month's
+ * carry-over counts only confirmed payments, so it would show them owing it all again, away
+ * from the note saying it's waiting — and they might pay twice.
+ */
+export function startCheck(waitingPayments: readonly string[]): LockCheck {
+  return waitingPayments.length ? { ok: false, reason: waitingReason(waitingPayments) } : { ok: true };
+}
+
+/** `waitingPayments` are labels like "Ben ₱1,000.00". */
+function waitingReason(waitingPayments: readonly string[]): string {
+  const which = waitingPayments.length === 1 ? "the waiting payment" : "the waiting payments";
+  return `Confirm or reject ${which} first (Settle Up): ${waitingPayments.join(", ")}.`;
 }
 
 /** Months reopen newest-first, so a closed month never follows an open one. */

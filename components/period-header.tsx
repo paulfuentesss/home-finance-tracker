@@ -105,7 +105,7 @@ export function PeriodHeader({
         </div>
       </div>
       <div className="mx-auto w-full max-w-7xl px-4">
-        <TabNav base={base} />
+        <TabNav base={base} waiting={view.payments.filter((p) => p.status === "pending").length} />
       </div>
     </header>
   );

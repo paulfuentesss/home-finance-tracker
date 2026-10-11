@@ -10,8 +10,11 @@ const ROOT = join(__dirname, "..");
 
 /** The only Server Actions that may run without someone signed in (they sign people in). */
 const PUBLIC_ACTIONS = new Set(["signInWithGoogle", "sendEmailCode", "verifyEmailCode", "signOut"]);
-/** The only actions a non-admin may call; each checks ownership itself (lib/permissions.ts). */
-const MEMBER_ACTIONS = ["addAdvance", "deleteAdvance", "updateAdvance"];
+/**
+ * The only actions a non-admin may call; each checks ownership itself (lib/permissions.ts):
+ * their own advances, and their own "I paid" (sent to the collector; cancelled while waiting).
+ */
+const MEMBER_ACTIONS = ["addAdvance", "cancelPayment", "deleteAdvance", "submitPayment", "updateAdvance"];
 /** Route Handlers, each doing its own auth. */
 const ROUTE_HANDLERS = [
   "app/api/bill-email/route.ts",
@@ -64,7 +67,7 @@ describe("Server Actions check who's calling", () => {
     }
   });
 
-  it("only the three advance actions are open to members", () => {
+  it("only the advance and I-paid actions are open to members", () => {
     const members = serverFiles.flatMap((file) =>
       exportedFunctions(read(file))
         .filter(({ body }) => /return run\("member",/.test(body))
@@ -116,6 +119,13 @@ describe("Route Handlers", () => {
       /^export async function POST[^{]*\{\s*const secret = process\.env\.BILL_EMAIL_SECRET;\s*if \(!secret\) return[^\n]*\n\s*if \(!checkBillEmailSecret\(request\.headers\.get\("authorization"\), secret\)\) \{\s*return[^\n]*status: 401/,
     );
     expect(source).not.toMatch(/export async function (GET|PUT|PATCH|DELETE)/);
+  });
+
+  it("app/receipts/[id]/route.ts shows a payment's proof only to PA and the two people in it", () => {
+    const source = read(join(ROOT, "app/receipts/[id]/route.ts"));
+    expect(source).toMatch(/!canSeePaymentProof\(viewer, \{ fromMemberId: receipt\.paymentFrom, toMemberId: receipt\.paymentTo \}\)/);
+    // The check happens before the signed link is made.
+    expect(source.indexOf("canSeePaymentProof(viewer")).toBeLessThan(source.indexOf("createSignedUrl"));
   });
 
   it.each(ADMIN_ROUTES)("%s refuses anyone but the admin, before anything else", (file) => {

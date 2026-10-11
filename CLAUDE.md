@@ -75,7 +75,8 @@ Part of every change, in the same PR — not a separate chore.
 - **Login guards everything** (`docs/features/auth.md`). Server Actions and Route Handlers are
   public endpoints:
   - Every Server Action goes through `run("admin" | "member", …)`; only the three advance
-    actions are `"member"`, and they check ownership with `canManageAdvance`.
+    actions (`canManageAdvance`) and a housemate's "I paid" — `submitPayment`, `cancelPayment`
+    (`canSubmitPayment`, `canCancelPayment`) — are `"member"`, and they check ownership themselves.
   - Page reads go through `lib/auth.ts` (`requireViewer` in `lib/periods.ts`); a page that
     queries `db` directly checks the viewer itself (see the Manage page).
   - "Preview as a housemate" (`getPreview`) is for drawing pages only: the month layout picks who

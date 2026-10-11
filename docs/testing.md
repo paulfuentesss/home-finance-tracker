@@ -15,15 +15,15 @@ on the PR. It needs no secrets because no test touches the database — keep it 
 | Test file | Covers |
 |---|---|
 | `lib/money.test.ts` | Centavo conversion, parsing typed amounts, equal and weighted splits |
-| `lib/settlement.test.ts` | The made-up August 2026 worked example; bill shares; Month Final rules; shared columns; split order; suggested payments |
-| `lib/month-lock.test.ts` | Closing / reopening rules, pending bills blocking a close, balances that would vanish |
+| `lib/settlement.test.ts` | The made-up August 2026 worked example; bill shares; Month Final rules; shared columns; split order; suggested payments; waiting and rejected payments not counted |
+| `lib/month-lock.test.ts` | Closing / reopening rules, pending bills and waiting payments blocking a close, starting the next month waiting for them, balances that would vanish |
 | `lib/advances-log.test.ts` | Advances Log grouping and split labels |
 | `lib/bill-email/parse.test.ts` | Reading the August sample bill emails; refusing other senders; bill month; dates |
 | `lib/bill-email/intake.test.ts` | What `/api/bill-email` accepts from the Gmail script: the shared secret, Gmail's DKIM verdict for the biller's domain (lookalikes, other domains, headers not from Gmail refused), the body's shape |
 | `lib/bill-email/fees.test.ts` | The payment fee setting turns the sample emails into the fixture's bills |
 | `lib/local-database.test.ts` | Test-data scripts recognise only a database on this machine as local |
-| `lib/permissions.test.ts` | Who may change which advance; `safeNext` blocking open redirects after sign-in |
-| `lib/actions-guard.test.ts` | Every Server Action goes through `run("admin" \| "member", …)`; only the three advance actions are open to members; no unknown Route Handlers; `/receipts/[id]` and `/backup` check the login first, and `/backup` the admin; the secret key and admin client stay out of the browser |
+| `lib/permissions.test.ts` | Who may change which advance; who may send / cancel a payment and see its proof; `safeNext` blocking open redirects after sign-in |
+| `lib/actions-guard.test.ts` | Every Server Action goes through `run("admin" \| "member", …)`; only the advance and "I paid" actions (`submitPayment`, `cancelPayment`) are open to members; `/receipts/[id]` checks `canSeePaymentProof` before signing a link; no unknown Route Handlers; `/receipts/[id]` and `/backup` check the login first, and `/backup` the admin; the secret key and admin client stay out of the browser |
 | `lib/receipts.test.ts` | Which receipt files are accepted (real type from the first bytes, size limit), their names in the bucket, resizing long screenshots |
 | `lib/backup.test.ts` | Download backup: the real migrations in PGlite (Postgres inside the test), made-up rows backed up and restored exactly, id counters moved on, a restore into a non-empty database changing nothing; the zip holding the `.sql` and every picture byte for byte, dated on Manila's clock (meaningful under UTC, as in CI), recorded only when complete |
 | `lib/backup-reminder.test.ts` | When the backup reminder shows: a month started or closed after the last backup, none yet, a month reclosed |
@@ -86,6 +86,21 @@ so PA stays signed in in the main one.
 7. A Google account that isn't invited: "not invited", no loop. The My House Gmail works once no
    member uses it. It must be a test user on the Google consent screen, or Google blocks it
    before the app is reached ("Access blocked") and the app's check isn't tested.
+
+**"I paid", start to finish** — needs a real housemate login (a `+house1` alias, docs above),
+since Preview can't save. PA in the main window, the housemate in a private one; on live data,
+so delete the test payments afterwards:
+1. Housemate: Settle Up → **I paid** on their row → ₱1, a screenshot → Send. It shows as
+   Waiting for PA; their Final hasn't moved. No screenshot → refused.
+2. PA: the Settle Up tab shows a count and **Waiting for you**; closing the month and "Start
+   next month" are both refused while it waits. On the housemate's row: "₱1.00 sent, waiting".
+3. PA: **Reject** with a reason → the housemate sees "Rejected: …", the amount struck through,
+   and can **Cancel** it.
+4. Housemate: send it again → PA **Confirm** → both Finals move, the Split Table's Payments
+   column shows it; the housemate can no longer cancel it.
+5. A second housemate login (another `+` alias on another member, removed afterwards) sees
+   the payment but not its screenshot; opening `/receipts/<id>` directly → "Receipt not found".
+6. "I paid" isn't offered in an older month or a closed one.
 
 **Receipts, start to finish** (after `npm run storage:setup`):
 1. As PA, Receipts tab → a bill → **Attach proof** → a phone screenshot. It shows on the card;

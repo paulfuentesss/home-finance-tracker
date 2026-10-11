@@ -6,11 +6,12 @@ import { asc, desc, eq, or } from "drizzle-orm";
 import { cache } from "react";
 import { billingPeriods, billItems, db, payments, receipts } from "@/db";
 import type { Database } from "@/db/client";
-import { requireViewer } from "@/lib/auth";
+import { getPreview, requireViewer } from "@/lib/auth";
 import { dateInManila } from "@/lib/format";
 import { dotClassOf } from "@/lib/members";
+import { canSeePaymentProof } from "@/lib/permissions";
 import { closeCheck, reopenCheck, type LockCheck } from "@/lib/month-lock";
-import { sumCentavos, toCentavos, type Centavos } from "@/lib/money";
+import { formatPHP, sumCentavos, toCentavos, type Centavos } from "@/lib/money";
 import {
   computeMonth,
   openingBalancesFrom,
@@ -77,6 +78,10 @@ export interface ViewPayment {
   amount: Centavos;
   paidOn: string;
   note: string | null;
+  /** "pending" = a housemate's "I paid" waiting for PA; only "confirmed" counts. */
+  status: "confirmed" | "pending" | "rejected";
+  /** Why PA rejected it (rejected only). */
+  rejectedReason: string | null;
 }
 
 export interface ViewAdvance {
@@ -312,6 +317,8 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
       amount: toCentavos(p.amount),
       paidOn: p.paidOn,
       note: p.note,
+      status: p.status,
+      rejectedReason: p.rejectedReason,
     })),
     stats: {
       coreBills: sumCentavos(bills.filter((b) => b.status === "confirmed").map((b) => b.total)),
@@ -321,7 +328,7 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
     prev: summaries[index - 1] ?? null,
     next: summaries[index + 1] ?? null,
     isLatest: index === all.length - 1,
-    canClose: closeCheck(period, all[index - 1] ?? null, issue, pendingBillNames(period)),
+    canClose: closeCheck(period, all[index - 1] ?? null, issue, pendingBillNames(period), waitingPaymentLabels(period)),
     canReopen: reopenCheck(period, all[index + 1] ?? null),
     issue,
   };
@@ -337,24 +344,44 @@ export interface ViewReceipt {
 }
 
 /**
- * A month's receipts (bills and payments), oldest first. Separate from getPeriodView, whose
- * query loads every month: only the Receipts tab needs these.
+ * A month's receipts (bills and payments), oldest first — only the ones the page's viewer may
+ * open: a payment's proof is for PA and the two people in it (canSeePaymentProof). Separate
+ * from getPeriodView, whose query loads every month: only the Receipts and Settle Up tabs need
+ * these.
  */
 export async function getPeriodReceipts(periodId: number): Promise<ViewReceipt[]> {
-  await requireViewer();
-  return db
+  const viewer = await requireViewer();
+  // Filtered for whoever the page is drawn for, so a preview shows what that housemate sees.
+  // (The /receipts/<id> route checks the real viewer.)
+  const drawnFor = (await getPreview()) ?? viewer;
+  const rows = await db
     .select({
       id: receipts.id,
       billItemId: receipts.billItemId,
       paymentId: receipts.paymentId,
       contentType: receipts.contentType,
       originalName: receipts.originalName,
+      paymentFrom: payments.fromMemberId,
+      paymentTo: payments.toMemberId,
     })
     .from(receipts)
     .leftJoin(billItems, eq(billItems.id, receipts.billItemId))
     .leftJoin(payments, eq(payments.id, receipts.paymentId))
     .where(or(eq(billItems.periodId, periodId), eq(payments.periodId, periodId)))
     .orderBy(asc(receipts.id));
+  return rows
+    .filter(
+      (r) =>
+        r.paymentId === null ||
+        canSeePaymentProof(drawnFor, { fromMemberId: r.paymentFrom!, toMemberId: r.paymentTo! }),
+    )
+    .map((r) => ({
+      id: r.id,
+      billItemId: r.billItemId,
+      paymentId: r.paymentId,
+      contentType: r.contentType,
+      originalName: r.originalName,
+    }));
 }
 
 /** Points-mode bills in the latest month, for the "How it works" page. */
@@ -382,6 +409,14 @@ function emailedOf(emails: LoadedPeriod["billItems"][number]["emails"]): ViewBil
 
 export function pendingBillNames(period: LoadedPeriod): string[] {
   return period.billItems.filter((b) => b.status === "pending").map((b) => b.name);
+}
+
+/** A housemate's "I paid" still waiting for PA, as "Ben ₱1,000.00" (lib/month-lock.ts). */
+export function waitingPaymentLabels(period: Pick<LoadedPeriod, "payments" | "balances">): string[] {
+  const nameOf = new Map(period.balances.map((b) => [b.memberId, b.member.name]));
+  return period.payments
+    .filter((p) => p.status === "pending")
+    .map((p) => `${nameOf.get(p.fromMemberId) ?? "Someone"} ${formatPHP(toCentavos(p.amount))}`);
 }
 
 export function periodMembers(period: LoadedPeriod) {

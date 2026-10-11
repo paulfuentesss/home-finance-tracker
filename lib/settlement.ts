@@ -50,6 +50,8 @@ export interface SettlementPayment {
   fromMemberId: MemberId;
   toMemberId: MemberId;
   amount: string;
+  /** Only confirmed payments count: "pending" waits for PA, "rejected" never counts. */
+  status: "confirmed" | "pending" | "rejected";
 }
 
 export interface MonthInput {
@@ -238,8 +240,11 @@ export function computeMonth(input: MonthInput): MonthResult {
     columns.push({ id: column.id, name: column.name, splitMode: column.splitMode, total, difference, includedIds });
   }
 
-  // --- Payments ---
+  // --- Payments: only confirmed ones; a housemate's waiting or rejected "I paid" is ignored ---
   for (const payment of input.payments) {
+    // Skipped before the member checks, so one that doesn't count can never break the month's
+    // numbers (today any payment keeps its payer in the month — hasRecordsIn — so this is defence).
+    if (payment.status !== "confirmed") continue;
     assertMember(payment.fromMemberId, "Payment from");
     assertMember(payment.toMemberId, "Payment to");
     const amount = toCentavos(payment.amount);

@@ -35,7 +35,7 @@ export function ReceiptsNote({ status }: { status: "open" | "closed" }) {
   }
   return admin
     ? "Attach a screenshot to each bill and payment. They're made smaller before upload."
-    : "The admin attaches the proofs. Tap one to see it full size.";
+    : "The admin attaches the bill proofs; your own payment proofs come from I paid on Settle Up. Tap one to see it full size.";
 }
 
 /** A bill's card: the first proof large on top, the rest as small thumbnails below. */
@@ -89,6 +89,18 @@ export function ReceiptsRow({ children, ...props }: Props & { children: React.Re
       </div>
       <ReceiptViewer receipt={viewing} label={props.label} status={props.status} onClose={() => setViewing(null)} />
     </li>
+  );
+}
+
+/** A payment's proofs as small thumbnails, each opening full size (Settle Up). */
+export function ProofThumbs({ receipts, label, status }: Omit<Props, "owner">) {
+  const [viewing, setViewing] = useState<ViewReceipt | null>(null);
+  if (receipts.length === 0) return null;
+  return (
+    <>
+      <ThumbRow receipts={receipts} label={label} onOpen={setViewing} />
+      <ReceiptViewer receipt={viewing} label={label} status={status} onClose={() => setViewing(null)} />
+    </>
   );
 }
 

@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { canManageAdvance, isAdmin, previewViewer, safeNext, type Viewer } from "./permissions";
+import {
+  canCancelPayment,
+  canManageAdvance,
+  canSeePaymentProof,
+  canSubmitPayment,
+  isAdmin,
+  previewViewer,
+  safeNext,
+  type Viewer,
+} from "./permissions";
 
 const pa: Viewer = { memberId: 5, name: "PA", role: "admin", email: null };
 const housemate: Viewer = { memberId: 3, name: "Housemate", role: "member", email: null };
@@ -27,6 +36,48 @@ describe("canManageAdvance", () => {
 
   it("doesn't let a member change their own advance once PA moved it to another column", () => {
     expect(canManageAdvance(housemate, { payerId: 3, inDefaultColumn: false })).toBe(false);
+  });
+});
+
+describe("canSubmitPayment", () => {
+  it("lets a housemate send an I paid to the collector", () => {
+    expect(canSubmitPayment(housemate, pa.memberId)).toBe(true);
+  });
+
+  it("not the collector himself, and not when there's no collector", () => {
+    expect(canSubmitPayment(pa, pa.memberId)).toBe(false);
+    expect(canSubmitPayment(housemate, null)).toBe(false);
+  });
+});
+
+describe("canCancelPayment", () => {
+  const own = (status: "confirmed" | "pending" | "rejected") => ({ fromMemberId: housemate.memberId, status });
+
+  it("lets a housemate cancel their own waiting or rejected payment", () => {
+    expect(canCancelPayment(housemate, own("pending"))).toBe(true);
+    expect(canCancelPayment(housemate, own("rejected"))).toBe(true);
+  });
+
+  it("not once it's confirmed, and never someone else's", () => {
+    expect(canCancelPayment(housemate, own("confirmed"))).toBe(false);
+    expect(canCancelPayment(housemate, { fromMemberId: 4, status: "pending" })).toBe(false);
+  });
+
+  it("lets the admin delete any payment", () => {
+    expect(canCancelPayment(pa, own("confirmed"))).toBe(true);
+    expect(canCancelPayment(pa, { fromMemberId: 4, status: "pending" })).toBe(true);
+  });
+});
+
+describe("canSeePaymentProof", () => {
+  it("shows a payment's proof to the admin and the two people in it", () => {
+    expect(canSeePaymentProof(pa, { fromMemberId: 4, toMemberId: 1 })).toBe(true);
+    expect(canSeePaymentProof(housemate, { fromMemberId: housemate.memberId, toMemberId: pa.memberId })).toBe(true);
+    expect(canSeePaymentProof(housemate, { fromMemberId: pa.memberId, toMemberId: housemate.memberId })).toBe(true);
+  });
+
+  it("not to another housemate", () => {
+    expect(canSeePaymentProof(housemate, { fromMemberId: 4, toMemberId: pa.memberId })).toBe(false);
   });
 });
 

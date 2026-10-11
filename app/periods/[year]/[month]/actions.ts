@@ -34,9 +34,9 @@ import { ActionError, isUniqueViolation } from "@/lib/errors";
 import { monthLabel } from "@/lib/format";
 import { inviteMember, uninviteMember } from "@/lib/invites";
 import { fromCentavos, parseMoneyInput, splitEqually, sumCentavos, toCentavos, type Centavos } from "@/lib/money";
-import { closeCheck, reopenCheck, vanishingBalances } from "@/lib/month-lock";
-import { canManageAdvance, isAdmin, type Role, type Viewer } from "@/lib/permissions";
-import { computePeriod, pendingBillNames, periodMembers } from "@/lib/periods";
+import { closeCheck, reopenCheck, startCheck, vanishingBalances } from "@/lib/month-lock";
+import { canCancelPayment, canManageAdvance, canSubmitPayment, isAdmin, type Role, type Viewer } from "@/lib/permissions";
+import { computePeriod, pendingBillNames, periodMembers, waitingPaymentLabels } from "@/lib/periods";
 import {
   checkReceiptFile,
   cleanFileName,
@@ -419,6 +419,15 @@ export async function updatePayment(_prev: ActionState, formData: FormData): Pro
     await db.transaction(async (tx) => {
       const payment = await tx.query.payments.findFirst({ where: eq(payments.id, paymentId) });
       if (!payment) throw new ActionError("That payment was deleted.");
+      // A waiting one can be fixed before confirming (it stays waiting); a rejected one can't.
+      if (payment.status === "rejected") throw new ActionError("A rejected payment can't be edited. Delete it instead.");
+      // A housemate's "I paid" stays theirs, to the collector: only its amount, date or note change.
+      if (
+        payment.status === "pending" &&
+        (data.fromMemberId !== payment.fromMemberId || data.toMemberId !== payment.toMemberId)
+      ) {
+        throw new ActionError("A waiting payment keeps who paid whom. Change the amount or date, or reject it.");
+      }
       const { order } = await loadOpenPeriod(tx, payment.periodId);
       checkPaymentMembers(order, data);
       await tx
@@ -430,18 +439,178 @@ export async function updatePayment(_prev: ActionState, formData: FormData): Pro
 }
 
 export async function deletePayment(paymentId: number): Promise<ActionState> {
-  return run("admin", z.object({ paymentId: id }), { paymentId }, async ({ paymentId }) => {
-    const files = await db.transaction(async (tx) => {
-      const payment = await tx.query.payments.findFirst({ where: eq(payments.id, paymentId) });
-      if (!payment) throw new ActionError("That payment was already deleted.");
-      await loadOpenPeriod(tx, payment.periodId);
-      const files = await receiptFilesOf(tx, eq(receipts.paymentId, paymentId));
-      // Its receipts rows go with it (ON DELETE CASCADE).
-      await tx.delete(payments).where(eq(payments.id, paymentId));
-      return files;
-    });
-    await removeReceiptFilesQuietly(files);
+  return run("admin", z.object({ paymentId: id }), { paymentId }, ({ paymentId }, viewer) =>
+    removePayment(paymentId, viewer),
+  );
+}
+
+// ---------- A housemate's "I paid" (docs/features/settle-up.md) ----------
+
+// A housemate sends their payment to the collector with the transfer's screenshot. It waits
+// ("pending", not counted) until PA confirms or rejects it. The server sets who paid whom.
+
+const submitPaymentSchema = z.object({
+  periodId: id,
+  amount: moneyField(false),
+  paidOn: paymentSchema.shape.paidOn,
+  note: paymentSchema.shape.note,
+  file: z.instanceof(File, { message: "Attach the screenshot of your transfer." }),
+});
+
+export async function submitPayment(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  return run("member", submitPaymentSchema, formData, async ({ periodId, file, ...data }, viewer) => {
+    if (file.size === 0) throw new ActionError("Attach the screenshot of your transfer.");
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const checked = checkReceiptFile(bytes);
+    if (!checked.ok) throw new ActionError(checked.error);
+    // Checked before uploading too, so a refused payment never uploads a file.
+    const { period } = await db.transaction((tx) => loadPaymentTarget(tx, periodId, viewer));
+
+    // Uploaded outside any transaction (like uploadReceipt), then saved with the payment.
+    const path = receiptObjectPath(period.year, period.month, randomUUID(), checked.contentType);
+    const { error } = await receiptStorage().upload(path, bytes, { contentType: checked.contentType, upsert: false });
+    if (error) {
+      console.error("Payment proof upload failed", error);
+      throw new ActionError("Couldn't upload the screenshot. Please try again.");
+    }
+    try {
+      await db.transaction(async (tx) => {
+        // Locked and checked again: PA may have started the next month or closed this one meanwhile.
+        await lockPeriod(tx, periodId);
+        const { collectorId } = await loadPaymentTarget(tx, periodId, viewer);
+        const [payment] = await tx
+          .insert(payments)
+          .values({
+            periodId,
+            fromMemberId: viewer.memberId,
+            toMemberId: collectorId,
+            amount: fromCentavos(data.amount),
+            paidOn: data.paidOn,
+            note: data.note,
+            status: "pending",
+          })
+          .returning({ id: payments.id });
+        await tx.insert(receipts).values({
+          storagePath: path,
+          contentType: checked.contentType,
+          sizeBytes: bytes.length,
+          originalName: cleanFileName(file.name),
+          paymentId: payment.id,
+          uploadedById: viewer.memberId,
+        });
+      });
+    } catch (error) {
+      await removeReceiptFilesQuietly([path]);
+      throw error;
+    }
   });
+}
+
+/** A housemate cancels their own waiting or rejected payment (and its proof). */
+export async function cancelPayment(paymentId: number): Promise<ActionState> {
+  return run("member", z.object({ paymentId: id }), { paymentId }, ({ paymentId }, viewer) =>
+    removePayment(paymentId, viewer),
+  );
+}
+
+/** PA checked the bank: the waiting payment counts from now on. */
+export async function confirmPayment(paymentId: number): Promise<ActionState> {
+  return run("admin", z.object({ paymentId: id }), { paymentId }, ({ paymentId }) =>
+    decideWaitingPayment(paymentId, { status: "confirmed" }),
+  );
+}
+
+/** PA didn't receive it: it stays in the list as rejected, with the reason, and never counts. */
+export async function rejectPayment(paymentId: number, reason: string): Promise<ActionState> {
+  const schema = z.object({
+    paymentId: id,
+    reason: z
+      .string()
+      .trim()
+      .min(1, "Say why, so they know what to check.")
+      .max(120, "Keep the reason under 120 characters"),
+  });
+  return run("admin", schema, { paymentId, reason }, ({ paymentId, reason }) =>
+    decideWaitingPayment(paymentId, { status: "rejected", rejectedReason: reason }),
+  );
+}
+
+/** The latest, open month and its collector, for a housemate's "I paid". */
+async function loadPaymentTarget(tx: Tx, periodId: number, viewer: Viewer) {
+  const { period, order } = await loadOpenPeriod(tx, periodId);
+  const [latest] = await tx
+    .select({ id: billingPeriods.id, year: billingPeriods.year, month: billingPeriods.month })
+    .from(billingPeriods)
+    .orderBy(desc(billingPeriods.year), desc(billingPeriods.month))
+    .limit(1);
+  if (latest && latest.id !== periodId) {
+    throw new ActionError(`Send it in ${monthLabel(latest.year, latest.month)}, the latest month.`);
+  }
+  if (!order.includes(viewer.memberId)) throw new ActionError("You're not in this month.");
+  const collector = period.balances.find((b) => b.member.isCollector)?.member ?? null;
+  if (!collector) throw new ActionError("This month has nobody to pay.");
+  if (!canSubmitPayment(viewer, collector.id)) {
+    throw new ActionError("Payments come to you — record it under Payments instead.");
+  }
+  return { period, collectorId: collector.id };
+}
+
+/**
+ * Confirms or rejects a waiting payment. Only from "pending": if the housemate cancelled it or
+ * PA already decided (in another tab), nothing changes and the page says so.
+ */
+async function decideWaitingPayment(
+  paymentId: number,
+  values: { status: "confirmed" } | { status: "rejected"; rejectedReason: string },
+) {
+  await db.transaction(async (tx) => {
+    const payment = await tx.query.payments.findFirst({ where: eq(payments.id, paymentId) });
+    if (!payment) throw new ActionError("That payment was cancelled.");
+    await loadOpenPeriod(tx, payment.periodId);
+    const updated = await tx
+      .update(payments)
+      .set(values)
+      .where(and(eq(payments.id, paymentId), eq(payments.status, "pending")))
+      .returning({ id: payments.id });
+    if (updated.length === 0) throw new ActionError("That payment isn't waiting any more. Reload to see it.");
+  });
+}
+
+/**
+ * Deletes a payment and its proofs: PA any; a housemate their own while it waits or was
+ * rejected (lib/permissions.ts). The delete re-checks that, so a payment PA confirmed a moment
+ * ago stays.
+ */
+async function removePayment(paymentId: number, viewer: Viewer) {
+  const files = await db.transaction(async (tx) => {
+    const payment = await tx.query.payments.findFirst({ where: eq(payments.id, paymentId) });
+    if (!payment) throw new ActionError("That payment was already deleted.");
+    if (!canCancelPayment(viewer, payment)) {
+      throw new ActionError(
+        payment.status === "confirmed" && payment.fromMemberId === viewer.memberId
+          ? "PA has confirmed it, so only PA can change it now."
+          : "Only PA can delete this payment.",
+      );
+    }
+    await loadOpenPeriod(tx, payment.periodId);
+    const files = await receiptFilesOf(tx, eq(receipts.paymentId, paymentId));
+    // Its receipts rows go with it (ON DELETE CASCADE).
+    const deleted = await tx
+      .delete(payments)
+      .where(
+        isAdmin(viewer)
+          ? eq(payments.id, paymentId)
+          : and(
+              eq(payments.id, paymentId),
+              eq(payments.fromMemberId, viewer.memberId),
+              inArray(payments.status, ["pending", "rejected"]),
+            ),
+      )
+      .returning({ id: payments.id });
+    if (deleted.length === 0) throw new ActionError("That payment changed meanwhile. Reload to see it.");
+    return files;
+  });
+  await removeReceiptFilesQuietly(files);
 }
 
 // ---------- Receipts (docs/features/receipts.md) ----------
@@ -835,11 +1004,20 @@ export async function startNextMonth(): Promise<ActionState> {
   return run("admin", z.object({}), {}, async () => {
     let path = "";
     await db.transaction(async (tx) => {
+      // Locked, so a housemate's "I paid" can't land in it while it stops being the latest.
+      const latestId = await lockLatestPeriod(tx);
+      if (latestId === null) throw new ActionError("There's no month to continue from yet.");
       const latest = await tx.query.billingPeriods.findFirst({
-        orderBy: [desc(billingPeriods.year), desc(billingPeriods.month)],
-        with: { billItems: { with: { shares: true }, orderBy: (b) => [asc(b.id)] }, balances: true },
+        where: eq(billingPeriods.id, latestId),
+        with: {
+          billItems: { with: { shares: true }, orderBy: (b) => [asc(b.id)] },
+          balances: { with: { member: true } },
+          payments: true,
+        },
       });
       if (!latest) throw new ActionError("There's no month to continue from yet.");
+      const start = startCheck(waitingPaymentLabels(latest));
+      if (!start.ok) throw new ActionError(start.reason!);
       const year = latest.month === 12 ? latest.year + 1 : latest.year;
       const month = latest.month === 12 ? 1 : latest.month + 1;
       // A second click or tab could get here too; say so plainly instead of a unique-index error.
@@ -909,12 +1087,14 @@ export async function startNextMonth(): Promise<ActionState> {
 export async function closeMonth(periodId: number): Promise<ActionState> {
   return run("admin", z.object({ periodId: id }), { periodId }, async ({ periodId }) => {
     await db.transaction(async (tx) => {
+      // Locked first, so a housemate's "I paid" can't slip in while it closes.
+      await lockPeriod(tx, periodId);
       const target = await tx.query.billingPeriods.findFirst({ where: eq(billingPeriods.id, periodId) });
       if (!target) throw new ActionError("That month no longer exists.");
       const computed = await computePeriod(tx, target.year, target.month);
       if (!computed) throw new ActionError("That month no longer exists.");
       const { all, index, period, result, issue } = computed;
-      const check = closeCheck(period, all[index - 1] ?? null, issue, pendingBillNames(period));
+      const check = closeCheck(period, all[index - 1] ?? null, issue, pendingBillNames(period), waitingPaymentLabels(period));
       if (!check.ok || !result) throw new ActionError(check.reason ?? "This month can't be closed yet.");
 
       const finals = openingBalancesFrom(result);
@@ -967,6 +1147,22 @@ export async function reopenMonth(periodId: number): Promise<ActionState> {
 }
 
 // ---------- Helpers ----------
+
+/** Locks a month's row until the transaction ends (closing, starting and "I paid" take turns). */
+async function lockPeriod(tx: Tx, periodId: number) {
+  await tx.select({ id: billingPeriods.id }).from(billingPeriods).where(eq(billingPeriods.id, periodId)).for("update");
+}
+
+/** Locks the latest month's row and returns its id (null when there's no month yet). */
+async function lockLatestPeriod(tx: Tx): Promise<number | null> {
+  const [latest] = await tx
+    .select({ id: billingPeriods.id })
+    .from(billingPeriods)
+    .orderBy(desc(billingPeriods.year), desc(billingPeriods.month))
+    .limit(1)
+    .for("update");
+  return latest?.id ?? null;
+}
 
 async function loadOpenPeriod(tx: Tx, periodId: number) {
   const period = await tx.query.billingPeriods.findFirst({
