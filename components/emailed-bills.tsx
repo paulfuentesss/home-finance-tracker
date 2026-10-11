@@ -4,7 +4,7 @@
 // Discard buttons under a pending bill in the Split Table, and the Bill inbox for emails
 // that couldn't be placed.
 
-import { Check, Inbox, RotateCw, X } from "lucide-react";
+import { Check, Inbox, Info, RotateCw, X } from "lucide-react";
 import { useState, useTransition } from "react";
 import {
   confirmBill,
@@ -15,25 +15,43 @@ import {
 } from "@/app/periods/[year]/[month]/actions";
 import { ConfirmDeleteButton } from "@/components/confirm-button";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { dateLabel, monthLabel } from "@/lib/format";
 import { formatPHP, type Centavos } from "@/lib/money";
 import type { ViewBill } from "@/lib/periods";
 
-/** Under an emailed bill's amount: what the email said, and the payment fee that was added. */
+/** Under an emailed bill's amount: a small "From email" tag; its popover shows what the email
+ * said and the payment fee that was added. */
 export function EmailedNote({ bill }: { bill: ViewBill }) {
   if (!bill.emailed) return null;
   const { amount, fee, feeNote } = bill.emailed;
   return (
-    <p className="mx-auto mt-1 max-w-40 font-sans text-[11px] whitespace-normal text-muted-foreground">
-      {fee > 0 ? (
-        <>
-          Emailed bill {formatPHP(amount)} + {formatPHP(fee)}
-          {feeNote ? ` ${feeNote}` : " payment fee"}
-        </>
-      ) : (
-        <>From email</>
-      )}
-    </p>
+    <Popover>
+      <PopoverTrigger
+        openOnHover
+        aria-label={`Where the ${bill.name} amount came from`}
+        className="mx-auto mt-1 flex items-center gap-1 rounded font-sans text-[11px] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        From email
+        <Info className="size-3" />
+      </PopoverTrigger>
+      <PopoverContent className="w-64 font-sans">
+        <PopoverTitle>From email</PopoverTitle>
+        <ul className="divide-y text-xs">
+          <li className="flex justify-between gap-3 py-1.5">
+            <span>Emailed bill</span>
+            <span className="shrink-0 font-mono whitespace-nowrap tabular-nums">{formatPHP(amount)}</span>
+          </li>
+          {fee > 0 && (
+            <li className="flex justify-between gap-3 py-1.5">
+              <span>{feeNote ?? "Payment fee"}</span>
+              {/* Long fee notes wrap; the amount never does. */}
+              <span className="shrink-0 font-mono whitespace-nowrap tabular-nums">+ {formatPHP(fee)}</span>
+            </li>
+          )}
+        </ul>
+      </PopoverContent>
+    </Popover>
   );
 }
 

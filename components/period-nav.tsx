@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronLeft, ChevronRight, CalendarPlus, DollarSign, HandCoins, Layers, ReceiptText, Settings } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, CalendarPlus, HandCoins, Layers, PhilippinePeso, ReceiptText, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils";
 // `short` is shown on phones, where the full labels would push most tabs off-screen.
 const TABS = [
   { href: "", label: "Monthly Split Table", short: "Split", icon: Layers },
-  { href: "/advances", label: "Advances Log & Report", short: "Advances", icon: DollarSign },
+  { href: "/advances", label: "Advances Log & Report", short: "Advances", icon: PhilippinePeso },
   { href: "/receipts", label: "Payment Proofs / Receipts", short: "Receipts", icon: ReceiptText },
   { href: "/settle", label: "Settle Up", short: "Settle", icon: HandCoins },
   { href: "/manage", label: "Manage Columns & People", short: "Manage", icon: Settings },

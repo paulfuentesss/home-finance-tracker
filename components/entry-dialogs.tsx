@@ -248,7 +248,7 @@ export function RecordPaymentDialog({
   className,
 }: Props & {
   prefill?: PaymentPrefill;
-  label: string;
+  label: React.ReactNode;
   variant?: "default" | "outline";
   className?: string;
 }) {
