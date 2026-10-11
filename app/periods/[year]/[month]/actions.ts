@@ -30,6 +30,7 @@ import {
 import { getViewer, previewFor } from "@/lib/auth";
 import { placeBill } from "@/lib/bill-import";
 import { pointsFor, pointsOf, writeShares, type Tx } from "@/lib/bill-shares";
+import { domainTakesMail } from "@/lib/email-domain";
 import { ActionError, isUniqueViolation } from "@/lib/errors";
 import { monthLabel } from "@/lib/format";
 import { inviteMember, uninviteMember } from "@/lib/invites";
@@ -984,6 +985,9 @@ export async function updateMemberEmail(_prev: ActionState, formData: FormData):
       await uninviteMember(db, authAdmin(), memberId);
     } else {
       if (!z.email().safeParse(email).success) throw new ActionError("Enter an email like name@example.com");
+      if ((await domainTakesMail(email)) === "no") {
+        throw new ActionError(`"${email.split("@")[1]}" can't receive email — check the part after the @.`);
+      }
       await inviteMember(db, authAdmin(), memberId, email);
     }
   });

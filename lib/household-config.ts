@@ -18,6 +18,9 @@ export const BILL_EMAIL_COLUMNS = {
   pldt: "PLDT Wifi",
 } as const;
 
+/** Split Table columns with no due date or date paid (matched by name, any letter case). */
+export const BILLS_WITHOUT_DATES = ["Helper"] as const;
+
 /**
  * The fixed fee each way of paying adds on top of the emailed bill. It's added to the bill
  * when the email is imported, split by everyone like the bill itself, and shown as a note on
