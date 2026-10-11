@@ -15,7 +15,13 @@ the live site all use the same database, logins and receipt files.
 - `npm run db:migrate` changes the live database immediately, before the code that needs the
   change is merged — see the next section for the safe order.
 
-A local Supabase for development is planned ([TODO.md](TODO.md)); until then, test with care.
+This is by choice — one database plus backups, no separate test database
+([decisions.md](decisions.md)). So when trying something out on `localhost`:
+
+- Use something easy to spot and remove (an advance called "TEST"), and delete it afterwards.
+- Avoid actions that are hard to undo on real months: closing a month, removing a member,
+  deleting a bill that has proof.
+- Before anything risky, and before every `db:migrate`, run `npm run db:backup`.
 
 ## Changing the database schema
 
@@ -36,7 +42,8 @@ Every table has RLS enabled with no policies ([decisions.md](decisions.md)); kee
 
 ## Backups
 
-Supabase's free plan has **no automatic backups**, so after closing each month run:
+Supabase's free plan has **no automatic backups**, and there is only one database, so backups
+are the safety net. Run them **after closing each month** and **before every `db:migrate`**:
 
 ```bash
 npm run db:backup        # the database → backups/home-finance-tracker-YYYY-MM-DD.sql
@@ -44,7 +51,9 @@ npm run storage:backup   # receipt files → backups/receipts/ (only new ones ar
 ```
 
 Backups are saved in `backups/`, which is git-ignored because they contain real household
-data (login emails, payment screenshots). Keep a copy somewhere safe outside the repo. After
+data (login emails, payment screenshots). Keep a copy somewhere safe outside the repo (a cloud
+drive). Don't automate them with GitHub Actions: workflow artifacts on a public repo can be
+downloaded by others. After
 restoring into a new project, run `npm run storage:setup` and upload `backups/receipts/` back
 into the bucket under the same names (the `receipts` table refers to them by name).
 

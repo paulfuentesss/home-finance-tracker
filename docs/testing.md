@@ -45,7 +45,8 @@ this repo is public ([operations.md → Privacy & security](operations.md#privac
 
 ## Test data in the database
 
-`npm run db:seed:august` loads the made-up August (adding its members), and
+My House has no test database by choice ([decisions.md](decisions.md)), so this only applies
+if a local one is ever set up. `npm run db:seed:august` loads the made-up August (adding its members), and
 `npm run bills:import -- meralco water pldt` imports the sample emails. Both run **only
 against a local database** and refuse the live one (`lib/local-database.ts`), which holds the
 household's real data:
@@ -97,7 +98,10 @@ so PA stays signed in in the main one.
    to `/login`.
 7. Close the month: Attach and Delete disappear; reopen it.
 
-**Email-imported bills, start to finish** (needs a local database — the scripts refuse the live one):
+**Email-imported bills, start to finish.** This needs a local database, since the sample
+emails are test data and the scripts refuse the live one — and My House has none by choice
+([decisions.md](decisions.md)). It's kept for if one is ever set up; until then the import is
+covered by `parse.test.ts` and by real bill emails once the inbox address exists.
 1. `npm run db:seed:august -- --replace`, then `npm run bills:import -- meralco water pldt` —
    all three go to the Bill Inbox (August already has its bills).
 2. Split Table: set Meralco's amount to `0` (Enter). Manage → Bill Inbox → Meralco → **Retry**.

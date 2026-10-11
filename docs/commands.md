@@ -54,7 +54,7 @@ The `db:` and `test:` prefixes are just a naming convention for grouping.
 | `npm run db:migrate` | Applies pending migrations to the Supabase database | After `db:generate`, and during first-time setup |
 | `npm run db:studio` | Opens Drizzle Studio, a browser UI for viewing and editing the data | To inspect or fix data by hand |
 | `npm run db:seed` | Adds the collector, PA, so there's someone to invite and sign in as; everyone else is added in Manage. Safe to run repeatedly, on any database | First-time setup |
-| `npm run db:seed:august` | Loads the made-up August 2026 (its members, bills, points, advances) as test data. **Local database only** — refuses the live one | Setting up a local database |
+| `npm run db:seed:august` | Loads the made-up August 2026 (its members, bills, points, advances) as test data. **Local database only** — refuses the live one | Only with a local database (none by choice: [decisions.md](decisions.md)) |
 | `npm run db:seed:august -- --replace` | Deletes August 2026 (its bill emails and receipt files too) and loads it fresh; only touches that month. Local only | To reset the local test data after experimenting |
 | `npm run db:backup` | Dumps the database to `backups/home-finance-tracker-YYYY-MM-DD.sql` | After closing each month |
 
@@ -69,7 +69,7 @@ The `db:` and `test:` prefixes are just a naming convention for grouping.
 
 | Command | What it does | When to run it |
 |---|---|---|
-| `npm run bills:import -- meralco water pldt` | Imports bill emails the way the future inbox address will: the made-up August 2026 sample emails by name (**local database only**), or a `.json` email file (`{ messageId, from, subject, receivedAt, text }`, any database) | Trying the email import locally ([features/email-bills.md](features/email-bills.md)) |
+| `npm run bills:import -- meralco water pldt` | Imports bill emails the way the future inbox address will: the made-up August 2026 sample emails by name (**local database only**), or a `.json` email file (`{ messageId, from, subject, receivedAt, text }`, any database) | Importing a real email file by hand until the inbox address exists ([features/email-bills.md](features/email-bills.md)); the samples need a local database |
 
 ## Login
 
