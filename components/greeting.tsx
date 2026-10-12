@@ -92,7 +92,7 @@ export function Greeting({ view, partOfDay }: { view: PeriodView; partOfDay: Par
   return (
     <section
       aria-label="Greeting"
-      className={cn("relative flex items-center gap-4 overflow-hidden rounded-xl border p-4 shadow-xs sm:p-5", theme.card)}
+      className={cn("relative flex items-center gap-5 overflow-hidden rounded-xl border p-5 shadow-xs sm:p-6", theme.card)}
     >
       {/* The sun or moon glow, and at night the stars: behind everything, decoration only. */}
       <span
@@ -107,11 +107,15 @@ export function Greeting({ view, partOfDay }: { view: PeriodView; partOfDay: Par
           {emoji}
         </span>
       )}
-      <div className="relative min-w-0">
-        <p className={cn("text-lg font-semibold", theme.heading)}>
-          {HELLO[partOfDay]}, {viewer.name}{" "}
-          <span className="ml-1.5 inline-block" aria-hidden>
-            {ICON[partOfDay]}
+      <div className="relative min-w-0 space-y-1.5">
+        <p className={cn("text-lg leading-snug font-semibold", theme.heading)}>
+          {HELLO[partOfDay]},{" "}
+          {/* The name and the sun/moon wrap together, so the icon never sits alone on a line. */}
+          <span className="whitespace-nowrap">
+            {viewer.name}
+            <span className="ml-1.5 inline-block" aria-hidden>
+              {ICON[partOfDay]}
+            </span>
           </span>
         </p>
         <YourNumber view={view} memberId={me?.id ?? null} theme={theme} />
@@ -121,7 +125,7 @@ export function Greeting({ view, partOfDay }: { view: PeriodView; partOfDay: Par
 }
 
 function YourNumber({ view, memberId, theme }: { view: PeriodView; memberId: number | null; theme: Theme }) {
-  const text = cn("text-sm", theme.text);
+  const text = cn("text-sm leading-relaxed", theme.text);
   // Someone in no month (a view-only login) or a month that can't be worked out: just the hello.
   if (memberId === null || view.issue || view.rows.length === 0) return null;
   // A closed month's Finals become the next month's Prev Month Unsettled, so they're paid there.
