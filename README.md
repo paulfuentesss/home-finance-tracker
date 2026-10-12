@@ -20,7 +20,7 @@ npm install
 cp .env.example .env.local   # then fill in the Supabase URLs and keys (see docs/setup.md)
 npm run db:migrate && npm run db:seed   # tables + PA; on a local database also db:seed:august
 npm run auth:invite -- PA you@gmail.com   # after login setup (docs/setup.md step 5)
-npm run dev                  # http://localhost:3000
+npm run dev                  # http://localhost:3000 (a worktree: 3001+, docs/commands.md)
 ```
 
 ## Docs

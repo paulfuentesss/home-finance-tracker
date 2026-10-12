@@ -33,8 +33,8 @@ The `db:` and `test:` prefixes are just a naming convention for grouping.
 
 | Command | What it does | When to run it |
 |---|---|---|
-| `npm run dev` | Starts the dev server at http://localhost:3000 with hot reload. Refuses if one is already running (one local site for every session) | While working on the app |
-| `npm run build` | Builds the production version | Before deploying, or to check that everything compiles. Stop `dev` first: they share `.next/` and the dev server hangs |
+| `npm run dev` | Starts the dev server with hot reload (`scripts/dev.sh`): http://localhost:3000 in the main folder; in a worktree, the first free port from 3001, with the worktree's name in the tab title. Refuses if that folder's server is already running, and says where | While working on the app |
+| `npm run build` | Builds the production version | Before deploying, or to check that everything compiles. Stop that folder's `dev` first: they share `.next/` and the dev server hangs |
 | `npm run start` | Serves the production build (run `build` first) | To test the production build locally |
 
 ## Code quality
@@ -81,57 +81,59 @@ The `db:` and `test:` prefixes are just a naming convention for grouping.
 
 ## Working in parallel
 
-**The usual way: one folder, one branch, one local site.** Every Claude session opens the main
-folder and works on the same branch. One `npm run dev` serves everyone's edits at
-http://localhost:3000, and one PR at the end ships them all.
+**One task, one worktree, one local site, one PR.** Each Claude session works on its own task in
+its own folder (a **worktree**: the same git history, but separate files on a separate branch),
+branched fresh from GitHub's `main`. When the task is done, that session raises its own PR.
+Sessions never share files, so they can't trip over each other.
 
-- A second `npm run dev` stops with "already running" and names the folder serving
-  localhost:3000 (`scripts/dev-guard.sh`, run first by npm as `predev`). A second server on
-  purpose: `SECOND_DEV=1 npm run dev -- -p 3001`.
-- Sessions can't wipe each other's work:
-  - Claude's edit tool won't save over a file that changed since it last read it.
-  - A hook blocks git commands that throw away uncommitted changes or switch branches
-    (`.claude/hooks/git-guard.sh`; you can still run them yourself in a terminal).
-  - When a session is about to edit a file another session changed in the last hour, it's told
-    to keep to its own part of the file (`.claude/hooks/edit-overlap.sh`). It doesn't ask you:
-    the prompts got in the way, and the edit tool already protects the other session's changes.
-  - Giving each session its own part of the app still keeps things simplest.
-- When everything's done, ask one session to raise the PR. It commits every session's changes
-  together.
-- After the PR merges, the next session to start sees the branch is finished and makes a new
-  one from `main` (one branch per batch of work, not per task: a session switching branches
-  would move every session with it).
-- Finished branches pile up locally after merges. The startup check counts them, and the
-  session that sees it cleans up:
+How a session goes (Claude does all of it; the rules are in `CLAUDE.md` → Parallel sessions):
 
-| Command | What it does | When to run it |
-|---|---|---|
-| `npm run branches:clean` | Brings local `main` up to date with GitHub, drops `origin/*` names for branches GitHub deleted, and removes every local branch whose PR is merged and that has nothing committed after the merge. Never `main`, the current branch or one open in a worktree. Lists what it kept and why | When the startup check says "Merged branches still here" — Claude runs it itself (it only removes work already in `main`) |
-| `npm run branches:clean -- --dry-run` | Shows what it would remove, removes nothing | When unsure |
+1. **Start.** Open a Claude session in the main folder (`home-finance-tracker`). The startup
+   check lists every worktree with its branch, local site and PR. Claude runs
+   `npm run worktree:new -- <name>`, which makes `../home-finance-tracker-<name>` on
+   `feat/<name>`, then moves the session into it. To continue a task, tell Claude which one; it
+   moves into that task's folder.
+2. **Look at it.** `npm run dev` in a worktree serves it on the first free port from 3001 and
+   prints the address. Claude gives you the link. The browser tab reads `[<name>] My House`, so
+   you can tell the sites apart. `localhost:3000` is the main folder, showing `main`.
+3. **Raise the PR.** Ask that session. It commits only its own changes, brings in the latest
+   `main` and fixes any conflicts. Then it runs the checks, pushes and opens the PR. Last, it asks
+   GitHub whether the PR can merge cleanly and how the checks went. If there's a conflict, it fixes
+   it and pushes again, then tells you the PR's state.
+4. **After the merge.** The next session's startup check sees the finished worktree and removes
+   it (`worktrees:clean`, which also stops its local site), and tidies up merged branches.
 
-### Git worktrees (only for a separate PR)
-
-One folder can only be on one branch. When some work needs its own PR, give it its own folder
-(a **worktree**): same git history, separate files and branch. Or ask Claude at the start of a
-session to "work in a new worktree". To see that folder's changes in the browser, it needs its
-own server (`SECOND_DEV=1 npm run dev -- -p 3001`).
+What keeps it safe:
+- A hook blocks git commands that throw away uncommitted changes or switch a folder's branch
+  (`.claude/hooks/git-guard.sh`; you can still run them yourself in a terminal). The one
+  allowed switch is `git switch main`, to put the main folder back on `main`.
+- When a session is about to edit a file another session changed in the last hour, it's told,
+  in any worktree (`.claude/hooks/edit-overlap.sh`). Their PRs will probably conflict on that
+  file, so each keeps to its own part. It doesn't ask you: the prompts got in the way.
+- Giving each session a separate part of the app still means fewer conflicts.
 
 | Command | What it does | When to run it |
 |---|---|---|
-| `git worktree add ../home-finance-tracker-<task> -b <branch> origin/main` | Makes a new folder next to this one, on a new branch from the latest `main` | When some work needs its own PR; open the new folder in its own VS Code window |
-| `ln -s ../home-finance-tracker/.env.local . && npm install` | Links the settings git ignores to the main folder's (one file, so a change there reaches every worktree), installs dependencies | Once, inside the new folder |
-| `git worktree list` | Shows every folder and the branch it's on | Any time |
-| `npm run worktrees:clean` | Removes every finished worktree and its branch: PR merged, nothing committed after it, no uncommitted changes, nothing running from it (dev server, terminal, VS Code, a Claude session). Lists what it kept and why | After PRs merge — the startup check says when some are finished. Close their VS Code windows first |
+| `npm run worktree:new -- <name> [branch]` | Fetches `main` and makes `../home-finance-tracker-<name>` on a new branch from `origin/main` (default `feat/<name>`). Links `.env.local` and `.private` to the main folder's (one file each, so a change there reaches every worktree) and installs dependencies | At the start of every task (Claude runs it). Open the folder in its own VS Code window if you want to look at the code |
+| `git worktree list` | Shows every folder and the branch it's on | Any time (the startup check shows more) |
+| `npm run worktrees:clean` | Removes every finished worktree and its branch: PR merged, nothing committed after it, no uncommitted changes, nothing running from it except its own dev server (which it stops first). Never a folder a terminal, VS Code or Claude session is in. Lists what it kept and why | When the startup check says "Finished worktrees" — Claude runs it itself. Close their VS Code windows first |
 | `npm run worktrees:clean -- --dry-run` | Shows what it would remove, removes nothing | When unsure |
+| `npm run branches:clean` | Brings `main` up to date with GitHub (the main folder too, when it's on `main` with no changes), drops `origin/*` names for branches GitHub deleted, and removes every local branch whose PR is merged and that has nothing committed after the merge. Never `main` or a branch open in a folder. Lists what it kept and why | When the startup check says "Merged branches still here" — Claude runs it itself |
+| `npm run branches:clean -- --dry-run` | Shows what it would remove, removes nothing | When unsure |
 | `git worktree remove ../home-finance-tracker-<task>` | Deletes one folder by hand (the branch stays) | Rarely — e.g. abandoned work with no PR |
 
-All folders share one database — the live one ([operations.md](operations.md#one-database-localhost-is-live-data)). Don't delete a
-worktree folder in Finder: git keeps a record of it and its branch stays locked
-(`git worktree prune` clears that; `worktrees:clean` runs it too).
+All folders share one database — the live one ([operations.md](operations.md#one-database-localhost-is-live-data)),
+so only one task at a time changes the schema. Backups run from the main folder (a worktree's
+`backups/` goes when it's removed). Don't delete a worktree folder in Finder: git keeps a record
+of it and its branch stays locked (`git worktree prune` clears that; `worktrees:clean` runs it
+too).
+
+**Signing in on a worktree's site:** a sign-in on any `localhost` port carries to the others, so
+you're usually signed in already. Signing in fresh there needs that port in Supabase's Redirect
+URLs ([setup.md](setup.md) step 5), or it ends on the live site.
 
 ## Automatic (you never run these)
 
 | Script | What it does | When it runs |
 |---|---|---|
 | `prepare` | Installs the Husky git hooks: `pre-commit` runs ESLint, `commit-msg` enforces Conventional Commits (`feat:`, `fix:`, …) | After every `npm install` |
-| `predev` | Stops `npm run dev` when localhost:3000 is already being served, and says from which folder | Before every `npm run dev` |

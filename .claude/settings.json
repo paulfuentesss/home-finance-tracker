@@ -9,6 +9,12 @@
       "Bash(npx tsc --noEmit -p .)",
       "Bash(git fetch)",
       "Bash(git fetch *)",
+      "Bash(npm run worktree:new *)",
+      "Bash(npm run dev)",
+      "Bash(git merge origin/main)",
+      "Bash(gh pr view *)",
+      "Bash(gh pr checks *)",
+      "Bash(gh pr list *)",
       "mcp__plugin_vercel_vercel__search_vercel_documentation"
     ]
   },

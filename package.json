@@ -6,8 +6,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "predev": "bash scripts/dev-guard.sh",
-    "dev": "next dev",
+    "dev": "bash scripts/dev.sh",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -25,6 +24,7 @@
     "storage:setup": "tsx --env-file=.env.local scripts/storage-setup.mts",
     "storage:backup": "tsx --env-file=.env.local scripts/storage-backup.mts",
     "storage:restore": "tsx --env-file=.env.local scripts/storage-restore.mts",
+    "worktree:new": "bash scripts/worktree-new.sh",
     "worktrees:clean": "bash scripts/worktrees-clean.sh",
     "branches:clean": "bash scripts/branches-clean.sh",
     "prepare": "husky"
