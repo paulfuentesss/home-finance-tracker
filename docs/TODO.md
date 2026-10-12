@@ -8,6 +8,10 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
 
 ## Next
 
+- [ ] **Add the worktrees' local sites to Supabase's Redirect URLs** (Paul, in the dashboard):
+      `http://localhost:3001/**` up to `http://localhost:3005/**` ([setup.md](setup.md) step 5,
+      [commands.md → Working in parallel](commands.md#working-in-parallel)). Until then, signing
+      in fresh on a worktree's site ends on the live site; a sign-in on `localhost:3000` carries over.
 - [ ] **Set up the passwords key, then fill in the Billers tab** ([billers](features/billers.md)).
       `BILLER_SECRET_KEY` in `.env.local` and Vercel, plus a copy in a password manager
       ([setup.md](setup.md) step 5g) — *before merging*, or saving a password on the live site
