@@ -54,10 +54,6 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
 - [ ] **Clean up stray receipt files** ([receipts](features/receipts.md)) — a script listing files
       in the bucket with no `receipts` row (left if a removal after a delete failed), deleting
       them only with `--delete`. Rare; only if the bucket grows unexpectedly.
-- [ ] **A picture (GIF) for each member** ([manage](features/manage.md)), shown wherever the
-      member appears (Who owes what cards, Advances Log) — *file storage exists now (the receipts
-      bucket); pictures would get their own bucket, which the backups must then cover too
-      (Download backup in `app/backup/route.ts`, `storage:backup`, `storage:restore`).*
 - [ ] **Offline** ([install-app](features/install-app.md); installing already works). Offline
       *viewing* (the last months loaded, cached by `public/sw.js`) first; offline *editing* needs
       a sync queue and conflict handling. Cached pages put household finances on the device, so

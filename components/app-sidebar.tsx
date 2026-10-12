@@ -17,6 +17,9 @@ import type { PeriodSummary } from "@/lib/periods";
 import type { PreviewChoice } from "@/lib/preview";
 import { cn } from "@/lib/utils";
 
+/** The My House logo's link: home, the newest month's Split Table. */
+const HOME_LABEL = "My House: this month's Split Table";
+
 export type SidebarProps = {
   base: string;
   periods: PeriodSummary[];
@@ -49,7 +52,16 @@ function SidebarContent({
   return (
     <div className="flex min-h-full grow flex-col gap-5 bg-zinc-900 px-3 py-4 text-zinc-300">
       <div className="flex items-center gap-3 px-1">
-        <HouseBadge dark />
+        {/* Home: "/" opens the newest month's Split Table (app/page.tsx), from any month or page.
+            Only the house icon is the link; the name beside it is plain text. */}
+        <Link
+          href="/"
+          onClick={onNavigate}
+          aria-label={HOME_LABEL}
+          className="rounded-xl transition outline-none hover:brightness-125 focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <HouseBadge dark />
+        </Link>
         <p className="flex items-center gap-2 font-semibold text-white">
           My House
           {/* Open is the normal state, so only a locked month gets a badge. */}
@@ -173,9 +185,13 @@ function MobileTopBar(props: SidebarProps) {
         </SheetContent>
       </Sheet>
       <MonthPicker periods={props.periods} current={props.current} canStartNext={props.canStartNext} />
-      <div className="justify-self-end">
+      <Link
+        href="/"
+        aria-label={HOME_LABEL}
+        className="justify-self-end rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
         <HouseBadge />
-      </div>
+      </Link>
     </div>
   );
 }

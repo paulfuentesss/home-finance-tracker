@@ -4,6 +4,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { AppShell } from "@/components/app-sidebar";
 import { FaqAccordion } from "@/components/faq-accordion";
+import { MemberMark } from "@/components/member-mark";
 import { sidebarProps } from "@/components/period-header";
 import { getPreview, getPreviewChoices, requireViewer } from "@/lib/auth";
 import { monthLabel } from "@/lib/format";
@@ -335,6 +336,27 @@ export default async function HowItWorksPage() {
       ),
     },
     {
+      id: "greeting-emoji",
+      q: "What's the greeting at the top, and how do I change my emoji?",
+      a: (
+        <>
+          <p>
+            The card at the top of the Split Table says hello and tells you your own number in plain words: what you
+            still have to pay into the House Budget (with a <strong>Settle up</strong> link), that your payment is
+            waiting for the admin to confirm, that the House Budget pays you, or that you&apos;re all settled. It&apos;s
+            the same amount as your bill email and banner, so a payment you&apos;ve already sent is never asked for
+            again. Your own row in the table, and in Who owes what, is marked <strong>You</strong>.
+          </p>
+          <p>
+            Everyone shows with their emoji, or a colour dot if they haven&apos;t picked one. To change yours, open the
+            menu with your name at the bottom of the sidebar and type or paste one emoji into{" "}
+            <strong>Your emoji</strong>; leave it empty to go back to the dot. The house icon at the top takes you back
+            to this month&apos;s Split Table from anywhere.
+          </p>
+        </>
+      ),
+    },
+    {
       id: "who-can-change-what",
       q: "Who can see and change what?",
       a: (
@@ -567,7 +589,7 @@ export default async function HowItWorksPage() {
                           <tr key={m.id}>
                             <td className="py-2">
                               <span className="flex items-center gap-2">
-                                <span className={cn("size-2 rounded-full", m.dotClass)} aria-hidden />
+                                <MemberMark dotClass={m.dotClass} emoji={m.emoji} />
                                 {m.name}
                               </span>
                             </td>

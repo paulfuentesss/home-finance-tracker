@@ -9,7 +9,9 @@
   the section you're on.
 - **Sidebar:** every month page and How it works (on the latest month) has a dark sidebar with the month, the sections (This month:
   Split Table, Advances, Helper Visits, Receipts, Settle Up; Household: Billers & Accounts,
-  Manage), How it works, and the account menu. Below desktop width it slides in from ☰ and
+  Manage), How it works, and the account menu (with the person's emoji). The house icon
+  (in the sidebar and the phone's top bar; the "My House" name beside it is plain text) goes home: the newest month's Split Table, from any
+  month or page. Below desktop width it slides in from ☰ and
   closes on any link, Escape, or a tap outside. The page header shows the section's name and the
   month's two totals.
 - **Starting the next month** happens by itself the morning after the latest month ends
@@ -62,4 +64,4 @@ None.
 
 ## Built in
 Early commits on `main` (month picker, Start next month, loading states); #1 (closing /
-reopening); #2 (pending bills block closing); #29 (waiting payments block closing and starting).
+reopening); #2 (pending bills block closing); #29 (waiting payments block closing and starting); the logo going home in `feat/member-photos`.

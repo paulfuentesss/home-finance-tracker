@@ -11,7 +11,7 @@ connects directly ([decisions.md](decisions.md)).
 
 | Table | One row is… | Used by |
 |---|---|---|
-| `members` | A household member. Deactivated, never deleted; at most one `is_collector`. Login: `email` (the invite, lowercase), `auth_user_id` (their Supabase login — what every request matches on), `role` (`admin` / `member` / `view_only`; a view-only login is never in `period_balances`) | [manage](features/manage.md), [login](features/auth.md) |
+| `members` | A household member. Deactivated, never deleted; at most one `is_collector`. Login: `email` (the invite, lowercase), `auth_user_id` (their Supabase login — what every request matches on), `role` (`admin` / `member` / `view_only`; a view-only login is never in `period_balances`). `emoji`: their emoji, shown in place of the colour dot, or NULL for the dot (one emoji, at most 32 characters) | [manage](features/manage.md), [login](features/auth.md) |
 | `billing_periods` | A month (`year`, `month`), `open` or `closed` | [months](features/months.md) |
 | `period_balances` | A member in a month: that month's membership, opening and closing balance | [months](features/months.md), [split table](features/split-table.md) |
 | `bill_items` | A bill column in a month: total, payer, split mode, dates, `source` (manual / email), `status` (confirmed / pending), `kind` (`helper` marks the Helper column, at most one per month) | [split table](features/split-table.md), [manage](features/manage.md), [email bills](features/email-bills.md) |
@@ -54,6 +54,8 @@ Add a line here with every new one.
 | `0014_reminder-sends` | The `reminder_kind` enum and the `reminder_sends` table ([reminders.md](features/reminders.md)). Additive; applied before the code that uses it shipped |
 | `0015_ready-nudges` | Adds `ready_bill` and `ready_close` to `reminder_kind`. Additive; applied before the code that uses it shipped |
 | `0016_member-devices` | The `device_via` and `device_platform` enums and the `member_devices` table ([manage.md](features/manage.md), who's using it). Additive; applied before the code that uses it shipped |
+| `0017_member-photos` | A `member_photos` table and `members.photo_updated_at`, for sticker photos that were tried and dropped before shipping; `0018` removes both |
+| `0018_member-emoji` | Drops `member_photos` and `members.photo_updated_at` (never used by shipped code; backed up first), adds `members.emoji` with the `members_emoji_length` check ([manage.md](features/manage.md), emoji) |
 
 The receipt files themselves live in Supabase Storage (the private `receipts` bucket), not in
 the database; `receipts.storage_path` names one.

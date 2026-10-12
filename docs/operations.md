@@ -292,7 +292,7 @@ The app holds household finances, and **this repo is public**, so:
 - **`GMAIL_SMTP_APP_PASSWORD` sends email as the household** — only `lib/email.ts` reads it,
   and `CRON_SECRET` only `/api/reminders` (both checked by `lib/actions-guard.test.ts`). Each
   bill email goes only to its own housemate; the pages never receive anyone's email address.
-- **File storage (receipts, member pictures):** private buckets, and policies must never grant
+- **File storage (receipts):** a private bucket, and policies must never grant
   access to every `authenticated` user. The app reads and writes receipts with the secret key
   after its own login check; files are shown through `/receipts/<id>`, which redirects to a
   link that works for one minute ([features/receipts.md](features/receipts.md)).

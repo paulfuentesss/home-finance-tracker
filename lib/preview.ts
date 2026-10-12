@@ -11,6 +11,7 @@ export interface PreviewChoice {
   id: number;
   name: string;
   dotClass: string;
+  emoji: string | null;
 }
 
 /** The member id in the cookie, or null when it's missing or isn't a plain positive integer. */

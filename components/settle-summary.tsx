@@ -1,8 +1,11 @@
+import { MemberMark } from "@/components/member-mark";
 import { SettleUpLink } from "@/components/settle-up-link";
+import { YouTag } from "@/components/you-tag";
 import { HOUSE_BUDGET_LABEL } from "@/lib/household-config";
 import { formatPHP, type Centavos } from "@/lib/money";
 import type { PeriodView, ViewMember } from "@/lib/periods";
 import { cn } from "@/lib/utils";
+import { collectorNetOf } from "@/lib/who-owes";
 
 type Entry = { member: ViewMember; balance: Centavos };
 
@@ -26,8 +29,11 @@ export function SettleSummary({ view }: { view: PeriodView }) {
 
   const collects = payers.reduce((sum, e) => sum + e.balance, 0);
   const paysOut = receivers.reduce((sum, e) => sum - e.balance, 0);
-  // The collector's Final is negative when they're owed. Flip it so positive means "receives".
-  const collectorNet = collector ? -(rowOf.get(collector.id)?.balance ?? 0) : held + collects - paysOut;
+  const collectorNet = collectorNetOf(
+    collector ? (rowOf.get(collector.id)?.balance ?? 0) : null,
+    held,
+    others.map((e) => e.balance),
+  );
 
   return (
     <section aria-labelledby="settle-summary" className="rounded-xl border bg-white p-4 shadow-xs sm:p-5">
@@ -53,15 +59,16 @@ export function SettleSummary({ view }: { view: PeriodView }) {
       <div className="mt-4 space-y-2 border-t pt-4 text-sm text-muted-foreground lg:max-w-3xl">
         {collector && (
           <p>
-            <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
-              <span className={cn("size-2 rounded-full", collector.dotClass)} aria-hidden />
+            <span className="inline-flex items-center gap-1.5 align-middle font-medium text-foreground">
+              <MemberMark dotClass={collector.dotClass} emoji={collector.emoji} />
               {collector.name}
             </span>{" "}
             {collectorNet === 0 ? (
               "breaks even overall"
             ) : (
               <>
-                {collectorNet > 0 ? "receives" : "pays"}{" "}
+                {/* "Gets back": the collector paid the bills upfront. */}
+                {collectorNet > 0 ? "gets back" : "pays"}{" "}
                 <span
                   className={cn(
                     "font-mono font-semibold tabular-nums",
@@ -73,6 +80,10 @@ export function SettleSummary({ view }: { view: PeriodView }) {
                 overall
               </>
             )}{" "}
+            {/* After the sentence, so it doesn't split "PA gets back …". */}
+            <span className="align-middle">
+              <YouTag memberId={collector.id} />
+            </span>{" "}
             {/* Its own line, so the breakdown never splits mid-sentence on a phone. What it
                 already holds is part of what's left for the collector. */}
             <span className="mt-0.5 block text-xs">
@@ -119,8 +130,9 @@ function Group({
         {entries.map(({ member, balance }) => (
           <li key={member.id} className="flex items-center justify-between gap-2 px-2 py-1.5">
             <span className="flex items-center gap-2 text-sm font-medium">
-              <span className={cn("size-2 rounded-full", member.dotClass)} aria-hidden />
+              <MemberMark dotClass={member.dotClass} emoji={member.emoji} />
               {member.name}
+              <YouTag memberId={member.id} />
             </span>
             <span className={cn("font-mono text-sm font-semibold tabular-nums", color)}>
               {formatPHP(Math.abs(balance))}

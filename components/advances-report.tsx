@@ -1,8 +1,8 @@
 import { Layers, Users } from "lucide-react";
+import { MemberMark } from "@/components/member-mark";
 import { CATEGORY_LABELS } from "@/lib/format";
 import { formatPHP, sumCentavos } from "@/lib/money";
 import type { Category, PeriodView } from "@/lib/periods";
-import { cn } from "@/lib/utils";
 
 // Sidebar on the Advances tab: shared advances by category, and each person's out-of-pocket.
 export function AdvancesReport({ view }: { view: PeriodView }) {
@@ -45,7 +45,7 @@ export function AdvancesReport({ view }: { view: PeriodView }) {
             return (
               <li key={m.id} className="flex items-center justify-between py-2">
                 <span className="flex items-center gap-2">
-                  <span className={cn("size-2 rounded-full", m.dotClass)} aria-hidden />
+                  <MemberMark dotClass={m.dotClass} emoji={m.emoji} />
                   {m.name}
                 </span>
                 <span className="font-mono font-medium tabular-nums">

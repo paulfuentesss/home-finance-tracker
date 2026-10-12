@@ -1,8 +1,8 @@
 import { ArrowRight, Landmark } from "lucide-react";
+import { MemberMark } from "@/components/member-mark";
 import { HOUSE_BUDGET_LABEL } from "@/lib/household-config";
 import type { ViewMember } from "@/lib/periods";
 import { HOUSE_BUDGET, type Party } from "@/lib/settlement";
-import { cn } from "@/lib/utils";
 
 /** One side of a payment, ready to show: a member, or the House Budget. */
 export type PartyView = { kind: "member"; member: ViewMember } | { kind: "house-budget" };
@@ -19,7 +19,7 @@ export function partyName(party: Party, memberOf: ReadonlyMap<number, ViewMember
   return party === HOUSE_BUDGET ? HOUSE_BUDGET_LABEL : (memberOf.get(party)?.name ?? fallback);
 }
 
-/** "● Ana → 🏛 House Budget": who pays whom, with each member's color dot (Settle Up and Receipts). */
+/** "● Ana → 🏛 House Budget": who pays whom, with each member's emoji or colour dot (Settle Up and Receipts). */
 export function Pair({ from, to }: { from: PartyView; to: PartyView }) {
   return (
     <span className="flex items-center gap-1.5 text-sm font-medium">
@@ -41,7 +41,7 @@ function Side({ party }: { party: PartyView }) {
   }
   return (
     <>
-      <span className={cn("size-2 rounded-full", party.member.dotClass)} aria-hidden />
+      <MemberMark dotClass={party.member.dotClass} emoji={party.member.emoji} className="size-5 text-sm" />
       {party.member.name}
     </>
   );

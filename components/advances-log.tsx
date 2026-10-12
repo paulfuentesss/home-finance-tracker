@@ -5,6 +5,7 @@ import { Fragment, useMemo, useState } from "react";
 import { deleteAdvance } from "@/app/periods/[year]/[month]/actions";
 import { ConfirmDeleteButton } from "@/components/confirm-button";
 import { AddAdvanceDialog, EditAdvanceDialog } from "@/components/entry-dialogs";
+import { MemberMark } from "@/components/member-mark";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useViewer } from "@/components/viewer-context";
@@ -296,7 +297,7 @@ function PersonGroup({
             className="flex w-full items-center gap-2.5 px-5 py-2.5 text-left hover:bg-zinc-100"
           >
             <ChevronDown className={cn("size-4 text-muted-foreground transition-transform", collapsed && "-rotate-90")} />
-            <span className={cn("size-2.5 rounded-full", group.dotClass)} aria-hidden />
+            <MemberMark dotClass={group.dotClass} emoji={group.emoji} />
             <span className="font-semibold">{group.name}</span>
             <span className="text-xs text-muted-foreground">
               {group.rows.length} item{group.rows.length === 1 ? "" : "s"}

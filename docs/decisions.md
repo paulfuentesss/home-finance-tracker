@@ -676,3 +676,16 @@ open PRs. Removing a merged, unchanged worktree loses nothing, so it no longer w
 main folder's TypeScript, ESLint and Vitest would pick up their files), Vercel preview links
 instead of local sites (login redirects and the one live database not set up for them), or
 `backups/` linked into worktrees (it holds real data; backups run from the main folder).
+
+## 2026-10-13 — An emoji per person instead of photos
+**Decision:** each person's colour dot can become an emoji (`members.emoji`), typed or pasted on
+Manage by the admin for anyone, or by a housemate for themselves from the account menu
+(`updateMemberEmoji`, `canSetEmoji`). One emoji only (`parseEmoji`); empty brings the dot back.
+**Why:** it makes the app personal while staying clean. Sticker-style photos were built first
+(migration `0017`) and felt busy at the size they're drawn; the household's photos were small and
+blurry too. An emoji stores no faces at all, so the public repo and the backups hold nothing
+sensitive. There are no files, no route and nothing to cache, and letting housemates choose their
+own is a small, safe permission. `0018` dropped the photo table (nothing shipped used it; backed
+up first).
+**Instead of:** sticker photos in the database behind the login (tried; busier, and faces to
+look after), or a fixed emoji picker (typing any emoji is simpler and gives every choice).

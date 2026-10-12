@@ -17,6 +17,12 @@
   They're listed with a grey dot and a "view only" badge. Their role is set when they're added
   (remove and re-add to change it). A former housemate can't be re-added as view only
   ([settlement-rules.md → Adding](../settlement-rules.md)).
+- **Emoji:** each person can have an emoji, shown in place of their colour dot everywhere a name
+  appears (Split Table, Who owes what, Advances, Settle Up, Receipts, the account menu, How it
+  works). Type or paste one into the **Emoji** field under their name (Enter or click away
+  saves); empty brings the dot back. One emoji only: skin tones, families and flags count as
+  one; text is refused. Housemates can also set their own from the account menu ("Your emoji",
+  [auth.md](auth.md)).
 - **Login email** per housemate ([auth.md](auth.md)): typing one invites them (Google or an
   emailed code); clearing it takes the login away. PA's own is changed with
   `npm run auth:invite`. Inviting sends no email, so an address whose domain can't receive mail
@@ -43,7 +49,14 @@
   `updateBillPoints`, `addSharedColumn`, `setSharedColumnMode`, `updateSharedColumnMembers`,
   `renameSharedColumn`, `deleteSharedColumn`, `addMember`, `removeMember` (with
   `resplitPeriodBills` and `hasRecordsIn`), `updateMemberEmail` (through `lib/invites.ts`).
-  All `run("admin", …)`.
+  All `run("admin", …)`, except `updateMemberEmoji`.
+- Emoji: `members.emoji`. `updateMemberEmoji` is a `run("member", …)` action: `canSetEmoji`
+  (`lib/permissions.ts`, tested) lets the admin set anyone's and a housemate only their own,
+  checked against the real login. `parseEmoji` (`lib/members.ts`, tested) takes exactly one
+  grapheme that is an emoji (or empty to clear), at most `MAX_EMOJI_LENGTH` UTF-16 units; the
+  `members_emoji_length` check backs it up. Both fields use `components/inline-input.tsx`.
+  `components/member-mark.tsx` draws the emoji or the dot, always in the same square so rows line
+  up.
 - Shares are written only through `computeBillShares` (`lib/settlement.ts`) and `writeShares`
   (`lib/bill-shares.ts`).
 - Household facts that aren't data (what the points are based on): `lib/household-config.ts`.
@@ -69,8 +82,8 @@
 [Adding and removing members](../settlement-rules.md#adding-and-removing-members)
 
 ## Open items
-A picture (GIF) for each member ([TODO.md](../TODO.md)).
+None right now.
 
 ## Built in
 Early commits on `main` (fixed bill splits, shared columns, member removal fixes); who's using
-it in `feat/install-app`.
+it in `feat/install-app`; emoji in `feat/member-photos`.
