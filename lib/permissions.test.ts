@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   canCancelPayment,
+  canLogIn,
   canManageAdvance,
   canManageHelperEntry,
   canOpenReceipt,
@@ -24,6 +25,23 @@ describe("isAdmin", () => {
     expect(isAdmin(pa)).toBe(true);
     expect(isAdmin(housemate)).toBe(false);
     expect(isAdmin(onlyLooks)).toBe(false);
+  });
+});
+
+describe("canLogIn", () => {
+  it("lets everyone log in an open month that hasn't ended", () => {
+    expect(canLogIn(pa, { status: "open", ended: false })).toBe(true);
+    expect(canLogIn(housemate, { status: "open", ended: false })).toBe(true);
+  });
+
+  it("locks an ended month for housemates, but not for the admin", () => {
+    expect(canLogIn(housemate, { status: "open", ended: true })).toBe(false);
+    expect(canLogIn(pa, { status: "open", ended: true })).toBe(true);
+  });
+
+  it("locks a closed month for everyone", () => {
+    expect(canLogIn(pa, { status: "closed", ended: true })).toBe(false);
+    expect(canLogIn(housemate, { status: "closed", ended: false })).toBe(false);
   });
 });
 

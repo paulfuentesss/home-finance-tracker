@@ -7,8 +7,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-/** Pages anyone can open. /api/bill-email checks its own shared secret (the Gmail script). */
-const PUBLIC_PATHS = ["/login", "/auth/", "/api/bill-email"];
+/**
+ * Pages anyone can open. /api/bill-email (the Gmail script) and /api/reminders (Vercel's daily
+ * job) check their own shared secret.
+ */
+const PUBLIC_PATHS = ["/login", "/auth/", "/api/bill-email", "/api/reminders"];
 
 function isPublic(path: string) {
   return PUBLIC_PATHS.some((p) => (p.endsWith("/") ? path.startsWith(p) : path === p));
@@ -61,7 +64,10 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Everything except Next's static files, images (the app icons among them) and robots.txt,
-  // which crawlers must be able to read signed out.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
+  // Everything except Next's static files, images (the app icons among them), robots.txt (crawlers
+  // read it signed out), and the install-the-app files: browsers fetch the manifest without
+  // cookies, so a login redirect there would make the app uninstallable (docs/features/install-app.md).
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|manifest.webmanifest|sw.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+  ],
 };

@@ -27,6 +27,8 @@ connects directly ([decisions.md](decisions.md)).
 | `biller_fields` | A line on a biller's card: `kind` (`text` / `link` / `secret` / `heading`), label, `value` — or, for a password, `secret_value`, only ever encrypted (checks keep a password out of `value`) — and `housemates_can_see` | [billers](features/billers.md) |
 | `keep_alive` | One row: when the keep-alive job last wrote. Not used by the app | [operations](operations.md#supabase-free-plan-the-project-goes-to-sleep) |
 | `backups` | A Download backup that finished: when, and who took it. Turns off the backup reminder | [months](features/months.md), [operations](operations.md#backups) |
+| `member_devices` | When a member last used My House, per `via` (`app` = the installed app / `web` = a browser) and coarse `platform` (`iphone` / `ipad` / `android` / `mac` / `windows` / `other`): `first_seen_at`, `last_seen_at`. Unique per member + via + platform, so a handful of rows; written by `/api/seen` at most every 5 minutes per row; read only by the admin's Manage page. No user agents or IPs. Deleting a member deletes it | [manage](features/manage.md) |
+| `reminder_sends` | An email My House sent for a month: `kind` (`week` / `three_days` / `last_day` reminders; to the admin, `start_next` = the next month couldn't start and `ready_bill` / `ready_close` = the nudges; `payables` = the bill email), to which member, when. Unique per month + kind + member, so a reminder is never sent twice; written only by the live site. Deleting the month or member deletes it | [reminders](features/reminders.md) |
 
 ## Migrations
 
@@ -49,6 +51,9 @@ Add a line here with every new one.
 | `0011_billers` | `billers` and `biller_fields` (the `biller_field_kind` enum) for the Billers tab; adds tables only. Made in parallel with `0010` and renumbered after it; both were applied in this order |
 | `0012_house-budget` | `payments.from_member_id` / `to_member_id` become nullable (NULL = the House Budget), with the `payments_has_member` check. Run **after** the code that reads NULL sides is deployed ([decisions.md](decisions.md), 2026-10-12) |
 | `0013_view-only-role` | Adds `view_only` to the `member_role` enum ([auth.md](features/auth.md)). Additive; applied before the code that uses it shipped |
+| `0014_reminder-sends` | The `reminder_kind` enum and the `reminder_sends` table ([reminders.md](features/reminders.md)). Additive; applied before the code that uses it shipped |
+| `0015_ready-nudges` | Adds `ready_bill` and `ready_close` to `reminder_kind`. Additive; applied before the code that uses it shipped |
+| `0016_member-devices` | The `device_via` and `device_platform` enums and the `member_devices` table ([manage.md](features/manage.md), who's using it). Additive; applied before the code that uses it shipped |
 
 The receipt files themselves live in Supabase Storage (the private `receipts` bucket), not in
 the database; `receipts.storage_path` names one.

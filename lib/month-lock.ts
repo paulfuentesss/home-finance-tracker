@@ -34,11 +34,8 @@ export function closeCheck(
   if (prev && prev.status !== "closed") {
     return { ok: false, reason: `Close ${monthLabel(prev.year, prev.month)} first.` };
   }
-  if (issue) return { ok: false, reason: "Fix the problem above first; the numbers can't be calculated yet." };
-  if (pendingBills.length) {
-    const bills = `${pendingBills.join(", ")} bill${pendingBills.length > 1 ? "s" : ""}`;
-    return { ok: false, reason: `Confirm or discard the pending ${bills} first (Split Table).` };
-  }
+  const numbers = payablesCheck(issue, pendingBills);
+  if (!numbers.ok) return numbers;
   if (waitingPayments.length) return { ok: false, reason: waitingReason(waitingPayments) };
   return { ok: true };
 }
@@ -56,6 +53,35 @@ export function startCheck(waitingPayments: readonly string[]): LockCheck {
 function waitingReason(waitingPayments: readonly string[]): string {
   const which = waitingPayments.length === 1 ? "the waiting payment" : "the waiting payments";
   return `Confirm or reject ${which} first (Settle Up): ${waitingPayments.join(", ")}.`;
+}
+
+/**
+ * Whether each housemate's bill can be emailed (Settle Up, docs/features/reminders.md): only once
+ * the numbers can be worked out and no emailed bill is still pending — otherwise the amounts
+ * would change after they're sent. A waiting "I paid" doesn't stop it (the email mentions it).
+ */
+export function payablesCheck(issue: string | null, pendingBills: readonly string[] = []): LockCheck {
+  if (issue) return { ok: false, reason: "Fix the problem above first; the numbers can't be calculated yet." };
+  if (pendingBills.length) {
+    const bills = `${pendingBills.join(", ")} bill${pendingBills.length > 1 ? "s" : ""}`;
+    return { ok: false, reason: `Confirm or discard the pending ${bills} first (Split Table).` };
+  }
+  return { ok: true };
+}
+
+/**
+ * Whether the month's last day has passed (`today` is "YYYY-MM-DD" in Manila, from
+ * todayInManila — never the server's UTC date). An ended month is locked for housemates: only
+ * the admin can still add or change things until it's closed (docs/settlement-rules.md →
+ * "Closing and reopening"). Payments ("I paid") aren't affected.
+ */
+export function monthHasEnded(year: number, month: number, today: string): boolean {
+  return today.slice(0, 7) > `${year}-${String(month).padStart(2, "0")}`;
+}
+
+/** The month after: (2026, 12) → { year: 2027, month: 1 }. */
+export function monthAfter(year: number, month: number): { year: number; month: number } {
+  return month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
 }
 
 /** Months reopen newest-first, so a closed month never follows an open one. */

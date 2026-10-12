@@ -4,13 +4,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BackupReminderBanner } from "@/components/backup-reminder";
 import { AppShell } from "@/components/app-sidebar";
+import { MonthNotices } from "@/components/month-notices";
 import { PeriodHeader, sidebarProps } from "@/components/period-header";
 import { getPreview, getPreviewChoices, requireViewer } from "@/lib/auth";
 import { backupReminderText } from "@/lib/backup-reminder";
 import { getBackupReminder } from "@/lib/backup-status";
-import { monthLabel } from "@/lib/format";
+import { monthLabel, todayInManila } from "@/lib/format";
 import { isAdmin } from "@/lib/permissions";
 import { getPeriodView } from "@/lib/periods";
+import { getAdminNudge, getBillNotice } from "@/lib/reminder-status";
 import { parsePeriodParams } from "./params";
 
 type Props = LayoutProps<"/periods/[year]/[month]">;
@@ -39,6 +41,8 @@ export default async function PeriodLayout({ params, children }: Props) {
   const viewer = preview ?? real;
   const previewBy = preview ? real : null;
   const admin = isAdmin(viewer);
+  // For the notices: a housemate's emailed bill still to pay, or the admin's next step.
+  const [bill, nudge] = await Promise.all([getBillNotice(viewer), getAdminNudge(viewer)]);
 
   return (
     <AppShell viewer={viewer} previewBy={previewBy} sidebar={sidebarProps(view, viewer, previewChoices)}>
@@ -46,6 +50,7 @@ export default async function PeriodLayout({ params, children }: Props) {
       <main className="mx-auto w-full max-w-7xl space-y-6 px-4 py-8">
         {/* The admin's own reminder: hidden while previewing as a housemate. */}
         {admin && reminder && <BackupReminderBanner text={backupReminderText(reminder)} />}
+        <MonthNotices view={view} viewer={viewer} bill={bill} nudge={nudge} today={todayInManila()} />
         {view.period.status === "closed" && (
           <div className="flex items-start gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700">
             <Lock className="mt-0.5 size-4 shrink-0" />

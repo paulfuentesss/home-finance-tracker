@@ -7,10 +7,11 @@ import { cache } from "react";
 import { billingPeriods, billItems, db, payments, receipts } from "@/db";
 import type { Database } from "@/db/client";
 import { getPreview, requireViewer } from "@/lib/auth";
-import { dateInManila } from "@/lib/format";
+import { dateInManila, todayInManila } from "@/lib/format";
 import { dotClassOf } from "@/lib/members";
 import { canOpenReceipt } from "@/lib/permissions";
-import { closeCheck, reopenCheck, type LockCheck } from "@/lib/month-lock";
+import { closeCheck, monthHasEnded, reopenCheck, startCheck, type LockCheck } from "@/lib/month-lock";
+import { payablesOf, type Payables } from "@/lib/reminders";
 import {
   countsInBill,
   handedOver,
@@ -24,6 +25,7 @@ import {
 import { formatPHP, fromCentavos, sumCentavos, toCentavos, type Centavos } from "@/lib/money";
 import {
   computeMonth,
+  HOUSE_BUDGET,
   houseBudgetThrough,
   openingBalancesFrom,
   partyFromColumn,
@@ -165,6 +167,11 @@ export interface PeriodView {
     status: "open" | "closed";
     /** Manila calendar date it was closed ("YYYY-MM-DD"). */
     closedOn: string | null;
+    /**
+     * Its last day has passed (Manila), so housemates can't change it anymore — only the admin,
+     * until it's closed (monthHasEnded). Worked out here, never from the browser's clock.
+     */
+    ended: boolean;
   };
   members: ViewMember[];
   bills: ViewBill[];
@@ -181,6 +188,10 @@ export interface PeriodView {
   prev: PeriodSummary | null;
   next: PeriodSummary | null;
   isLatest: boolean;
+  /** The latest month's status (the deadline banner is about it, whichever month is shown). */
+  latestStatus: "open" | "closed";
+  /** Why the month after the latest can't start yet (a waiting payment), or null. */
+  startBlock: string | null;
   canClose: LockCheck;
   canReopen: LockCheck;
   /** Set when the numbers can't be computed (e.g. shares that don't add up). */
@@ -258,6 +269,34 @@ export async function computePeriod(executor: Executor, year: number, month: num
   // The House Budget carries over from payments alone, from the first month (houseBudgetThrough).
   const houseBudget = houseBudgetThrough(all.slice(0, index + 1).map(paymentsOf));
   return { all, index, period: all[index], result, issue, houseBudget };
+}
+
+export type ComputedPeriod = NonNullable<Awaited<ReturnType<typeof computePeriod>>>;
+
+/**
+ * What a member still has to pay (or get back) for a computed month
+ * (docs/features/reminders.md): its Final, less their waiting "I paid"s and what moved between
+ * them and the House Budget in later months. Null when they aren't in it or the numbers can't
+ * be worked out. `carriedOver` = their Prev Month Unsettled when they owed it.
+ */
+export function payablesIn(
+  computed: ComputedPeriod,
+  memberId: MemberId,
+): { payables: Payables; carriedOver: Centavos } | null {
+  const row = computed.result?.rows.find((r) => r.member.id === memberId);
+  if (!row) return null;
+  const payments = computed.all.slice(computed.index).flatMap((period, i) =>
+    paymentsOf(period).flatMap((p) => {
+      const direction =
+        p.fromMemberId === memberId && p.toMemberId === HOUSE_BUDGET
+          ? ("in" as const)
+          : p.fromMemberId === HOUSE_BUDGET && p.toMemberId === memberId
+            ? ("out" as const)
+            : null;
+      return direction ? [{ amount: toCentavos(p.amount), status: p.status, later: i > 0, direction }] : [];
+    }),
+  );
+  return { payables: payablesOf(row.balance, payments), carriedOver: Math.max(0, row.opening) };
 }
 
 /** A month's payments with each side as a Party (a NULL side is the House Budget). */
@@ -351,6 +390,7 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
       month: period.month,
       status: period.status,
       closedOn: period.closedAt ? dateInManila(period.closedAt) : null,
+      ended: monthHasEnded(period.year, period.month, todayInManila()),
     },
     members,
     bills,
@@ -398,6 +438,8 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
     prev: summaries[index - 1] ?? null,
     next: summaries[index + 1] ?? null,
     isLatest: index === all.length - 1,
+    latestStatus: all[all.length - 1].status,
+    startBlock: startCheck(waitingPaymentLabels(all[all.length - 1])).reason ?? null,
     canClose: closeCheck(period, all[index - 1] ?? null, issue, pendingBillNames(period), waitingPaymentLabels(period)),
     canReopen: reopenCheck(period, all[index + 1] ?? null),
     issue,

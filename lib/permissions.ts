@@ -26,6 +26,15 @@ export function isViewOnly(viewer: Viewer): boolean {
 }
 
 /**
+ * Whether entries (advances, Helper visits and early pay) can still be added or changed in a
+ * month: it's open and, for anyone but the admin, its last day hasn't passed (`ended`,
+ * monthHasEnded in lib/month-lock.ts). The server checks the same in loadOpenPeriod.
+ */
+export function canLogIn(viewer: Viewer, period: { status: "open" | "closed"; ended: boolean }): boolean {
+  return period.status === "open" && (isAdmin(viewer) || !period.ended);
+}
+
+/**
  * Whether the viewer may edit or delete an advance. The admin can change any; a member only
  * advances they paid that are still in the month's default ("Advances Shared") column — once
  * the admin moves one elsewhere, it's the admin's. A view-only login changes nothing (run()

@@ -1,4 +1,4 @@
-import { ArrowLeft, CircleHelp } from "lucide-react";
+import { ArrowLeft, CalendarCheck, CalendarClock, CalendarPlus, CircleHelp, Lock, ReceiptText } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
@@ -16,9 +16,32 @@ import {
 } from "@/lib/household-config";
 import { formatPHP } from "@/lib/money";
 import { getLatestPointsBills, getPeriodView } from "@/lib/periods";
+import { REMINDER_DAYS } from "@/lib/reminders";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "How it works" };
+
+// "Your part each month": a housemate's two jobs, and the emails that remind them
+// (docs/features/reminders.md). The days come from REMINDER_DAYS, the same setting the daily job uses.
+const YOUR_PART = [
+  {
+    title: "Log your expenses by the last day",
+    body: "Anything you paid for the house — groceries, a service — goes in Advances, and Helper visits you paid in Helper Visits. After the month's last day it locks: you can't add to it or change it anymore. Anything new goes in the next month, which starts by itself on the 1st.",
+  },
+  {
+    title: "Pay when your bill is ready",
+    body: `Once the bills are in, the admin emails you your share, and it shows at the top of the month's pages until it's paid. Send it to the ${HOUSE_BUDGET_LABEL}, then tap I paid in Settle Up with the screenshot of your transfer. Amount looks wrong? Message the admin before paying.`,
+  },
+];
+
+const TIMELINE = [
+  { when: `${REMINDER_DAYS.week} days left`, what: "Log what you've paid", icon: CalendarClock },
+  { when: `${REMINDER_DAYS.three_days} days left`, what: "It locks soon", icon: CalendarClock },
+  { when: "Last day", what: "Log anything left today", icon: CalendarCheck },
+  { when: "Month locks", what: "Only the admin can change it", icon: Lock },
+  { when: "The 1st", what: "New month starts: log new things there", icon: CalendarPlus },
+  { when: "Bill ready", what: "Pay in Settle Up", icon: ReceiptText, highlight: true },
+];
 
 // A plain-language guide for the household. Keep it in sync with docs/settlement-rules.md.
 export default async function HowItWorksPage() {
@@ -283,7 +306,13 @@ export default async function HowItWorksPage() {
           <p>
             Send what you owe to the {HOUSE_BUDGET_LABEL}. Then open <strong>Settle Up</strong>, tap{" "}
             <strong>I paid</strong> on your row and attach the screenshot of the transfer. The amount is filled in with
-            what you owe; change it if you only paid part.
+            what you owe; change it if you only paid part. The &ldquo;Your bill is ready&rdquo; email and banner link
+            straight there.
+          </p>
+          <p>
+            I paid always goes in the <strong>latest</strong> month. Once the new month has started on the 1st,
+            last month&apos;s bill is paid there: what you owed carries over as Prev Month Unsettled, so paying it in the
+            new month settles it.
           </p>
           <p>
             It shows as <strong>Waiting for the admin</strong> until they check it arrived and confirm it — until then it
@@ -301,6 +330,56 @@ export default async function HowItWorksPage() {
       ),
     },
     {
+      id: "month-end",
+      q: "What happens when the month ends?",
+      a: (
+        <>
+          <p>
+            After a month&apos;s last day it&apos;s <strong>locked for housemates</strong>: you can&apos;t add, edit or
+            delete your advances or Helper visits in it anymore. The admin still can, until the month is closed — so if
+            you forgot something, tell the admin.
+          </p>
+          <p>
+            Anything new goes in the next month, which starts by itself on the 1st. An expense keeps its own date,
+            so something from the 30th logged into the next month is fine. Paying isn&apos;t affected: you can still send{" "}
+            <strong>I paid</strong> in Settle Up after the month ends — that&apos;s when the bills arrive.
+          </p>
+        </>
+      ),
+    },
+    {
+      id: "emails",
+      q: "What emails will I get, and when?",
+      a: (
+        <>
+          <p>My House emails you, around 9am, from the household Gmail:</p>
+          <ul className="list-disc space-y-1 pl-5">
+            <li>
+              <strong>{REMINDER_DAYS.week} days</strong> and <strong>{REMINDER_DAYS.three_days} days</strong> before the
+              month ends — to log what you&apos;ve paid for the house.
+            </li>
+            <li>
+              <strong>On the last day</strong> — today is the last day to log; from tomorrow the month is locked.
+            </li>
+            <li>
+              <strong>When your bill is ready</strong> — once the bills are in and checked, the admin sends everyone
+              their own share: what you owe, any of last month&apos;s still unpaid, any I paid still waiting, and a link
+              to Settle Up. Nobody sees anyone else&apos;s amount. If you paid more than your share, it says what you get
+              back instead (nothing to do — the admin sends it). Already settled? You get no email.
+            </li>
+          </ul>
+          <p>
+            The same reminders show at the top of the month&apos;s pages, so nothing is missed if an email lands in spam.
+            &ldquo;Your bill is ready&rdquo; stays there, with a button to Settle Up, until your payment is confirmed.
+          </p>
+          <p>
+            Amount looks wrong, or a question about an email? Message the admin before paying — they can fix the month
+            and send the bill again.
+          </p>
+        </>
+      ),
+    },
+    {
       id: "who-can-change-what",
       q: "Who can change what?",
       a: (
@@ -313,8 +392,12 @@ export default async function HowItWorksPage() {
             are owed.
           </p>
           <p>
-            You can log your own advances into <strong>Advances Shared</strong>, and edit or delete them while
-            they&apos;re there, and send your own payments to the admin with <strong>I paid</strong>. Everything else —
+            You can log your own advances into <strong>Advances Shared</strong> and the Helper visits you paid, and edit
+            or delete them while they&apos;re there — until the month ends (see{" "}
+            <a href="#month-end" className="underline underline-offset-2">
+              What happens when the month ends?
+            </a>
+            ) — and send your own payments to the admin with <strong>I paid</strong>. Everything else —
             bills, points, other shared columns, confirming payments, attaching proof of bills (Receipts), moving in and
             out, closing months — is done by the admin. If one of your advances should be split differently (say, not with
             everyone), the admin moves it to the right column; after that, only the admin can change it.
@@ -332,15 +415,18 @@ export default async function HowItWorksPage() {
       a: (
         <>
           <p>
-            Once a month is done, the admin <strong>closes</strong> it in Settle Up. A closed month is locked: nothing in it
+            Ending and closing aren&apos;t the same. A month <strong>ends</strong> on its own after its last day, and from
+            then only the admin can change it. Once everyone&apos;s settled, the admin <strong>closes</strong> it in
+            Settle Up. A closed month is locked: nothing in it
             can be changed (its proofs of payment included), and everyone&apos;s Final is saved as next month&apos;s Prev Month Unsettled. Unpaid
             amounts simply carry over.
           </p>
           <p>
             Months close in order, oldest first — a month can&apos;t be closed while an earlier one is still open, or
-            while a bill in it is still pending or a payment is still waiting for the admin. The next month also
-            isn&apos;t started while a payment waits, so nobody is shown the amount again and pays twice. If something
-            needs fixing, the admin can <strong>reopen</strong> the latest closed month, fix it, and close it again.
+            while a bill in it is still pending or a payment is still waiting for the admin. The next month starts by
+            itself on the 1st — but not while a payment waits, so nobody is shown the amount again and pays twice; it
+            starts the morning after the admin confirms it. If something needs fixing, the admin can{" "}
+            <strong>reopen</strong> the latest closed month, fix it, and close it again.
           </p>
         </>
       ),
@@ -373,6 +459,51 @@ export default async function HowItWorksPage() {
       </header>
 
       <main className="mx-auto w-full max-w-3xl space-y-6 px-4 py-8">
+        <section id="your-part" className="rounded-xl border bg-white p-5 shadow-xs">
+          <h2 className="font-semibold">Your part each month</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Two things to do. My House emails you a reminder for each, and shows it at the top of the month too.
+          </p>
+          <ol className="mt-4 grid gap-3 sm:grid-cols-2">
+            {YOUR_PART.map((step, i) => (
+              <li key={step.title} className="flex gap-3 rounded-lg border bg-zinc-50/60 p-4">
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-amber-100 text-sm font-semibold text-amber-800">
+                  {i + 1}
+                </span>
+                <div>
+                  <p className="font-medium">{step.title}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{step.body}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+
+          <h3 className="mt-6 text-sm font-semibold">The automatic emails</h3>
+          <ol className="mt-3 grid gap-2 sm:grid-cols-3">
+            {TIMELINE.map((item) => (
+              <li
+                key={item.when}
+                className={cn(
+                  "flex items-start gap-2 rounded-lg border p-3 sm:flex-col sm:gap-1.5",
+                  item.highlight && "border-amber-200 bg-amber-50",
+                )}
+              >
+                <item.icon className="mt-0.5 size-4 shrink-0 text-muted-foreground sm:mt-0" />
+                <div>
+                  <p className="text-sm font-medium">{item.when}</p>
+                  <p className="text-xs text-muted-foreground">{item.what}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Sent around 9am from the household Gmail. Questions? Message the admin.{" "}
+            <a href="#emails" className="underline underline-offset-2">
+              More about the emails
+            </a>
+          </p>
+        </section>
+
         <section id="points-table" className="rounded-xl border bg-white p-5 shadow-xs">
           <h2 className="font-semibold">Meralco point system</h2>
           <p className="mt-1 text-sm text-muted-foreground">Current allocation as of {MERALCO_POINTS_AS_OF}.</p>

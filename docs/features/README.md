@@ -12,11 +12,13 @@ begins, then it gets a page here.
 | Advances | ✅ | Log household purchases into shared columns; per-person report | [advances.md](advances.md) |
 | Helper | ✅ | Her visits and early pay: whoever paid her gets it back, the Helper column fills in by itself, and what she owes carries across months | [helper.md](helper.md) |
 | Settle Up | ✅ | Who owes whom, settled through the House Budget; PA records a payment in one tap, a housemate sends theirs with “I paid” and a screenshot for PA to confirm | [settle-up.md](settle-up.md) |
-| Months | ✅ | Month picker, starting the next month, live carry-over, closing / reopening, the backup reminder | [months.md](months.md) |
-| Manage Columns & People | ✅ | Bill and shared columns, Meralco points, housemates moving in and out, Download backup | [manage.md](manage.md) |
+| Months | ✅ | Month picker, the next month starting by itself (or by hand), live carry-over, locked for housemates once it ends, closing / reopening, the backup reminder | [months.md](months.md) |
+| Reminders & bill emails | 🚧 | Emails housemates 7 days, 3 days and on the last day to log their expenses; starts the next month by itself; the admin emails everyone their own bill from Settle Up and is nudged when it's time to email or close; matching banners. Built, waiting to go live | [reminders.md](reminders.md) |
+| Manage Columns & People | ✅ | Bill and shared columns, Meralco points, housemates moving in and out, who's using it (last seen, app or web), Download backup | [manage.md](manage.md) |
 | Login | ✅ | Google or an emailed code; invite-only; the admin edits everything, housemates log their own advances and Helper visits; view-only logins only look; the admin can preview as a housemate | [auth.md](auth.md) |
 | Email-imported bills | 🚧 | Bill emails, sent hourly by a script in the My House Gmail, become Pending bills with the payment fee added; Bill Inbox. Waiting for its first real bill | [email-bills.md](email-bills.md) |
 | Receipts | ✅ | Proof (screenshots) on each bill and payment, in a private bucket; the admin attaches | [receipts.md](receipts.md) |
+| Install as an app | ✅ | Installs on phones and computers and opens full-screen from the home screen; an Install card (instructions on iPhone); a "No connection" screen. Not offline yet | [install-app.md](install-app.md) |
 | Billers & Accounts | ✅ | Each company the household pays, with account numbers, how it's paid, links and passwords (encrypted, revealed on tap); the admin edits, housemates see what's shared | [billers.md](billers.md) |
 
 Also running, not features of the app itself:
@@ -46,6 +48,7 @@ Every feature page uses the same headings: **Status** · **What it does** · **H
 | **Month Final** | Share of everything − what they paid. Positive = owes, negative = is owed. Everyone's sums to ₱0.00. |
 | **Prev Month Unsettled** | Last month's Final, carried over. |
 | **Final** | Prev Month Unsettled + Month Final − paid out + received. What's left to settle. |
+| **Ended month** | Its last day has passed: locked for housemates, the admin can still change it until it's closed. |
 | **Closed month** | Locked; Finals saved as the next month's opening balances. |
 | **Pending bill** | Filled in from a bill email; not counted until confirmed. |
 | **Bill Inbox** | Bill emails that couldn't go straight into a month, with the reason. |

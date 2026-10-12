@@ -28,17 +28,25 @@ const MEMBER_ACTIONS = [
 /** Route Handlers, each doing its own auth. */
 const ROUTE_HANDLERS = [
   "app/api/bill-email/route.ts",
+  "app/api/reminders/route.ts",
+  "app/api/seen/route.ts",
   "app/auth/callback/route.ts",
   "app/backup/route.ts",
   "app/biller-secrets/[id]/route.ts",
+  "app/icons/[file]/route.tsx",
   "app/receipts/[id]/route.ts",
 ];
-/** The one route without a login (the Gmail script calls it): the shared secret comes first. */
+/** Routes anyone may fetch, signed out too: the install icons (generic artwork, no household data). */
+const PUBLIC_ROUTES = ["app/icons/[file]/route.tsx"];
+/** The routes without a login, each with its shared secret first: the Gmail script's and Vercel's daily job. */
 const SECRET_ROUTE = "app/api/bill-email/route.ts";
+const CRON_ROUTE = "app/api/reminders/route.ts";
 /** Route Handlers that serve household data: each must check the signed-in member first. */
 const DATA_ROUTES = ["app/backup/route.ts", "app/biller-secrets/[id]/route.ts", "app/receipts/[id]/route.ts"];
 /** Data routes only the admin may use: the admin check comes right after the login check. */
 const ADMIN_ROUTES = ["app/backup/route.ts"];
+/** Notes "this member is using My House" for the caller only: the login check comes first. */
+const SEEN_ROUTE = "app/api/seen/route.ts";
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -87,6 +95,17 @@ describe("Server Actions check who's calling", () => {
     expect(members.sort()).toEqual(MEMBER_ACTIONS);
   });
 
+  it("a housemate's advance and Helper actions refuse an ended month (they pass the viewer to loadOpenPeriod)", () => {
+    const source = read(join(ROOT, "app/periods/[year]/[month]/actions.ts"));
+    const entryActions = MEMBER_ACTIONS.filter((name) => /Advance|HelperEntry/.test(name));
+    const unlocked = exportedFunctions(source)
+      .filter(({ name }) => entryActions.includes(name))
+      .filter(({ body }) => !/loadOpenPeriod\(tx, [\w.]+, viewer\)/.test(body))
+      .map(({ name }) => name);
+    expect(entryActions).toHaveLength(6);
+    expect(unlocked).toEqual([]);
+  });
+
   it("Server Action files export only async functions (and types)", () => {
     for (const file of serverFiles) {
       expect(read(file), rel(file)).not.toMatch(/^export (const|let|var|default|\{|class)/m);
@@ -123,8 +142,22 @@ describe("View-only logins", () => {
 
 describe("Route Handlers", () => {
   it("are only the known ones, each with its own auth", () => {
-    const routes = files.filter((f) => /\/route\.ts$/.test(f)).map(rel);
+    const routes = files.filter((f) => /\/route\.tsx?$/.test(f)).map(rel);
     expect(routes.sort()).toEqual(ROUTE_HANDLERS);
+  });
+
+  it.each(PUBLIC_ROUTES)("%s touches no household data or login", (file) => {
+    const source = read(join(ROOT, file));
+    expect(source).not.toMatch(/from "@\/(db|lib\/auth|lib\/supabase)/);
+    expect(source).not.toMatch(/process\.env/);
+  });
+
+  it(`${SEEN_ROUTE} checks the signed-in member first, and writes only their own row`, () => {
+    const source = read(join(ROOT, SEEN_ROUTE));
+    const handler = source.slice(source.indexOf("export async function POST"));
+    expect(handler).toMatch(/^export async function POST[^{]*\{\s*const viewer = await getViewer\(\);\s*if \(!viewer\) return/);
+    expect(handler).toMatch(/memberId: viewer\.memberId/);
+    expect(source).not.toMatch(/export async function (GET|PUT|PATCH|DELETE)/);
   });
 
   it.each(DATA_ROUTES)("%s checks the signed-in member before anything else", (file) => {
@@ -137,9 +170,20 @@ describe("Route Handlers", () => {
     const source = read(join(ROOT, SECRET_ROUTE));
     const handler = source.slice(source.indexOf("export async function POST"));
     expect(handler).toMatch(
-      /^export async function POST[^{]*\{\s*const secret = process\.env\.BILL_EMAIL_SECRET;\s*if \(!secret\) return[^\n]*\n\s*if \(!checkBillEmailSecret\(request\.headers\.get\("authorization"\), secret\)\) \{\s*return[^\n]*status: 401/,
+      /^export async function POST[^{]*\{\s*const secret = process\.env\.BILL_EMAIL_SECRET;\s*if \(!secret\) return[^\n]*\n\s*if \(!checkBearerSecret\(request\.headers\.get\("authorization"\), secret\)\) \{\s*return[^\n]*status: 401/,
     );
     expect(source).not.toMatch(/export async function (GET|PUT|PATCH|DELETE)/);
+  });
+
+  it(`${CRON_ROUTE} checks CRON_SECRET before anything else, and refuses everything without one`, () => {
+    const source = read(join(ROOT, CRON_ROUTE));
+    const handler = source.slice(source.indexOf("export async function GET"));
+    expect(handler).toMatch(
+      /^export async function GET[^{]*\{\s*const secret = process\.env\.CRON_SECRET;\s*if \(!secret\) return[^\n]*status: 503[^\n]*\n\s*if \(!checkBearerSecret\(request\.headers\.get\("authorization"\), secret\)\) \{\s*return[^\n]*status: 401/,
+    );
+    expect(source).not.toMatch(/export async function (POST|PUT|PATCH|DELETE)/);
+    // The date can be changed only off the live site (to try a reminder on localhost).
+    expect(source).toMatch(/!emailIsLive\(\) && asked/);
   });
 
   it("app/receipts/[id]/route.ts shows a payment's proof only to PA and the people in it", () => {
@@ -190,5 +234,16 @@ describe("secrets stay on the server", () => {
   it("BILL_EMAIL_SECRET is read only by the bill-email route", () => {
     const readers = files.filter((f) => read(f).includes("process.env.BILL_EMAIL_SECRET")).map(rel);
     expect(readers).toEqual([SECRET_ROUTE]);
+  });
+
+  it("CRON_SECRET is read only by the reminders route", () => {
+    const readers = files.filter((f) => read(f).includes("process.env.CRON_SECRET")).map(rel);
+    expect(readers).toEqual([CRON_ROUTE]);
+  });
+
+  it("the Gmail app password is read only by lib/email.ts, which only the server loads", () => {
+    const readers = files.filter((f) => read(f).includes("process.env.GMAIL_SMTP_APP_PASSWORD")).map(rel);
+    expect(readers).toEqual(["lib/email.ts"]);
+    expect(read(join(ROOT, "lib/email.ts"))).toMatch(/^(\/\/[^\n]*\n)*\nimport "server-only";/);
   });
 });

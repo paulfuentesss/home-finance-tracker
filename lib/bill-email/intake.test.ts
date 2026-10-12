@@ -1,30 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { billEmailIntake, checkBillEmailSecret, dkimPassFor } from "@/lib/bill-email/intake";
+import { billEmailIntake, dkimPassFor } from "@/lib/bill-email/intake";
 
 // The shape of Gmail's header (made-up selectors and signatures).
 const gmail = (dkim: string) =>
   `mx.google.com;\r\n       ${dkim};\r\n       spf=pass (google.com: domain of x@y designates 1.2.3.4 as permitted sender) smtp.mailfrom=bounce@mailer.example;\r\n       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=meralco.com.ph`;
 
-describe("checkBillEmailSecret", () => {
-  const secret = "s3cret-value-from-openssl";
-
-  it("accepts the right Bearer secret", () => {
-    expect(checkBillEmailSecret(`Bearer ${secret}`, secret)).toBe(true);
-  });
-
-  it("refuses a wrong, missing, malformed or differently sized secret", () => {
-    expect(checkBillEmailSecret("Bearer nope", secret)).toBe(false);
-    expect(checkBillEmailSecret(`Bearer ${secret}x`, secret)).toBe(false);
-    expect(checkBillEmailSecret(secret, secret)).toBe(false);
-    expect(checkBillEmailSecret("Bearer ", secret)).toBe(false);
-    expect(checkBillEmailSecret(null, secret)).toBe(false);
-  });
-
-  it("refuses everything when no secret is configured", () => {
-    expect(checkBillEmailSecret("Bearer ", "")).toBe(false);
-    expect(checkBillEmailSecret("Bearer anything", "")).toBe(false);
-  });
-});
+// The shared secret is checked by checkBearerSecret (lib/bearer-secret.test.ts).
 
 describe("dkimPassFor", () => {
   it("accepts a DKIM pass signed by the biller's domain, for each biller", () => {

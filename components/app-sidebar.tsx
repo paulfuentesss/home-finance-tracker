@@ -8,6 +8,7 @@ import { AccountMenu } from "@/components/account-menu";
 import { HouseBadge } from "@/components/house-badge";
 import { MonthPicker, SIDEBAR_LINK, SidebarNav } from "@/components/period-nav";
 import { PreviewBanner } from "@/components/preview-banner";
+import { SeenTracker } from "@/components/seen-tracker";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetClose, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { ViewerProvider } from "@/components/viewer-context";
@@ -113,6 +114,8 @@ export function AppShell({
           {children}
         </div>
       </div>
+      {/* Notes who's using My House, app or browser, for the admin's Manage page. */}
+      <SeenTracker />
     </ViewerProvider>
   );
 }

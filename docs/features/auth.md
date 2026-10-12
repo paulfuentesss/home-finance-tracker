@@ -29,7 +29,9 @@
   | See a payment's screenshot | Any | Only payments they're in (bill proofs: all) | Bill proofs only |
   | Billers & Accounts lines | All | Those shared with housemates | Those shared with housemates |
 
-  Everything still follows the month rules: nothing changes in a closed month.
+  Everything still follows the month rules: nothing changes in a closed month, and once a month
+  has **ended** (its last day passed) housemates can't log, edit or delete in it — only PA can,
+  until he closes it. Their "I paid" isn't affected ([reminders.md](reminders.md)).
 - **View only** is for someone who should see the house's numbers without being part of them
   (say, family abroad). PA ticks **View only** when adding them in Manage. They are in no
   month (no `period_balances` row), so they share in nothing, have no row on the Split Table, and
@@ -61,12 +63,13 @@
   `updateHelperEntry`, `deleteHelperEntry`, `submitPayment` and `cancelPayment` are `"member"`:
   for a member the advance actions force the payer to themselves and the column to the default
   one, and check `canManageAdvance` against the stored advance; the Helper actions force the
-  payer to themselves, refuse her starting debt, and check `canManageHelperEntry`;
+  payer to themselves, refuse her starting debt, and check `canManageHelperEntry`; all six
+  pass the viewer to `loadOpenPeriod`, which refuses a non-admin in an ended month;
   `submitPayment` sets the payer to themselves and the receiver to the House Budget
   (`canSubmitPayment`), and `cancelPayment` checks `canCancelPayment`. A view-only login
   passes neither level: `run()` refuses it outright, before parsing anything.
-- `lib/permissions.ts` (pure, tested) — `Viewer`, `isAdmin`, `isViewOnly`, `canManageAdvance`,
-  `canManageHelperEntry`, and
+- `lib/permissions.ts` (pure, tested) — `Viewer`, `isAdmin`, `isViewOnly`, `canLogIn` (an open
+  month that, for a housemate, hasn't ended), `canManageAdvance`, `canManageHelperEntry`, and
   `safeNext` (where to go after signing in, blocking open redirects).
 - **Invites:** `lib/invites.ts` creates a confirmed Supabase user for the email (with the
   secret key, `lib/supabase/admin-server.ts`) and stores its id on the member. Used by
@@ -92,9 +95,14 @@
   `useDialogForm`, `InlineInput` and `ConfirmDeleteButton`), `run()` returns an error while
   `previewFor(viewer)` is set, and the Manage page redirects. Signing in or out deletes the cookie.
 - **Safety net:** `lib/actions-guard.test.ts` fails if a Server Action skips `run()`, if a new
-  Route Handler appears, if anything besides the advance, Helper and "I paid" actions is opened to members, if
+  Route Handler appears (`route.ts` or `route.tsx`), if the public icon route touches data or the login, if
+  `/api/seen` (who's using My House, [manage.md](manage.md)) stops checking the login first or
+  writes anyone's row but the caller's, if anything besides the advance, Helper and "I paid" actions is opened to members, if
   `/receipts/[id]` stops checking `canSeePaymentProof`, if `run()` stops refusing changes
-  during a preview, or if it stops refusing a view-only login.
+  during a preview, or if it stops refusing a view-only login. Also if a housemate's advance or
+  Helper action stops passing the viewer to `loadOpenPeriod` (the ended-month lock), if
+  `/api/reminders` stops checking `CRON_SECRET` first, or if `CRON_SECRET` /
+  `GMAIL_SMTP_APP_PASSWORD` is read anywhere but its one file.
 - Tables: `members` (`email`, `auth_user_id`, `role`). Supabase keeps the logins themselves in
   its own `auth.users`.
 - Setup (Google, the My House Gmail, Supabase settings, keys): [setup.md](../setup.md) step 5.
@@ -114,6 +122,11 @@
   real viewer, and the cookie is ignored for anyone but the admin.
 - PA's own login is changed with `npm run auth:invite`, not in Manage, so a typo can't lock
   him out.
+- The installed app ([install-app.md](install-app.md)): on Android it shares Chrome's login; on
+  iPhone the home-screen app keeps its own, so people sign in once more inside it. The email
+  code works there (it's typed, not a link that would open Safari).
+- The install files (`/manifest.webmanifest`, `/sw.js`, `/icons/*.png`) are public on purpose and
+  hold nothing about the household; the guard test keeps the icon route that way.
 
 ## Open items
 Going online: [TODO.md → Going online](../TODO.md#going-online).
