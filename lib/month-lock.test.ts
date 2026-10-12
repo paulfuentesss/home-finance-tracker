@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { closeCheck, reopenCheck, startCheck, vanishingBalances } from "@/lib/month-lock";
+import {
+  closeCheck,
+  monthAfter,
+  monthHasEnded,
+  payablesCheck,
+  reopenCheck,
+  startCheck,
+  vanishingBalances,
+} from "@/lib/month-lock";
 
 const july = { year: 2026, month: 7, status: "closed" as const };
 const august = { year: 2026, month: 8, status: "open" as const };
@@ -83,5 +91,43 @@ describe("vanishingBalances", () => {
   it("ignores settled people, and months with no next month yet", () => {
     expect(vanishingBalances(finals, new Set([1, 3]))).toEqual([]);
     expect(vanishingBalances(finals, null)).toEqual([]);
+  });
+});
+
+describe("monthHasEnded", () => {
+  it("is false through the month's last day and true from the next day", () => {
+    expect(monthHasEnded(2026, 10, "2026-10-31")).toBe(false);
+    expect(monthHasEnded(2026, 10, "2026-11-01")).toBe(true);
+    expect(monthHasEnded(2026, 10, "2026-10-01")).toBe(false);
+  });
+
+  it("handles the year's end and months long past", () => {
+    expect(monthHasEnded(2026, 12, "2026-12-31")).toBe(false);
+    expect(monthHasEnded(2026, 12, "2027-01-01")).toBe(true);
+    expect(monthHasEnded(2026, 9, "2027-03-15")).toBe(true);
+    expect(monthHasEnded(2026, 11, "2026-10-20")).toBe(false);
+  });
+});
+
+describe("monthAfter", () => {
+  it("rolls December into January", () => {
+    expect(monthAfter(2026, 10)).toEqual({ year: 2026, month: 11 });
+    expect(monthAfter(2026, 12)).toEqual({ year: 2027, month: 1 });
+  });
+});
+
+describe("payablesCheck", () => {
+  it("allows the bill email once the numbers work out and no bill is pending", () => {
+    expect(payablesCheck(null)).toEqual({ ok: true });
+  });
+
+  it("refuses while the numbers can't be worked out or a bill is pending, like closing", () => {
+    expect(payablesCheck("Shares don't add up").reason).toBe(
+      "Fix the problem above first; the numbers can't be calculated yet.",
+    );
+    expect(payablesCheck(null, ["Meralco"])).toEqual({
+      ok: false,
+      reason: "Confirm or discard the pending Meralco bill first (Split Table).",
+    });
   });
 });

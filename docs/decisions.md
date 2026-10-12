@@ -551,3 +551,89 @@ the UI can't turn into a change.
 **Instead of:** a "shares costs" flag on a member who is still in each month (they'd sit on
 the Split Table at ₱0, and every split and settle-up list would have to skip them), or giving
 them an ordinary member login (they could log advances and send "I paid").
+
+## 2026-10-12 — Installable app, nothing stored on the phone
+**Decision:** My House is installable ([install-app.md](features/install-app.md)): a web app
+manifest, PNG icons, a service worker and our own **Install** card. The service worker caches
+nothing; its only job is a "No connection" screen when a page load fails. The manifest, worker
+and icons are public (in the proxy's skip list). The icons are drawn by a route from
+`app/icon.svg` at build time, not committed as image files.
+**Why:** housemates use it on their phones; opening it from the home screen, full-screen, beats
+finding a browser tab. Chrome only offers to install when the service worker has a real fetch
+handler (it ignores empty ones), so the offline screen is a real reason for one that stores no
+data. Caching pages would put the household's finances on each phone and needs clearing on
+sign-out, so offline viewing waits ([TODO.md](TODO.md)). Our own card because iPhones and the
+Messenger/Facebook browsers never show an install prompt: there the card explains what to tap.
+"Not now" asks again the next day (30 days was too long for getting the household onto it), and
+"Install app" in the account menu brings it back any time. Whether someone installed it is
+tracked only in their browser (Chrome knows by itself; iPhones get "I've added it"), not in the
+database: no migration for a nudge, and Safari couldn't report it anyway. Browsers fetch the manifest without cookies, so it can't sit behind the login. Drawing the icons
+keeps one source for the house and no binary files to regenerate.
+**Instead of:** a PWA library (next-pwa / Serwist — built for caching, which this doesn't want
+yet), a service worker with no fetch handler (Android would never show the Install button), or
+relying on the browser's own prompt alone (nothing at all on iPhone).
+
+## 2026-10-12 — A month locks for housemates once it ends
+**Decision:** after a month's last day (Manila), housemates can't add, edit or delete their
+advances or Helper entries in it; the admin can until he closes it. "I paid" isn't affected.
+**Why:** the reminders tell housemates the month closes at its end, and that should be true:
+the admin works out the bills from a month that has stopped moving. Locking only housemates
+keeps a late fix possible. Payments come after the month ends (that's when the bills arrive),
+so they stay open.
+**Instead of:** keeping the manual Close as the only lock (the reminders' "log by the 31st"
+would have meant nothing until the admin closed it, often days later).
+
+## 2026-10-12 — Reminders: the household Gmail's SMTP, run by Vercel's cron
+**Decision:** emails are sent with nodemailer over the My House Gmail's SMTP, with an app
+password of their own; Vercel's daily cron (`vercel.json`) runs `/api/reminders` at 09:00
+Manila. Each email is claimed in `reminder_sends` before it's sent, and the job sends the
+latest reminder the month has reached, so a missed day is caught up. Only the live site emails
+housemates and records sends; localhost redirects every email to `EMAIL_TEST_TO`.
+**Why:** the Gmail already sends the sign-in codes, so no new service or own domain (Resend can
+only email others from a verified domain). A second app password means revoking one never
+breaks the other. Vercel's cron runs with the app and its env vars; GitHub Actions' schedules
+switch off after 60 days without commits. Claiming first stops a cron delivered twice from
+double-sending. The safety switch is needed because localhost and the live site share one
+database: a test would otherwise email the real housemates, or mark a real reminder as sent.
+**Instead of:** Resend (needs a domain), a Google Apps Script timer in the Gmail (the month
+data is in the app, so it would need an API of its own), GitHub Actions.
+
+## 2026-10-12 — What a housemate still owes, after their bill email
+**Decision:** worked out on each page load from the bill's month: its Final, less the
+housemate's waiting "I paid"s and what they paid into the House Budget in later months
+(`payablesIn`). Nothing about the amount is stored; `reminder_sends` only says the email went.
+**Why:** "I paid" goes in the latest month, and by the time bills go out the next month has
+usually started, so the bill's month's Final alone never drops when they pay. Working it out
+fresh means the banner goes as soon as the admin confirms a payment, and a resent bill or an
+edited month can't leave a stale amount behind.
+**Instead of:** storing the emailed amount and counting payments made after it (breaks when a
+payment waiting at send time is confirmed later), or the latest month's Final (mixes in the
+new month's own spending).
+
+## 2026-10-12 — The next month starts by itself; email and close stay the admin's, with nudges
+**Decision:** the daily job starts the next month the morning after the latest one ends, with
+the same code as the Start button (`lib/month-start.ts`); when it can't, the admin is emailed
+why, once, and it retries daily. Emailing everyone their bill and closing a month stay buttons,
+but the admin gets a banner and one email when each is ready (every bill in; then everyone
+settled and closing allowed).
+**Why:** starting needs no judgment — it follows fixed rules and already refuses itself when it
+shouldn't run — and with the month lock, housemates need the new month on the 1st. Emailing the
+bill tells people what to pay, and closing freezes the numbers for good: both are worth a look
+first, so the app only says when it's time. Off the live site starting is a dry run, since
+localhost shares the database.
+**Instead of:** a "start November" reminder every month (a chore with no decision in it), or
+sending bills and closing automatically (no chance to catch a wrong amount).
+
+## 2026-10-12 — The admin sees who's using My House, app or web
+**Decision:** each signed-in page reports "installed app or browser" and a coarse device type
+to `/api/seen`; Manage shows PA each housemate's **Last seen** and an **app installed** badge
+([manage.md](features/manage.md)). One row per member × app/web × device type
+(`member_devices`), updated at most every 5 minutes. No note to housemates (PA's choice).
+**Why:** PA wants to know who has installed the app and who still uses it. Supabase only knows
+the last *sign-in*, which can be weeks old because sessions renew quietly. Only the browser can
+tell the installed app from a tab, and an iPad from a Mac, so the page reports both; the server
+can't. A row per device instead of a visit log keeps the table tiny and says what's needed (when,
+from where), not a history of everyone's comings and goings. Coarse device types, no user agents
+or IPs: enough to read "App on iPhone", nothing more about anyone's phone.
+**Instead of:** Supabase's last sign-in (stale), a log row per visit (grows forever, more than
+needed), or tracking per Server Action (misses people who only look; view-only logins never call one).

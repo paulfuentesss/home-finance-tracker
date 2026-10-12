@@ -7,5 +7,6 @@
       "*": false,
       "**": false
     }
-  }
+  },
+  "crons": [{ "path": "/api/reminders", "schedule": "0 1 * * *" }]
 }

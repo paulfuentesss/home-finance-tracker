@@ -99,6 +99,27 @@
       "when": 1791785865324,
       "tag": "0013_view-only-role",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791791634840,
+      "tag": "0014_reminder-sends",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1791796745475,
+      "tag": "0015_ready-nudges",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1791798386044,
+      "tag": "0016_member-devices",
+      "breakpoints": true
     }
   ]
 }

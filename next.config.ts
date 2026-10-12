@@ -9,6 +9,16 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "6mb",
     },
   },
+  async headers() {
+    return [
+      {
+        // The service worker is never cached, so a fixed one reaches phones on their next visit
+        // (docs/features/install-app.md).
+        source: "/sw.js",
+        headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

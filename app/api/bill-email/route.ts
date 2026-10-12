@@ -6,13 +6,14 @@
 // ignores an email (or a provider's month) it already has.
 
 import { db } from "@/db";
-import { billEmailIntake, checkBillEmailSecret, dkimPassFor } from "@/lib/bill-email/intake";
+import { checkBearerSecret } from "@/lib/bearer-secret";
+import { billEmailIntake, dkimPassFor } from "@/lib/bill-email/intake";
 import { importBillEmail } from "@/lib/bill-import";
 
 export async function POST(request: Request) {
   const secret = process.env.BILL_EMAIL_SECRET;
   if (!secret) return Response.json({ error: "Bill emails aren't set up (BILL_EMAIL_SECRET)." }, { status: 503 });
-  if (!checkBillEmailSecret(request.headers.get("authorization"), secret)) {
+  if (!checkBearerSecret(request.headers.get("authorization"), secret)) {
     return Response.json({ error: "Unauthorized." }, { status: 401 });
   }
 

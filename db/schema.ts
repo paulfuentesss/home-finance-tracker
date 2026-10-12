@@ -54,6 +54,23 @@ export const paymentStatus = pgEnum("payment_status", ["confirmed", "pending", "
 // A line on the Billers tab: text · link (http/https) · secret (a password, stored encrypted) ·
 // heading (a sub-title such as "FAQs", label only).
 export const billerFieldKind = pgEnum("biller_field_kind", ["text", "link", "secret", "heading"]);
+// An email My House sent (docs/features/reminders.md): week / three_days / last_day = the
+// month-end reminders to housemates · start_next = the admin's "couldn't start next month" ·
+// payables = "Email everyone their bill" from Settle Up · ready_bill / ready_close = the admin's
+// "ready to email the bill" / "ready to close" nudges.
+export const reminderKind = pgEnum("reminder_kind", [
+  "week",
+  "three_days",
+  "last_day",
+  "start_next",
+  "payables",
+  "ready_bill",
+  "ready_close",
+]);
+// Where a member used My House from (lib/devices.ts — DEVICE_VIAS / DEVICE_PLATFORMS, kept equal
+// by lib/devices.test.ts): app = the installed app, web = a browser tab; the device type is coarse.
+export const deviceVia = pgEnum("device_via", ["app", "web"]);
+export const devicePlatform = pgEnum("device_platform", ["iphone", "ipad", "android", "mac", "windows", "other"]);
 
 // ---------- Shared column helpers ----------
 
@@ -398,6 +415,50 @@ export const keepAlive = pgTable(
   (t) => [check("keep_alive_single_row", sql`${t.id} = 1`)],
 ).enableRLS();
 
+// Who was emailed what for a month (docs/features/reminders.md). The daily job claims a row
+// before sending, so a reminder never goes out twice; a failed send removes its claim, so the
+// next day's run retries it. A payables row is rewritten on each resend, and tells the
+// housemate's pages their bill is out. Written only by the live site (lib/email.ts), so a test
+// on localhost — same database — never marks a real reminder as sent. Only a log: deleting a
+// month or a member deletes their rows.
+export const reminderSends = pgTable(
+  "reminder_sends",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    periodId: integer("period_id")
+      .notNull()
+      .references(() => billingPeriods.id, { onDelete: "cascade" }),
+    kind: reminderKind("kind").notNull(),
+    memberId: integer("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("reminder_sends_period_kind_member").on(t.periodId, t.kind, t.memberId),
+    index("reminder_sends_member_id").on(t.memberId),
+  ],
+).enableRLS();
+
+// When each member last used My House, per installed app / browser and device type
+// (docs/features/manage.md → Who's using it). Written by app/api/seen/route.ts, at most every
+// 5 minutes per row; read only by the admin's Manage page. One row per member × via × platform,
+// so it stays a handful of rows. No user agents or IPs, only the two coarse values.
+export const memberDevices = pgTable(
+  "member_devices",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    memberId: integer("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    via: deviceVia("via").notNull(),
+    platform: devicePlatform("platform").notNull(),
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("member_devices_member_via_platform").on(t.memberId, t.via, t.platform)],
+).enableRLS();
+
 // A Download backup that finished streaming (app/backup/route.ts). The month pages remind the
 // admin to back up when a month was started or closed since the latest one (lib/backup-reminder.ts).
 export const backups = pgTable("backups", {
@@ -547,3 +608,5 @@ export type Receipt = typeof receipts.$inferSelect;
 export type PeriodBalance = typeof periodBalances.$inferSelect;
 export type Biller = typeof billers.$inferSelect;
 export type BillerField = typeof billerFields.$inferSelect;
+export type ReminderSend = typeof reminderSends.$inferSelect;
+export type MemberDevice = typeof memberDevices.$inferSelect;

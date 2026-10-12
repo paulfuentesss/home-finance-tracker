@@ -99,8 +99,14 @@ Part of every change, in the same PR — not a separate chore.
   - `BILLER_SECRET_KEY` (encrypts the Billers tab's passwords) is read only in
     `lib/biller-secrets.ts`. Passwords are never sent with a page; Reveal fetches one from
     `/biller-secrets/<id>`. Never `zod.parse` a password (`run()` logs errors, and a zod error carries the input).
-  - `/api/bill-email` is the one route without a login (the Gmail script calls it): it checks
-    `BILL_EMAIL_SECRET` before anything else, and only that route reads it.
+  - Two routes have no login, each checking its shared secret (`checkBearerSecret`) before
+    anything else, and each the only reader of it: `/api/bill-email` (the Gmail script,
+    `BILL_EMAIL_SECRET`) and `/api/reminders` (Vercel's daily cron, `CRON_SECRET`).
+  - **Emails** go out only through `lib/email.ts` (the only reader of `GMAIL_SMTP_APP_PASSWORD`).
+    Only the live site emails housemates and writes `reminder_sends`; localhost redirects every
+    email to `EMAIL_TEST_TO` — keep it that way (one database: `docs/features/reminders.md`).
+  - Once a month has ended, housemates can't change it: the advance and Helper actions pass the
+    viewer to `loadOpenPeriod` (guard-tested); the UI uses `canLogIn`.
   - Storage policies must never grant access to every `authenticated` user.
 - **Online on Vercel** (`docs/operations.md` → Hosting): merging to `main` deploys. A new env
   var goes into Vercel too (Production, Sensitive) and needs a redeploy; open items are in
@@ -161,6 +167,7 @@ Part of every change, in the same PR — not a separate chore.
 | Signed in with Google but told "not invited" | The Google address differs from the invited one (dots, a different account), or the member was removed | Invite the exact address Google shows (`docs/features/auth.md`); PA can always fix his own with `npm run auth:invite` |
 | Pages hang 20–100 s, then "Something went wrong"; the dev log shows a query that never returns | `DATABASE_URL` points at the transaction pooler (port 6543), which stops answering when two queries are sent back to back | Use the session pooler (port 5432) for `DATABASE_URL`, locally and in Vercel (`docs/decisions.md`, 2026-10-11) |
 | One existing tab shows "Page not found" (others fine; a made-up path 404s the same way) | A long-running `next dev` lost the route after files changed under it (branch switch, merge); the code is fine (2026-10-12, Helper tab) | Restart the dev server (kill the `next dev` PID, `rm .next/dev/lock`, `npm run dev`). Telling it apart from a real `notFound()` needs a signed-in request, so ask Paul or compare with a tab that works |
+| The app stops offering to install; DevTools → Application → Manifest shows an error or the login page | `/manifest.webmanifest` (or `/sw.js`) got caught by `proxy.ts` — browsers fetch the manifest without cookies, so it gets the `/login` redirect | Keep both in the proxy matcher's skip list (`docs/features/install-app.md`); check with a cookie-less `curl -I localhost:3000/manifest.webmanifest` → 200 |
 | `CLAUDE.md` shows as modified after `npm run dev` | `next dev` appends the Next.js agent-rules block below | Expected — commit it |
 
 **Fast dev loop:** make the change → `npm run typecheck && npx eslint && npm test` once per chunk (tests run in a few seconds) →

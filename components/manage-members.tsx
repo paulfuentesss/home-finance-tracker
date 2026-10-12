@@ -17,6 +17,18 @@ interface Member {
   email: string | null;
   /** Whether a Supabase login exists for them (set when invited). */
   linked: boolean;
+  /** When they last used My House and from where (lib/devices.ts); null before their first visit. */
+  activity: MemberActivityView | null;
+}
+
+/** Ready-made text, worked out on the server (app/periods/[year]/[month]/manage/page.tsx). */
+export interface MemberActivityView {
+  /** They've opened the installed app at least once. */
+  installed: boolean;
+  /** "3 h ago · App on iPhone". */
+  lastSeen: string;
+  /** Their other devices: "Web on Mac (2 days ago)". */
+  others: string[];
 }
 
 export function ManageMembers({ members, viewerId }: { members: Member[]; viewerId: number }) {
@@ -30,6 +42,11 @@ export function ManageMembers({ members, viewerId }: { members: Member[]; viewer
             housemates see, change nothing and share in nothing). A <strong>login email</strong> lets someone sign in —
             with Google, or with a code sent to that email. For Google, use the exact address Google shows (dots
             included). Clear it to take their login away.
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            <strong>Last seen</strong> is when they last opened My House, in the installed app or a browser.{" "}
+            <strong>App installed</strong> means they&apos;ve opened the app at least once. Both count from when this
+            was added, so someone shows &ldquo;Not seen yet&rdquo; until their next visit.
           </p>
         </div>
         <AddMemberDialog />
@@ -50,6 +67,11 @@ export function ManageMembers({ members, viewerId }: { members: Member[]; viewer
                 {m.linked && (
                   <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-normal text-emerald-700">
                     can log in
+                  </span>
+                )}
+                {m.activity?.installed && (
+                  <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-normal text-amber-700">
+                    app installed
                   </span>
                 )}
               </span>
@@ -99,6 +121,18 @@ export function ManageMembers({ members, viewerId }: { members: Member[]; viewer
                     inputClassName="w-full px-2 py-1 text-sm text-foreground sm:w-64"
                   />
                 </div>
+              )}
+              {m.linked && (
+                <p className="mt-1 text-muted-foreground">
+                  {m.activity ? (
+                    <>
+                      Last seen <span className="text-foreground">{m.activity.lastSeen}</span>
+                      {m.activity.others.length > 0 && <> · also {m.activity.others.join(", ")}</>}
+                    </>
+                  ) : (
+                    "Not seen yet"
+                  )}
+                </p>
               )}
             </div>
           </li>

@@ -1,14 +1,15 @@
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq, inArray } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { BackupCard } from "@/components/backup-card";
 import { BillInbox } from "@/components/emailed-bills";
 import { ManageBills } from "@/components/manage-bills";
-import { ManageMembers } from "@/components/manage-members";
+import { ManageMembers, type MemberActivityView } from "@/components/manage-members";
 import { ManageSharedColumns } from "@/components/manage-shared-columns";
 import { MeralcoPoints } from "@/components/meralco-points";
-import { billEmails, db, members } from "@/db";
+import { billEmails, db, memberDevices, members } from "@/db";
 import { getPreview, requireViewer } from "@/lib/auth";
 import { getLastBackupAt } from "@/lib/backup-status";
+import { deviceLabel, seenLabel, summarizeDevices, type MemberActivity } from "@/lib/devices";
 import { dateInManila } from "@/lib/format";
 import { householdDotClassOf, sharesCosts } from "@/lib/members";
 import { toCentavos } from "@/lib/money";
@@ -39,6 +40,23 @@ export default async function ManagePage({ params }: PageProps<"/periods/[year]/
     where: eq(billEmails.status, "unmatched"),
     orderBy: [desc(billEmails.receivedAt)],
   });
+  // Who's using My House, from the app or a browser (lib/devices.ts). Labels are worked out here,
+  // so only text goes to the browser.
+  const activeIds = active.map((m) => m.id);
+  const deviceRows =
+    activeIds.length === 0
+      ? []
+      : await db
+          .select({
+            memberId: memberDevices.memberId,
+            via: memberDevices.via,
+            platform: memberDevices.platform,
+            lastSeenAt: memberDevices.lastSeenAt,
+          })
+          .from(memberDevices)
+          .where(inArray(memberDevices.memberId, activeIds));
+  const activity = summarizeDevices(deviceRows);
+  const now = new Date();
 
   return (
     <div className="grid items-start gap-6 lg:grid-cols-2">
@@ -73,10 +91,21 @@ export default async function ManagePage({ params }: PageProps<"/periods/[year]/
             dotClass: householdDotClassOf(m),
             email: m.email,
             linked: m.authUserId !== null,
+            activity: activityView(activity.get(m.id), now),
           }))}
         />
         <BackupCard lastBackupAt={lastBackupAt} />
       </div>
     </div>
   );
+}
+
+/** A member's activity as the Manage card shows it, or null before their first visit. */
+function activityView(activity: MemberActivity | undefined, now: Date): MemberActivityView | null {
+  if (!activity) return null;
+  return {
+    installed: activity.installed,
+    lastSeen: `${seenLabel(activity.lastSeen.lastSeenAt, now)} · ${deviceLabel(activity.lastSeen)}`,
+    others: activity.devices.slice(1).map((d) => `${deviceLabel(d)} (${seenLabel(d.lastSeenAt, now)})`),
+  };
 }

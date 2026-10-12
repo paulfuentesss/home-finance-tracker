@@ -14,15 +14,16 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
       says "Passwords aren't set up". Then type in the billers from the old sheet, and delete the
       passwords from the sheet.
 
+- [ ] **Reminders go live** ([reminders](features/reminders.md)) — the settings are in Vercel
+      and it was tried on localhost (2026-10-12). After the merge: check Settings → Cron Jobs
+      lists `/api/reminders`, and **Run** it once. Before it goes live, decide September: it's
+      still open, so it locks for housemates at once and the "ready" nudges start with it —
+      close it, or let the nudges walk you through it. Tell the housemates to expect the emails
+      (and to check spam the first time).
+
 - [ ] **Invite the housemates** ([auth](features/auth.md)). Login testing is finished
       (2026-10-09). A test housemate still has a `+` alias of PA's Gmail; swap in their real
       address. Anyone signing in with Google also needs to be a test user on the consent screen.
-
-- [ ] **Add the view-only login** ([auth](features/auth.md)) — *only once the view-only change
-      is merged and live*. Older code treats any non-admin as a housemate, and its "Start next
-      month" would put them in the month (localhost shares the database). Who and which email:
-      `.private/NOTES.md`. Manage → Add member → tick View only → type their login email; they
-      sign in with an emailed code. Check with Preview as….
 
 - [ ] **Bills to the My House Gmail** ([email-bills](features/email-bills.md)) — *waiting on the
       billers.* Changed in their apps, and each biller was emailed (2026-10-11) after a PLDT bill
@@ -56,10 +57,12 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
       member appears (Who owes what cards, Advances Log) — *file storage exists now (the receipts
       bucket); pictures would get their own bucket, which the backups must then cover too
       (Download backup in `app/backup/route.ts`, `storage:backup`, `storage:restore`).*
-- [ ] **PWA** — installable, polished on mobile, usable offline. Offline *viewing* (the last
-      months loaded, cached by a service worker) first; offline *editing* needs a sync queue and
-      conflict handling. Cached pages put household finances on the device, so signing out must
-      clear the cache.
+- [ ] **Offline** ([install-app](features/install-app.md); installing already works). Offline
+      *viewing* (the last months loaded, cached by `public/sw.js`) first; offline *editing* needs
+      a sync queue and conflict handling. Cached pages put household finances on the device, so
+      signing out must clear the cache.
+- [ ] **Check the installed app on real phones** once it's online ([install-app](features/install-app.md)):
+      Android install, iPhone Add to Home Screen + Google sign-in inside it, a link from Messenger.
 
 ## Ideas (not decided)
 
@@ -69,8 +72,8 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
   verification (shows "My House"; needs a privacy policy page). Supabase's custom domain
   does it too, but is paid.
 
-- Billing reminders (a bill due soon, a housemate who hasn't paid), sent from the My House Gmail
-  — or from a transactional service if sign-in emails move to one.
+- More reminders ([reminders](features/reminders.md)): a nudge to someone whose bill is still
+  unpaid a few days after it went out, or a biller's due date coming up.
 
 - Read payment-confirmation emails to fill "Date paid" automatically
   ([email-bills](features/email-bills.md)). Wouldn't catch every payment fee, since some
@@ -96,7 +99,7 @@ Live on Vercel since 2026-10-10 ([operations.md → Hosting](operations.md#hosti
 
 **Operational**
 - [x] Login protects every page and Server Action ([features/auth.md](features/auth.md)); only
-      the bill-email route will stay open (checked by its shared secret).
+      the bill-email and reminders routes stay open (each checked by its shared secret).
 - [x] Hosting: Vercel, its environment variables set (`BILL_EMAIL_SECRET` is added when bills
       by email are turned on — the item above).
 - [x] Address: a free `*.vercel.app` one, HTTPS by default. An own domain can come later.

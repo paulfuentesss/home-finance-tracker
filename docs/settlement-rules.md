@@ -251,7 +251,9 @@ computed on the fly back to the first month (or to the last closed month, whose 
 automatically, like the sheet's "Prev Month Unsettled". The House Budget always carries over
 from the payments themselves, closed months included ([House Budget](#house-budget)).
 
-**Starting a month** ("Start <next month>" at the bottom of the month picker, on the latest month) creates the next month with
+**Starting a month** — by itself, the morning after the latest month ends (the daily job,
+[reminders](features/reminders.md)), or with "Start <next month>" at the bottom of the month
+picker, on the latest month; both follow the same rules (`lib/month-start.ts`) — creates the next month with
 everyone currently active (view-only logins aside) and carries over (not while a housemate's payment is still waiting
 in the latest month — the new month's carry-over would show them owing it all again, and they
 might pay twice):
@@ -269,6 +271,14 @@ the new month's opening balance.
 
 ## Closing and reopening a month
 
+**Ending** comes first, on its own: once a month's last day has passed (Manila time,
+`monthHasEnded` in `lib/month-lock.ts`), it's **locked for housemates** — they can no longer
+add, edit or delete their advances or Helper entries in it. The admin still can, until it's
+closed. Payments aren't affected: "I paid" goes in the latest month whenever it's sent, and the
+bills usually arrive after the month has ended. Housemates log anything new in the next month
+(it starts by itself on the 1st; when something stops it, the admin is told why —
+[reminders](features/reminders.md)). Ending changes no numbers.
+
 **Closing** locks a month (`billing_periods.status = 'closed'`): every change to it is
 rejected. It saves each member's Final as `period_balances.closing_balance`, and — when the
 next month already exists — as that month's `opening_balance`, which is used from then on
@@ -285,6 +295,9 @@ Rules (`lib/month-lock.ts`):
 - **Blocked while a bill is pending** (emailed, not yet confirmed or discarded), **or a
   housemate's payment is waiting** (not yet confirmed or rejected): once the month and the one
   after it are closed, it could never be. Rejected payments don't block.
+- **Emailing everyone their bill** (Settle Up) is blocked by the same two things as closing —
+  numbers that can't be calculated and a pending bill — so nobody is sent an amount that's
+  about to change. A waiting payment doesn't block it; the email takes it off what's left.
 - The confirmation lists who is still unsettled, what the House Budget still holds, bills
   still at ₱0.00, and Manual columns that don't add up; none of them block closing. (A bill still at ₱0.00 may simply not have
   arrived: bills belong to the month they're for, which has usually ended when they arrive.)

@@ -2,12 +2,11 @@
 // household Gmail's script sent (docs/features/email-bills.md). Pure, so it's unit-tested.
 //
 // The route has no login — the script can't sign in — so two things stand in for one:
-// - a long random shared secret, known only to the app and the script, and
+// - a long random shared secret, known only to the app and the script (lib/bearer-secret.ts), and
 // - Gmail's own verdict that the email really is from the biller: the topmost
 //   Authentication-Results header, which Gmail's receiving server adds when the email arrives
 //   in the household mailbox (a sender can't forge a header above it).
 
-import { createHash, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { isDomainOrSubdomain, providerDomain, providerOf } from "@/lib/bill-email/parse";
 
@@ -23,18 +22,6 @@ export const billEmailIntake = z.object({
 });
 
 export type BillEmailIntake = z.infer<typeof billEmailIntake>;
-
-/**
- * `Authorization: Bearer <secret>`, compared in constant time. Both sides are hashed first so
- * the comparison takes the same time whatever the lengths.
- */
-export function checkBillEmailSecret(authorization: string | null, secret: string): boolean {
-  if (!secret) return false;
-  const given = authorization?.match(/^Bearer (.+)$/)?.[1];
-  if (!given) return false;
-  const hash = (value: string) => createHash("sha256").update(value).digest();
-  return timingSafeEqual(hash(given), hash(secret));
-}
 
 /**
  * True when Gmail (authserv-id `mx.google.com`) reports a DKIM pass signed by the domain of the

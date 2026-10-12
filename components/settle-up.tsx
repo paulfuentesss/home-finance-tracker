@@ -1,12 +1,13 @@
 "use client";
 
-import { Check, Lock, LockOpen, Pencil, X } from "lucide-react";
+import { Check, Lock, LockOpen, Mail, Pencil, X } from "lucide-react";
 import { useState, useTransition } from "react";
 import {
   cancelPayment,
   closeMonth,
   confirmPayment,
   deletePayment,
+  emailPayables,
   rejectPayment,
   reopenMonth,
   type ActionState,
@@ -33,13 +34,24 @@ import { HOUSE_BUDGET_LABEL } from "@/lib/household-config";
 import { formatPHP, sumCentavos, type Centavos } from "@/lib/money";
 import { canCancelPayment, canSubmitPayment, isAdmin } from "@/lib/permissions";
 import type { PeriodView, ViewPayment, ViewReceipt } from "@/lib/periods";
+import type { EmailStatus } from "@/lib/reminder-status";
+import { REMINDER_DAYS, type MonthEndReminder } from "@/lib/reminders";
 import { HOUSE_BUDGET, suggestedPayments } from "@/lib/settlement";
 import { cn } from "@/lib/utils";
 
 // Tab: Settle Up. Who still owes whom (one tap records the payment, or a housemate's "I paid"),
 // the payments this month — housemates' waiting for PA to confirm — and closing / reopening the
 // month (docs/settlement-rules.md, docs/features/settle-up.md).
-export function SettleUp({ view, receipts }: { view: PeriodView; receipts: ViewReceipt[] }) {
+export function SettleUp({
+  view,
+  receipts,
+  emailStatus,
+}: {
+  view: PeriodView;
+  receipts: ViewReceipt[];
+  /** The admin's bill-email box (null for anyone else). */
+  emailStatus: EmailStatus | null;
+}) {
   return (
     <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
       <div className="space-y-6">
@@ -47,9 +59,121 @@ export function SettleUp({ view, receipts }: { view: PeriodView; receipts: ViewR
         <WhoStillOwes view={view} />
         <PaymentsList view={view} receipts={receipts} />
       </div>
-      <MonthLock view={view} />
+      <div className="space-y-6">
+        {emailStatus && <EmailBill view={view} status={emailStatus} />}
+        <MonthLock view={view} />
+      </div>
     </div>
   );
+}
+
+const REMINDER_NAMES: Record<MonthEndReminder, string> = {
+  week: `${REMINDER_DAYS.week} days left`,
+  three_days: `${REMINDER_DAYS.three_days} days left`,
+  last_day: "Last day",
+};
+
+/**
+ * The admin's "Email everyone their bill" (docs/features/reminders.md): each housemate gets their
+ * own amount and a link to Settle Up. Also shows the latest month-end reminder sent, so a
+ * reminder job that stopped working shows up here.
+ */
+function EmailBill({ view, status }: { view: PeriodView; status: EmailStatus }) {
+  const admin = isAdmin(useViewer());
+  if (!admin) return null;
+  const label = monthLabel(view.period.year, view.period.month);
+  const toEmail = status.recipients.filter(
+    (r) => r.hasEmail && (r.payables?.kind === "owed" || (r.payables?.kind === "owes" && r.payables.left > 0)),
+  );
+  return (
+    <section className="rounded-xl border bg-white p-4 shadow-xs sm:p-5">
+      <h2 className="flex items-center gap-2 text-lg font-semibold">
+        <Mail className="size-4 text-zinc-500" />
+        Email everyone their bill
+      </h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Once {label}&apos;s bills are in and checked: each housemate gets an email with their own amount and a link to
+        Settle Up. Nobody sees anyone else&apos;s.
+      </p>
+      {status.payablesSentAt && <p className="mt-2 text-xs text-muted-foreground">Last sent {status.payablesSentAt}.</p>}
+      <ul className="mt-3 space-y-1.5 text-sm">
+        {status.recipients.map((r) => (
+          <li key={r.memberId} className="flex justify-between gap-3">
+            <span>{r.name}</span>
+            <span className="text-right">
+              <RecipientState recipient={r} />
+              <SentMark recipient={r} anySent={status.payablesSentAt !== null} />
+            </span>
+          </li>
+        ))}
+      </ul>
+      {!status.live && (
+        <p className="mt-3 rounded-lg bg-zinc-50 p-3 text-xs text-muted-foreground">
+          Not the live site: the emails go to your test address (<code className="font-mono">EMAIL_TEST_TO</code>), not
+          the housemates, and nothing is recorded as sent.
+        </p>
+      )}
+      <div className="mt-4">
+        <ConfirmAction
+          trigger={
+            <>
+              <Mail />
+              {status.payablesSentAt ? "Email it again" : `Email ${label}'s bill`}
+            </>
+          }
+          check={status.canSend}
+          title={status.payablesSentAt ? `Email ${label}'s bill again?` : `Email ${label}'s bill?`}
+          description={
+            status.payablesSentAt
+              ? `It was already sent ${status.payablesSentAt}. Everyone below gets it again, with today's amounts.`
+              : "Each person below gets their own amount. Anyone settled gets nothing."
+          }
+          confirmLabel={toEmail.length ? `Send ${toEmail.length} email${toEmail.length === 1 ? "" : "s"}` : "Send"}
+          action={() => emailPayables(view.period.id)}
+        >
+          <ul className="space-y-1 text-sm">
+            {status.recipients.map((r) => (
+              <li key={r.memberId} className="flex justify-between gap-3">
+                <span>{r.name}</span>
+                <RecipientState recipient={r} />
+              </li>
+            ))}
+          </ul>
+        </ConfirmAction>
+      </div>
+      {status.lastReminder && (
+        <p className="mt-3 border-t pt-3 text-xs text-muted-foreground">
+          Month-end reminder: &ldquo;{REMINDER_NAMES[status.lastReminder.kind]}&rdquo; sent {status.lastReminder.sentAt}.
+        </p>
+      )}
+    </section>
+  );
+}
+
+/** Whether this person was sent the bill: "✓ sent Oct. 31", or "not sent" once others have been. */
+function SentMark({ recipient: r, anySent }: { recipient: EmailStatus["recipients"][number]; anySent: boolean }) {
+  if (r.sentOn) return <span className="block text-xs text-emerald-700">✓ sent {r.sentOn}</span>;
+  // Only worth saying for someone who would get one (has an email, and something to pay or get back).
+  const wouldGet =
+    r.hasEmail && (r.payables?.kind === "owed" || (r.payables?.kind === "owes" && r.payables.left > 0));
+  if (anySent && wouldGet) return <span className="block text-xs text-amber-700">not sent</span>;
+  return null;
+}
+
+function RecipientState({ recipient: r }: { recipient: EmailStatus["recipients"][number] }) {
+  if (!r.hasEmail) return <span className="text-amber-700">no email address — won&apos;t get it</span>;
+  const p = r.payables;
+  if (p?.kind === "owed") return <span className="font-mono tabular-nums text-emerald-700">gets {formatPHP(p.amount)} back</span>;
+  if (p?.kind === "owes" && p.left > 0) {
+    return (
+      <span className="text-right font-mono tabular-nums text-rose-600">
+        {formatPHP(p.left)} to pay
+        {p.waiting > 0 && <span className="block text-xs text-amber-700">+ {formatPHP(p.waiting)} waiting</span>}
+      </span>
+    );
+  }
+  if (p?.kind === "owes") return <span className="text-muted-foreground">all sent, waiting — no email</span>;
+  return <span className="text-muted-foreground">settled — no email</span>;
 }
 
 /** What a member has sent with "I paid" that still waits for PA. */

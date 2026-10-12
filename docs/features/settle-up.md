@@ -30,6 +30,9 @@
   one can be edited before confirming; a rejected one only deleted).
 - Confirmed payments move each person's Final toward ₱0.00 and show in the Split Table's
   Payments column.
+- **Email everyone their bill** (PA): once the bills are in, each housemate gets their own
+  amount and a link here; a housemate whose bill is out sees "Your bill is ready" at the top of
+  the month pages until it's paid ([reminders.md](reminders.md)).
 - Also where a month is closed or reopened ([months.md](months.md)). Closing a month, and
   starting the next one, wait until no payment is waiting.
 

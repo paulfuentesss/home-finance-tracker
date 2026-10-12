@@ -36,7 +36,7 @@ import { encryptSecret } from "@/lib/biller-secrets";
 import { pointsFor, pointsOf, writeShares, type Tx } from "@/lib/bill-shares";
 import { domainTakesMail } from "@/lib/email-domain";
 import { ActionError, isUniqueViolation } from "@/lib/errors";
-import { dateLabel, monthLabel } from "@/lib/format";
+import { dateLabel, monthLabel, todayInManila } from "@/lib/format";
 import { countsInBill, firstOverdrawn, helperBillTotal, ledgerCompare } from "@/lib/helper";
 import { inviteMember, uninviteMember } from "@/lib/invites";
 import {
@@ -49,7 +49,13 @@ import {
   type Centavos,
 } from "@/lib/money";
 import { sharesCosts } from "@/lib/members";
-import { closeCheck, reopenCheck, startCheck, vanishingBalances } from "@/lib/month-lock";
+import {
+  closeCheck,
+  monthAfter,
+  monthHasEnded,
+  reopenCheck,
+  vanishingBalances,
+} from "@/lib/month-lock";
 import {
   canCancelPayment,
   canManageAdvance,
@@ -60,6 +66,8 @@ import {
   type Viewer,
 } from "@/lib/permissions";
 import { computePeriod, pendingBillNames, periodMembers, waitingPaymentLabels } from "@/lib/periods";
+import { ensureDefaultColumn, startNextMonthIn } from "@/lib/month-start";
+import { sendPayables } from "@/lib/reminder-send";
 import {
   checkReceiptFile,
   cleanFileName,
@@ -106,7 +114,6 @@ const optionalDate = z
   .transform((v) => v || null);
 // Bills and shared columns pick Equal or Manual; Points is only Meralco's (set by the seed).
 const userSplitMode = z.enum(["equal", "manual"]);
-const DEFAULT_COLUMN_NAME = "Advances Shared";
 
 // ---------- Bills ----------
 
@@ -338,7 +345,7 @@ export async function addAdvance(_prev: ActionState, formData: FormData): Promis
   return run("member", addAdvanceSchema, formData, async (input, viewer) => {
     const data = forMember(input, viewer);
     await db.transaction(async (tx) => {
-      const { order } = await loadOpenPeriod(tx, data.periodId);
+      const { order } = await loadOpenPeriod(tx, data.periodId, viewer);
       if (!order.includes(data.payerId)) {
         throw new ActionError(isAdmin(viewer) ? "The payer isn't in this month." : "You're not in this month.");
       }
@@ -364,7 +371,7 @@ export async function updateAdvance(_prev: ActionState, formData: FormData): Pro
     const data = forMember(input, viewer);
     await db.transaction(async (tx) => {
       const advance = await loadAdvanceFor(tx, advanceId, viewer, "That advance was deleted.");
-      const { order } = await loadOpenPeriod(tx, advance.periodId);
+      const { order } = await loadOpenPeriod(tx, advance.periodId, viewer);
       if (!order.includes(data.payerId)) throw new ActionError("The payer isn't in this month.");
       const columnId = await resolveColumn(tx, advance.periodId, data.columnId, order);
       const [updated] = await tx
@@ -388,7 +395,7 @@ export async function deleteAdvance(advanceId: number): Promise<ActionState> {
   return run("member", z.object({ advanceId: id }), { advanceId }, async ({ advanceId }, viewer) => {
     await db.transaction(async (tx) => {
       const advance = await loadAdvanceFor(tx, advanceId, viewer, "That advance was already deleted.");
-      await loadOpenPeriod(tx, advance.periodId);
+      await loadOpenPeriod(tx, advance.periodId, viewer);
       const [deleted] = await tx
         .delete(advances)
         .where(and(eq(advances.id, advanceId), unchangedFor(viewer, advance)))
@@ -467,7 +474,7 @@ export async function addHelperEntry(_prev: ActionState, formData: FormData): Pr
     const data = helperEntryFor(input, kind, viewer);
     await db.transaction(async (tx) => {
       await lockHelper(tx);
-      const { order } = await loadOpenPeriod(tx, periodId);
+      const { order } = await loadOpenPeriod(tx, periodId, viewer);
       if (data.payerId !== null && !order.includes(data.payerId)) {
         throw new ActionError(isAdmin(viewer) ? "The payer isn't in this month." : "You're not in this month.");
       }
@@ -501,7 +508,7 @@ export async function updateHelperEntry(_prev: ActionState, formData: FormData):
       await lockHelper(tx);
       const entry = await loadHelperEntryFor(tx, entryId, viewer, "That entry was deleted.");
       const data = helperEntryFor(input, entry.kind, viewer);
-      const { order } = await loadOpenPeriod(tx, entry.periodId);
+      const { order } = await loadOpenPeriod(tx, entry.periodId, viewer);
       if (data.payerId !== null && !order.includes(data.payerId)) throw new ActionError("The payer isn't in this month.");
       await tx
         .update(helperEntries)
@@ -523,7 +530,7 @@ export async function deleteHelperEntry(entryId: number): Promise<ActionState> {
     await db.transaction(async (tx) => {
       await lockHelper(tx);
       const entry = await loadHelperEntryFor(tx, entryId, viewer, "That entry was already deleted.");
-      const { order } = await loadOpenPeriod(tx, entry.periodId);
+      const { order } = await loadOpenPeriod(tx, entry.periodId, viewer);
       await tx.delete(helperEntries).where(eq(helperEntries.id, entryId));
       await syncHelperBill(tx, entry.periodId, order, entry.kind);
     });
@@ -1287,91 +1294,11 @@ async function deleteLoginQuietly(authUserId: string) {
 
 // ---------- Months ----------
 
+/** "Start <next month>". The daily job also starts it by itself on the 1st (lib/month-start.ts). */
 export async function startNextMonth(): Promise<ActionState> {
   return run("admin", z.object({}), {}, async () => {
-    let path = "";
-    await db.transaction(async (tx) => {
-      // Locked, so a housemate's "I paid" can't land in it while it stops being the latest.
-      const latestId = await lockLatestPeriod(tx);
-      if (latestId === null) throw new ActionError("There's no month to continue from yet.");
-      const latest = await tx.query.billingPeriods.findFirst({
-        where: eq(billingPeriods.id, latestId),
-        with: {
-          billItems: { with: { shares: true }, orderBy: (b) => [asc(b.id)] },
-          balances: { with: { member: true } },
-          payments: true,
-        },
-      });
-      if (!latest) throw new ActionError("There's no month to continue from yet.");
-      const start = startCheck(waitingPaymentLabels(latest));
-      if (!start.ok) throw new ActionError(start.reason!);
-      const year = latest.month === 12 ? latest.year + 1 : latest.year;
-      const month = latest.month === 12 ? 1 : latest.month + 1;
-      // A second click or tab could get here too; say so plainly instead of a unique-index error.
-      const exists = await tx.query.billingPeriods.findFirst({
-        where: and(eq(billingPeriods.year, year), eq(billingPeriods.month, month)),
-      });
-      if (exists) throw new ActionError(`${monthLabel(year, month)} has already been started.`);
-
-      // Everyone who shares the costs; a view-only login joins no month.
-      const activeMembers = (await tx.query.members.findMany({ where: eq(members.active, true) })).filter(sharesCosts);
-      const order = splitOrder(activeMembers);
-      const collector = activeMembers.find((m) => m.isCollector) ?? activeMembers[0];
-      if (!collector) throw new ActionError("Add a household member first.");
-
-      // Someone who moved out with an unsettled Final would silently lose it.
-      const computed = await computePeriod(tx, latest.year, latest.month);
-      if (computed?.result) {
-        const lost = vanishingBalances(openingBalancesFrom(computed.result), new Set(order));
-        if (lost.length) {
-          const names = computed.result.rows.filter((r) => lost.includes(r.member.id)).map((r) => r.member.name);
-          throw new ActionError(
-            `${names.join(" and ")} moved out but still ${lost.length === 1 ? "has" : "have"} an unsettled balance in ${monthLabel(latest.year, latest.month)}. Record the payment there first.`,
-          );
-        }
-      }
-      // After a closed month the opening balances are stored (live carry-over reads them).
-      const closing =
-        latest.status === "closed"
-          ? new Map(latest.balances.map((b) => [b.memberId, toCentavos(b.closingBalance ?? "0")]))
-          : null;
-
-      const [period] = await tx.insert(billingPeriods).values({ year, month }).returning();
-      await tx.insert(periodBalances).values(
-        order.map((memberId) => ({
-          periodId: period.id,
-          memberId,
-          openingBalance: fromCentavos(closing?.get(memberId) ?? 0),
-        })),
-      );
-
-      // Copy the bill columns (name, kind, split mode, points, payer) with ₱0 totals, ready to fill in.
-      for (const bill of latest.billItems) {
-        const paidById = order.includes(bill.paidById) ? bill.paidById : collector.id;
-        const [copy] = await tx
-          .insert(billItems)
-          .values({
-            periodId: period.id,
-            name: bill.name,
-            kind: bill.kind,
-            totalAmount: "0",
-            paidById,
-            splitMode: bill.splitMode,
-          })
-          .returning({ id: billItems.id });
-        let points: Map<MemberId, number> | null = null;
-        if (bill.splitMode === "points") {
-          points = pointsOf(bill.shares);
-          if (order.every((m) => (points!.get(m) ?? 0) === 0)) points = new Map(order.map((m) => [m, 1]));
-        }
-        const shares = computeBillShares(bill.splitMode, 0, order, { points: points ?? undefined });
-        await writeShares(tx, copy.id, shares, points);
-      }
-      // Only the everyday "Advances Shared" column carries over; situational ones are added when needed.
-      await ensureDefaultColumn(tx, period.id, order);
-      path = `/periods/${year}/${month}`;
-    });
-    return path;
+    const { year, month } = await db.transaction((tx) => startNextMonthIn(tx));
+    return `/periods/${year}/${month}`;
   });
 }
 
@@ -1422,6 +1349,14 @@ export async function closeMonth(periodId: number): Promise<ActionState> {
       }
     });
   });
+}
+
+/**
+ * Emails each housemate their own bill for the month — what they owe or get back — with a link
+ * to Settle Up (docs/features/reminders.md). Once the bills are in and checked; a resend is fine.
+ */
+export async function emailPayables(periodId: number): Promise<ActionState> {
+  return run("admin", z.object({ periodId: id }), { periodId }, ({ periodId }) => sendPayables(periodId));
 }
 
 /** Unlocks a month. The next month goes back to live carry-over on its own. */
@@ -1655,24 +1590,25 @@ async function lockPeriod(tx: Tx, periodId: number) {
   await tx.select({ id: billingPeriods.id }).from(billingPeriods).where(eq(billingPeriods.id, periodId)).for("update");
 }
 
-/** Locks the latest month's row and returns its id (null when there's no month yet). */
-async function lockLatestPeriod(tx: Tx): Promise<number | null> {
-  const [latest] = await tx
-    .select({ id: billingPeriods.id })
-    .from(billingPeriods)
-    .orderBy(desc(billingPeriods.year), desc(billingPeriods.month))
-    .limit(1)
-    .for("update");
-  return latest?.id ?? null;
-}
-
-async function loadOpenPeriod(tx: Tx, periodId: number) {
+/**
+ * The month, if it's open. Pass the viewer from a housemate's action (their advances and Helper
+ * entries): once the month's last day has passed, only the admin can change it
+ * (docs/settlement-rules.md → "Closing and reopening"). "I paid" doesn't pass it — settling up
+ * happens after the month ends.
+ */
+async function loadOpenPeriod(tx: Tx, periodId: number, housemate?: Viewer) {
   const period = await tx.query.billingPeriods.findFirst({
     where: eq(billingPeriods.id, periodId),
     with: { balances: { with: { member: true } } },
   });
   if (!period) throw new ActionError("That month no longer exists.");
   if (period.status !== "open") throw new ActionError("This month is closed, so it can't be changed.");
+  if (housemate && !isAdmin(housemate) && monthHasEnded(period.year, period.month, todayInManila())) {
+    const next = monthAfter(period.year, period.month);
+    throw new ActionError(
+      `${monthLabel(period.year, period.month)} has ended, so only the admin can change it now. Log anything new in ${monthLabel(next.year, next.month)}.`,
+    );
+  }
   // Leftover centavos go to the collector first (see splitOrder).
   return { period, order: splitOrder(period.balances.map((b) => b.member)) };
 }
@@ -1722,31 +1658,6 @@ async function resolveColumn(tx: Tx, periodId: number, columnId: number, order: 
 }
 
 /** The month's everyday "Advances Shared" column (everyone, equal), created if missing. */
-async function ensureDefaultColumn(tx: Tx, periodId: number, order: MemberId[]): Promise<number> {
-  const existing = await tx.query.sharedColumns.findFirst({
-    where: and(eq(sharedColumns.periodId, periodId), eq(sharedColumns.isDefault, true)),
-  });
-  if (existing) return existing.id;
-  // Two people adding the month's first advance at once: the second insert waits for the
-  // first, does nothing, and then finds the column the first one made.
-  const [column] = await tx
-    .insert(sharedColumns)
-    .values({ periodId, name: DEFAULT_COLUMN_NAME, splitMode: "equal", isDefault: true })
-    .onConflictDoNothing()
-    .returning({ id: sharedColumns.id });
-  if (!column) {
-    const created = await tx.query.sharedColumns.findFirst({
-      where: and(eq(sharedColumns.periodId, periodId), eq(sharedColumns.isDefault, true)),
-    });
-    if (created) return created.id;
-    throw new ActionError(`A column named ${DEFAULT_COLUMN_NAME} already exists — rename it in Manage.`);
-  }
-  if (order.length) {
-    await tx.insert(sharedColumnMembers).values(order.map((memberId) => ({ columnId: column.id, memberId })));
-  }
-  return column.id;
-}
-
 async function periodOrder(tx: Tx, periodId: number): Promise<MemberId[]> {
   const balances = await tx.query.periodBalances.findMany({
     where: eq(periodBalances.periodId, periodId),

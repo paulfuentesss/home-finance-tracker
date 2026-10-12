@@ -206,7 +206,7 @@ secrets or a password manager.
 |---|---|---|
 | Supabase (free plan, Seoul — `ap-northeast-2`) | The Postgres database, Auth (the logins), and Storage (receipt files, private `receipts` bucket; 1 GB on the free plan) | Connection strings and keys in `.env.local`; pauses after 7 idle days (above); login settings in [setup.md](setup.md) step 5 |
 | Google Cloud (OAuth client) | "Continue with Google" | Consent screen in Testing mode; members using Google are its test users |
-| My House Gmail (the household's own, not PA's) | Sends the email sign-in codes (Supabase custom SMTP); Meralco, Manila Water and PLDT bills go to it (switching over: [TODO.md](TODO.md)) | 2-Step Verification on; its App Password is only in Supabase's SMTP settings; the bill-email script runs in this account (the row below). Changing it: [setup.md](setup.md) step 5b |
+| My House Gmail (the household's own, not PA's) | Sends the email sign-in codes (Supabase custom SMTP) and the app's reminders and bill emails ([below](#emails--reminders)); Meralco, Manila Water and PLDT bills go to it (switching over: [TODO.md](TODO.md)) | 2-Step Verification on; two App Passwords, one each: Supabase's SMTP settings, and the app's `GMAIL_SMTP_APP_PASSWORD`; the bill-email script runs in this account (the row below). Changing it: [setup.md](setup.md) step 5b |
 | GitHub `paulfuentesss/home-finance-tracker` | Code, PRs, the keep-alive job | **Public**; secret `DIRECT_URL` for the keep-alive job |
 | Vercel (Hobby, project `myhouse`) | Runs the app online | Address in `.private/NOTES.md`; how it's set up: [Hosting](#hosting-vercel) below |
 | Google Apps Script "My House bills" (in the My House Gmail's account) | Sends the billers' emails to the app hourly (`scripts/gmail/bill-forwarder.gs`) | Script Properties hold the app address and `BILL_EMAIL_SECRET`; setup and fixing: [setup.md](setup.md) step 7, [below](#bills-stop-arriving-by-email) |
@@ -224,7 +224,9 @@ secrets or a password manager.
 - **Environment variables** (Settings → Environment Variables), Production only and marked
   Sensitive: `DATABASE_URL` (the session pooler, port 5432), `NEXT_PUBLIC_SUPABASE_URL`,
   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `BILL_EMAIL_SECRET` (the
-  Gmail script's shared secret; [setup.md](setup.md) step 7). Not `DIRECT_URL` — only
+  Gmail script's shared secret; [setup.md](setup.md) step 7), and the email ones
+  ([Emails & reminders](#emails--reminders)): `GMAIL_SMTP_USER`, `GMAIL_SMTP_APP_PASSWORD`,
+  `CRON_SECRET`. Not `EMAIL_TEST_TO` (localhost only). Not `DIRECT_URL` — only
   scripts and migrations use it, and they run on PA's laptop. A changed value only takes
   effect after a redeploy (Deployments → ⋯ → Redeploy).
 - **The address** is also Supabase's **Site URL** and is in its Redirect URLs as
@@ -232,6 +234,44 @@ secrets or a password manager.
   the Site URL left on localhost, signing in on the live site ends on `localhost`.
 - **A bad deploy:** Deployments → the last good one → **Instant Rollback**, then fix on a branch.
 - No Vercel integrations: Supabase is already wired through the variables above.
+- **Cron job:** `vercel.json` → `crons` runs the daily reminders ([below](#emails--reminders)).
+  Settings → Cron Jobs lists it, with **Run** to try it now; its logs are under the project's
+  Logs, filtered to `/api/reminders`.
+
+## Emails & reminders
+
+The app sends its own emails — month-end reminders and each housemate's bill
+([features/reminders.md](features/reminders.md)) — from the My House Gmail, over Gmail's SMTP.
+
+**Switching it on** (once):
+1. In the My House Gmail: Google Account → Security → **App passwords** → create one named
+   "My House app". It's separate from Supabase's, so either can be revoked alone.
+2. Vercel (Production, Sensitive), then redeploy:
+   - `GMAIL_SMTP_USER` — the My House Gmail address.
+   - `GMAIL_SMTP_APP_PASSWORD` — the app password from step 1 (16 letters, no spaces).
+   - `CRON_SECRET` — `openssl rand -base64 32`. Vercel sends it to `/api/reminders` itself;
+     without it the job answers "not set up" and sends nothing.
+3. Check: Settings → Cron Jobs → **Run**. The response lists what was sent (usually nothing,
+   mid-month). On Settle Up, the bill-email box shows when it was last sent.
+
+**Safety switch (one database):** only the live site emails housemates and records what it
+sent (`VERCEL_ENV=production`, `lib/email.ts`). On localhost every email goes to
+`EMAIL_TEST_TO` instead, with "[test → name]" in the subject — or is only logged when that's
+unset — and nothing is written to `reminder_sends`. To try it on localhost, add
+`GMAIL_SMTP_USER`, `GMAIL_SMTP_APP_PASSWORD`, `EMAIL_TEST_TO` (your own address) and any
+`CRON_SECRET` to `.env.local`, restart `npm run dev`, then:
+
+```sh
+curl -H "Authorization: Bearer $CRON_SECRET" "http://localhost:3000/api/reminders?today=2026-10-24"
+```
+
+`?today=` picks the day (`-24`, `-28`, `-31` for the three October reminders; `2026-11-01`
+for the admin's "start November"). The live site ignores it.
+
+**If reminders stop:** the Settle Up box's "Month-end reminder … sent" line stops moving. Check
+Vercel's logs for `/api/reminders` (a 503 means `CRON_SECRET` is missing; "Couldn't send"
+means Gmail refused — a revoked app password, or the account's sending limit). A missed day is
+caught up the next day by itself.
 
 ## Privacy & security
 
@@ -248,6 +288,9 @@ The app holds household finances, and **this repo is public**, so:
   The same value in `.env.local` and Vercel, and **a copy in a password manager**: without it
   the saved passwords can't be read by anyone, and a restored backup's passwords need it too.
   The database and backups hold only the encrypted form.
+- **`GMAIL_SMTP_APP_PASSWORD` sends email as the household** — only `lib/email.ts` reads it,
+  and `CRON_SECRET` only `/api/reminders` (both checked by `lib/actions-guard.test.ts`). Each
+  bill email goes only to its own housemate; the pages never receive anyone's email address.
 - **File storage (receipts, member pictures):** private buckets, and policies must never grant
   access to every `authenticated` user. The app reads and writes receipts with the secret key
   after its own login check; files are shown through `/receipts/<id>`, which redirects to a

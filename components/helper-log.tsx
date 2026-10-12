@@ -10,7 +10,7 @@ import { useViewer } from "@/components/viewer-context";
 import { dayLabel } from "@/lib/format";
 import { countsInBill } from "@/lib/helper";
 import { formatPHP } from "@/lib/money";
-import { canManageHelperEntry, isAdmin, isViewOnly } from "@/lib/permissions";
+import { canLogIn, canManageHelperEntry, isAdmin, isViewOnly } from "@/lib/permissions";
 import type { PeriodView, ViewHelperEntry } from "@/lib/periods";
 import { cn } from "@/lib/utils";
 
@@ -26,7 +26,8 @@ export function HelperLog({ view }: { view: PeriodView }) {
   const viewer = useViewer();
   const admin = isAdmin(viewer);
   const { helper } = view;
-  const open = view.period.status === "open";
+  // Open, and for a housemate not yet ended (the layout's banner says so when it has).
+  const open = canLogIn(viewer, view.period);
   // PA logs for anyone; everyone else what they paid, if they're in this month.
   const canAdd = open && !isViewOnly(viewer) && (admin || view.members.some((m) => m.id === viewer.memberId));
   const canManage = (e: ViewHelperEntry) => open && canManageHelperEntry(viewer, e);

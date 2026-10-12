@@ -1,8 +1,9 @@
 "use client";
 
-import { Check, ChevronsUpDown, Eye, LogOut } from "lucide-react";
+import { Check, ChevronsUpDown, Download, Eye, LogOut } from "lucide-react";
 import { useState } from "react";
 import { signOut } from "@/app/login/actions";
+import { openInstallCard, useShowInstallItem } from "@/components/install-prompt";
 import { SIDEBAR_POPUP, SIDEBAR_POPUP_ITEM } from "@/components/period-nav";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { usePreviewBy, usePreviewSwitch, useViewer } from "@/components/viewer-context";
@@ -34,6 +35,7 @@ export function AccountMenu({
   const admin = isAdmin(viewer);
   const [open, setOpen] = useState(false);
   const { pending, switchTo } = usePreviewSwitch();
+  const showInstall = useShowInstallItem();
 
   function preview(memberId: number | null) {
     setOpen(false);
@@ -97,6 +99,22 @@ export function AccountMenu({
                 Exit preview (back to {previewBy.name})
               </button>
             )}
+          </div>
+        )}
+        {showInstall && (
+          // Brings back the install card (components/install-prompt.tsx), even after "Not now".
+          <div className="border-t border-white/10 p-1">
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                openInstallCard();
+              }}
+              className={ITEM}
+            >
+              <Download className="size-4 text-zinc-400" aria-hidden />
+              Install app
+            </button>
           </div>
         )}
         <form action={signOut} className="border-t border-white/10 p-1">

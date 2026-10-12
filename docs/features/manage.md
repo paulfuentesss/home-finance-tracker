@@ -21,6 +21,12 @@
   emailed code); clearing it takes the login away. PA's own is changed with
   `npm run auth:invite`. Inviting sends no email, so an address whose domain can't receive mail
   (a typo after the @) is refused (`lib/email-domain.ts`).
+- **Who's using it:** each housemate with a login shows **Last seen** ("3 h ago · App on
+  iPhone", plus their other devices) or "Not seen yet", and an **app installed** badge once
+  they've opened the installed app ([install-app.md](install-app.md)). Limits: "app installed"
+  means *opened* at least once — installing without opening, or uninstalling, can't be seen;
+  the device type is coarse (iPhone, iPad, Android, Mac, Windows, other); it all counts from when
+  this was added. Housemates aren't told on screen (PA's choice, [decisions.md](../decisions.md)).
 - The whole tab is PA's: anyone else is sent back to the month.
 - **Bill Inbox** card ([email-bills.md](email-bills.md)).
 - **Backup** card: **Download backup** saves a zip of every row (a `.sql` file) and every receipt
@@ -46,8 +52,15 @@
   snapshot (`buildBackupSql` in `lib/backup.ts`), lists the bucket (`listReceiptFiles` in
   `lib/receipt-files.ts`), then streams the zip (`backupZipStream`, `fflate`). Tested by restoring
   into PGlite (`lib/backup.test.ts`).
+- Who's using it: `components/seen-tracker.tsx` (in `AppShell`, so on every signed-in page) posts
+  `{ via, platform }` to `app/api/seen/route.ts` when a page opens or comes back into view, at most
+  every 5 minutes. Only the browser can tell the installed app from a tab (`display-mode:
+  standalone`) and an iPad from a Mac (touch), so it reports both (`lib/devices.ts`, tested). The
+  route checks the real login first (never a preview's housemate; view-only logins count), writes
+  only the caller's row, and updates `last_seen_at` only if it's over 5 minutes old. The Manage
+  page summarizes the rows (`summarizeDevices`, `seenLabel`, Manila time) and sends only text.
 - Tables: `members`, `bill_items`, `bill_item_shares`, `shared_columns`,
-  `shared_column_members`, `period_balances`.
+  `shared_column_members`, `period_balances`, `member_devices`.
 
 ## Rules
 [Members and the collector](../settlement-rules.md#members-and-the-collector) ·
@@ -59,4 +72,5 @@
 A picture (GIF) for each member ([TODO.md](../TODO.md)).
 
 ## Built in
-Early commits on `main` (fixed bill splits, shared columns, member removal fixes).
+Early commits on `main` (fixed bill splits, shared columns, member removal fixes); who's using
+it in `feat/install-app`.
