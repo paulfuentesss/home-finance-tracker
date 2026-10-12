@@ -13,8 +13,15 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// A worktree's local site labels its tab ("[reminders-fix] My House") so each address says which
+// task it shows; set by scripts/dev.sh, never in production.
+const siteName =
+  process.env.NODE_ENV === "development" && process.env.DEV_WORKTREE
+    ? `[${process.env.DEV_WORKTREE}] My House`
+    : "My House";
+
 export const metadata: Metadata = {
-  title: { default: "My House", template: "%s · My House" },
+  title: { default: siteName, template: `%s · ${siteName}` },
   description: "Household bills and shared expenses, settled monthly.",
   // Private household app: keep every page out of search results (robots.txt also disallows all).
   robots: { index: false, follow: false },

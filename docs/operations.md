@@ -56,7 +56,8 @@ Two ways, both covering the database and the receipt pictures:
   npm run db:backup        # the database → backups/home-finance-tracker-YYYY-MM-DD.sql
   npm run storage:backup   # receipt files → backups/receipts/ (only new ones are downloaded)
   ```
-  `backups/` is git-ignored.
+  `backups/` is git-ignored. Run these from the main folder: they write to `backups/` in the
+  folder they run from, and a worktree's is deleted with it.
 
 Either way the files hold real household data (login emails, payment screenshots): keep a copy
 somewhere safe off the laptop (a cloud drive), never in the repo. Don't automate them with
@@ -291,7 +292,7 @@ The app holds household finances, and **this repo is public**, so:
 - **`GMAIL_SMTP_APP_PASSWORD` sends email as the household** — only `lib/email.ts` reads it,
   and `CRON_SECRET` only `/api/reminders` (both checked by `lib/actions-guard.test.ts`). Each
   bill email goes only to its own housemate; the pages never receive anyone's email address.
-- **File storage (receipts, member pictures):** private buckets, and policies must never grant
+- **File storage (receipts):** a private bucket, and policies must never grant
   access to every `authenticated` user. The app reads and writes receipts with the secret key
   after its own login check; files are shown through `/receipts/<id>`, which redirects to a
   link that works for one minute ([features/receipts.md](features/receipts.md)).

@@ -2,9 +2,9 @@
 
 import { updateBillPoints } from "@/app/periods/[year]/[month]/actions";
 import { InlineInput } from "@/components/inline-input";
+import { MemberMark } from "@/components/member-mark";
 import { formatPHP } from "@/lib/money";
 import type { PeriodView, ViewBill } from "@/lib/periods";
-import { cn } from "@/lib/utils";
 import { useCanEdit } from "@/components/viewer-context";
 
 // Meralco is always split by points; this is the one place to change the allocation.
@@ -24,7 +24,15 @@ export function MeralcoPoints({ view }: { view: PeriodView }) {
         <div key={bill.id} className="mt-4">
           <ul className="divide-y rounded-lg border">
             {view.members.map((m) => (
-              <PointsRow key={m.id} bill={bill} memberId={m.id} name={m.name} dotClass={m.dotClass} editable={editable} />
+              <PointsRow
+                key={m.id}
+                bill={bill}
+                memberId={m.id}
+                name={m.name}
+                dotClass={m.dotClass}
+                emoji={m.emoji}
+                editable={editable}
+              />
             ))}
           </ul>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -47,12 +55,14 @@ function PointsRow({
   memberId,
   name,
   dotClass,
+  emoji,
   editable,
 }: {
   bill: ViewBill;
   memberId: number;
   name: string;
   dotClass: string;
+  emoji: string | null;
   editable: boolean;
 }) {
   const share = bill.shares[String(memberId)];
@@ -61,7 +71,7 @@ function PointsRow({
   return (
     <li className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
       <span className="flex items-center gap-2">
-        <span className={cn("size-2 rounded-full", dotClass)} aria-hidden />
+        <MemberMark dotClass={dotClass} emoji={emoji} />
         {name}
       </span>
       <span className="flex items-center gap-3">

@@ -19,6 +19,9 @@ export default async function ReceiptsPage({ params }: PageProps<"/periods/[year
   const status = view.period.status;
   const forBill = groupBy(all, (r) => r.billItemId);
   const forPayment = groupBy(all, (r) => r.paymentId);
+  // No card for the Helper: her bill is many small payments by whoever was home, and its record
+  // is the Helper Visits tab. One that already has a proof keeps its card, so the proof stays reachable.
+  const bills = view.bills.filter((bill) => bill.kind !== "helper" || forBill.has(bill.id));
 
   return (
     <div className="space-y-6">
@@ -33,13 +36,13 @@ export default async function ReceiptsPage({ params }: PageProps<"/periods/[year
         <h2 id="bill-proofs" className="font-semibold">
           Bills
         </h2>
-        {view.bills.length === 0 ? (
+        {bills.length === 0 ? (
           <p className="rounded-xl border border-dashed bg-white p-10 text-center text-muted-foreground">
             No bills this month yet.
           </p>
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {view.bills.map((bill) => (
+            {bills.map((bill) => (
               <ReceiptsCard
                 key={bill.id}
                 owner={{ type: "bill", id: bill.id }}

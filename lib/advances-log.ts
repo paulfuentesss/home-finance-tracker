@@ -67,6 +67,7 @@ export interface LogGroup {
   memberId: number | null;
   name: string;
   dotClass: string;
+  emoji: string | null;
   rows: LogRow[];
   /** Sum of the rows shown (after filters). */
   subtotal: Centavos;
@@ -126,14 +127,19 @@ export const BILL_SPLIT: SplitTag = {
 export function groupLogRows(
   allRows: readonly LogRow[],
   shownRows: readonly LogRow[],
-  members: readonly { id: number; name: string; dotClass: string }[],
+  members: readonly { id: number; name: string; dotClass: string; emoji?: string | null }[],
 ): LogGroup[] {
   const known = new Set(members.map((m) => m.id));
   const groupKey = (payerId: number) => (known.has(payerId) ? payerId : null);
 
   const groups: LogGroup[] = [
-    ...members.map((m) => ({ memberId: m.id as number | null, name: m.name, dotClass: m.dotClass })),
-    { memberId: null, name: "Former member", dotClass: "bg-zinc-300" },
+    ...members.map((m) => ({
+      memberId: m.id as number | null,
+      name: m.name,
+      dotClass: m.dotClass,
+      emoji: m.emoji ?? null,
+    })),
+    { memberId: null, name: "Former member", dotClass: "bg-zinc-300", emoji: null },
   ].map((g) => {
     const rows = shownRows.filter((r) => groupKey(r.payerId) === g.memberId).sort(compareRows);
     return {

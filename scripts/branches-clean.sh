@@ -26,10 +26,18 @@ if [ "$mode" = clean ]; then
   # --prune drops origin/* names for branches deleted on GitHub (it deletes them after a merge).
   git fetch --prune --quiet origin || echo "Couldn't fetch from GitHub; going on with what's here." >&2
   # main:main only fast-forwards local main, and git refuses it while main is checked out.
-  if [ "$(git branch --show-current)" != main ] &&
-    ! git worktree list --porcelain | grep -qx 'branch refs/heads/main'; then
+  main_dir=$(git worktree list --porcelain | awk '/^worktree /{print substr($0, 10); exit}')
+  if ! git worktree list --porcelain | grep -qx 'branch refs/heads/main'; then
     if git fetch --quiet origin main:main 2> /dev/null; then
       echo "  main is up to date with GitHub"
+    else
+      echo "  main left as it is — it has commits GitHub doesn't (it only fast-forwards)"
+    fi
+  # The main folder on main (as it should be): fast-forward it too, so localhost:3000 shows the
+  # latest main. Only with no uncommitted changes there; --ff-only never makes a merge.
+  elif [ "$(git -C "$main_dir" branch --show-current)" = main ] && [ -z "$(git -C "$main_dir" status --porcelain)" ]; then
+    if git -C "$main_dir" merge --quiet --ff-only origin/main 2> /dev/null; then
+      echo "  main (the main folder) is up to date with GitHub"
     else
       echo "  main left as it is — it has commits GitHub doesn't (it only fast-forwards)"
     fi

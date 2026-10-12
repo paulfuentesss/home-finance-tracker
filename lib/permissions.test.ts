@@ -7,6 +7,7 @@ import {
   canOpenReceipt,
   canSeeBillerField,
   canSeePaymentProof,
+  canSetEmoji,
   canSubmitPayment,
   isAdmin,
   isViewOnly,
@@ -186,6 +187,22 @@ describe("canOpenReceipt", () => {
   });
 });
 
+describe("canSetEmoji", () => {
+  it("lets the admin set anyone's", () => {
+    expect(canSetEmoji(pa, 3)).toBe(true);
+    expect(canSetEmoji(pa, 5)).toBe(true);
+  });
+
+  it("lets a housemate set only their own", () => {
+    expect(canSetEmoji(housemate, 3)).toBe(true);
+    expect(canSetEmoji(housemate, 4)).toBe(false);
+  });
+
+  it("never lets a view-only login, not even their own", () => {
+    expect(canSetEmoji(onlyLooks, 7)).toBe(false);
+  });
+});
+
 describe("previewViewer", () => {
   const target = { memberId: 3, name: "Housemate", role: "member" as const, email: "h@example.com", active: true };
 
@@ -208,6 +225,10 @@ describe("previewViewer", () => {
 
   it("ignores a preview for a member", () => {
     expect(previewViewer(housemate, { ...target, memberId: 4 })).toBeNull();
+  });
+
+  it("brings the housemate's emoji along, so the account menu shows theirs", () => {
+    expect(previewViewer(pa, { ...target, emoji: "🐱" })?.emoji).toBe("🐱");
   });
 
   it("ignores a missing, removed or admin target, or the admin themselves", () => {

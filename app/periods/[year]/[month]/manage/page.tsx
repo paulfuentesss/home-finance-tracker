@@ -89,6 +89,7 @@ export default async function ManagePage({ params }: PageProps<"/periods/[year]/
             isCollector: m.isCollector,
             viewOnly: !sharesCosts(m),
             dotClass: householdDotClassOf(m),
+            emoji: m.emoji,
             email: m.email,
             linked: m.authUserId !== null,
             activity: activityView(activity.get(m.id), now),

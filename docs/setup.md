@@ -82,8 +82,10 @@ Getting My House running on a new machine. Afterwards, day to day you only need
      and the sign-in fails.
    - **Rate limits:** emails sent — about 30 per hour.
    - **URL Configuration:** Site URL `http://localhost:3000`; Redirect URLs
-     `http://localhost:3000/**`. Once the app is online, the Site URL is the live address
-     instead and both are in Redirect URLs ([operations.md → Hosting](operations.md#hosting-vercel)).
+     `http://localhost:3000/**`, plus `http://localhost:3001/**` up to `http://localhost:3005/**`
+     for the worktrees' sites ([commands.md → Working in parallel](commands.md#working-in-parallel)).
+     Once the app is online, the Site URL is the live address instead and it's in Redirect URLs
+     too ([operations.md → Hosting](operations.md#hosting-vercel)).
    - **JWT Keys:** use the asymmetric signing keys (migrate if the project still uses the
      legacy secret), so the app checks logins without calling Supabase each time.
    - Optional: **Settings → Data API** — turn it off; the app never uses it.

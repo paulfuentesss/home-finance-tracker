@@ -9,6 +9,9 @@ comes with its screenshot ([settle-up.md](settle-up.md)).
   payment recorded on Settle Up as a row, each with its proof — screenshots of bank transfers
   and bill payments. Images only: a phone screenshot is enough proof, so PDFs (e.g. e-bills)
   aren't accepted.
+- **No card for the Helper:** her bill is many small payments by whoever was home, and its
+  record is the Helper Visits tab ([helper.md](helper.md)). A Helper bill that already has a proof
+  keeps its card, so the proof stays reachable.
 - **Attach proof** (PA, open month): pick one or more screenshots. Each bill or payment holds a
   few (`MAX_RECEIPTS_PER_ITEM` in `lib/receipts.ts`), so a mis-tap can't attach a whole camera
   roll; at the limit, Attach is replaced by a note to delete one first. On a phone the picker

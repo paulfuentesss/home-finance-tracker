@@ -3,7 +3,11 @@
 import { Check, ChevronsUpDown, Download, Eye, LogOut } from "lucide-react";
 import { useState } from "react";
 import { signOut } from "@/app/login/actions";
+import { updateMemberEmoji } from "@/app/periods/[year]/[month]/actions";
+import { InlineInput } from "@/components/inline-input";
 import { openInstallCard, useShowInstallItem } from "@/components/install-prompt";
+import { MemberMark } from "@/components/member-mark";
+import { MAX_EMOJI_LENGTH } from "@/lib/members";
 import { SIDEBAR_POPUP, SIDEBAR_POPUP_ITEM } from "@/components/period-nav";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { usePreviewBy, usePreviewSwitch, useViewer } from "@/components/viewer-context";
@@ -17,8 +21,9 @@ const ITEM = cn(
 );
 
 /**
- * Who's signed in, as the row at the bottom of the sidebar: the member's colour dot and
- * name. It opens a small menu with a greeting, the login email, what they can do, and Sign out
+ * Who's signed in, as the row at the bottom of the sidebar: the member's emoji (or colour dot)
+ * and name. It opens a small menu with a greeting, the login email, what they can do, their own
+ * emoji to change (not for view-only logins), and Sign out
  * — two clicks, so nobody signs out by accident. PA also gets "Preview as…" (lib/preview.ts):
  * the tabs then show what that housemate sees, and so does this chip.
  */
@@ -54,7 +59,7 @@ export function AccountMenu({
         )}
       >
         {previewBy && <Eye className="size-4 shrink-0 text-sky-300" aria-hidden />}
-        <span className={cn("size-2.5 shrink-0 rounded-full", dotClass)} aria-hidden />
+        <MemberMark dotClass={dotClass} emoji={viewer.emoji} className="size-7 text-xl" />
         <span className="min-w-0 flex-1 truncate">{viewer.name}</span>
         <ChevronsUpDown className="size-4 shrink-0 text-zinc-500" aria-hidden />
       </PopoverTrigger>
@@ -70,6 +75,22 @@ export function AccountMenu({
                 ? "View only — you can see every month, but not change anything."
                 : "You can log your own advances. The admin handles the rest."}
           </p>
+          {/* Your own emoji (updateMemberEmoji). Not for a view-only login, who changes nothing,
+              nor while previewing: it would be the housemate's, and saving is refused then. */}
+          {!isViewOnly(viewer) && !previewBy && (
+            <div className="flex items-center gap-2 pt-2 text-xs text-zinc-400">
+              Your emoji
+              <InlineInput
+                action={updateMemberEmoji}
+                hidden={{ memberId: viewer.memberId }}
+                name="emoji"
+                value={viewer.emoji ?? ""}
+                label="Your emoji"
+                maxLength={MAX_EMOJI_LENGTH}
+                inputClassName="w-12 border-white/15 bg-zinc-800 px-2 py-1 text-center text-base text-white"
+              />
+            </div>
+          )}
         </div>
         {previewChoices.length > 0 && (
           <div className="border-t border-white/10 p-1">
@@ -87,7 +108,7 @@ export function AccountMenu({
                   onClick={() => preview(m.id)}
                   className={ITEM}
                 >
-                  <span className={cn("size-2.5 shrink-0 rounded-full", m.dotClass)} aria-hidden />
+                  <MemberMark dotClass={m.dotClass} emoji={m.emoji} />
                   <span className="min-w-0 flex-1 truncate">{m.name}</span>
                   {current && <Check className="size-4 text-zinc-400" aria-hidden />}
                 </button>

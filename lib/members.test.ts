@@ -1,5 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { dotClassOf, householdDotClassOf, sharesCosts, VIEW_ONLY_DOT_CLASS } from "./members";
+import { dotClassOf, householdDotClassOf, parseEmoji, sharesCosts, VIEW_ONLY_DOT_CLASS } from "./members";
+
+describe("parseEmoji", () => {
+  it("takes a single emoji, trimmed", () => {
+    expect(parseEmoji(" 🐱 ")).toEqual({ ok: true, emoji: "🐱" });
+  });
+
+  it("counts skin tones, families, flags, keycaps and ❤️ as one emoji", () => {
+    for (const emoji of ["👍🏽", "👩🏽‍👩🏽‍👧🏽‍👦🏽", "🇵🇭", "1️⃣", "#️⃣", "❤️", "©️"]) {
+      expect(parseEmoji(emoji)).toEqual({ ok: true, emoji });
+    }
+  });
+
+  it("is empty for no emoji (the dot comes back)", () => {
+    expect(parseEmoji("")).toEqual({ ok: true, emoji: null });
+    expect(parseEmoji("   ")).toEqual({ ok: true, emoji: null });
+  });
+
+  it("refuses text and more than one emoji", () => {
+    for (const raw of ["a", "ab", "1", "a😀", "😀😀", "⃣", "a⃣", "©", "™"]) {
+      expect(parseEmoji(raw)).toEqual({ ok: false });
+    }
+  });
+});
 
 describe("sharesCosts", () => {
   it("is true for the admin and housemates, false for a view-only login", () => {
