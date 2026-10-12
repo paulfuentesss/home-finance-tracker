@@ -9,7 +9,7 @@ import type { Database } from "@/db/client";
 import { getPreview, requireViewer } from "@/lib/auth";
 import { dateInManila } from "@/lib/format";
 import { dotClassOf } from "@/lib/members";
-import { canSeePaymentProof } from "@/lib/permissions";
+import { canOpenReceipt } from "@/lib/permissions";
 import { closeCheck, reopenCheck, type LockCheck } from "@/lib/month-lock";
 import {
   countsInBill,
@@ -24,11 +24,15 @@ import {
 import { formatPHP, fromCentavos, sumCentavos, toCentavos, type Centavos } from "@/lib/money";
 import {
   computeMonth,
+  houseBudgetThrough,
   openingBalancesFrom,
+  partyFromColumn,
   SettlementError,
+  type HouseBudgetMonth,
   type MemberId,
   type MonthInput,
   type MonthResult,
+  type Party,
   type SettlementMember,
   type SplitMode,
 } from "@/lib/settlement";
@@ -90,8 +94,8 @@ export interface ViewRow {
 
 export interface ViewPayment {
   id: number;
-  fromMemberId: number;
-  toMemberId: number;
+  fromMemberId: Party;
+  toMemberId: Party;
   amount: Centavos;
   paidOn: string;
   note: string | null;
@@ -167,6 +171,8 @@ export interface PeriodView {
   /** Shared-advances columns ("Advances Shared", "… w/o PA", "Ice Maker Adj."). */
   columns: ViewColumn[];
   rows: ViewRow[];
+  /** The collection account's month (docs/settlement-rules.md → House Budget). */
+  houseBudget: HouseBudgetMonth;
   advances: ViewAdvance[];
   payments: ViewPayment[];
   helper: ViewHelper;
@@ -249,7 +255,18 @@ export async function computePeriod(executor: Executor, year: number, month: num
       opening = new Map();
     }
   }
-  return { all, index, period: all[index], result, issue };
+  // The House Budget carries over from payments alone, from the first month (houseBudgetThrough).
+  const houseBudget = houseBudgetThrough(all.slice(0, index + 1).map(paymentsOf));
+  return { all, index, period: all[index], result, issue, houseBudget };
+}
+
+/** A month's payments with each side as a Party (a NULL side is the House Budget). */
+function paymentsOf(period: LoadedPeriod) {
+  return period.payments.map((p) => ({
+    ...p,
+    fromMemberId: partyFromColumn(p.fromMemberId),
+    toMemberId: partyFromColumn(p.toMemberId),
+  }));
 }
 
 /**
@@ -260,7 +277,7 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
   await requireViewer();
   const computed = await computePeriod(db, year, month);
   if (!computed) return null;
-  const { all, index, period, result, issue } = computed;
+  const { all, index, period, result, issue, houseBudget } = computed;
 
   // Field by field, never a spread: member rows hold login details (email, auth_user_id) that
   // must not reach the browser.
@@ -351,6 +368,7 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
       received: r.received,
       balance: r.balance,
     })),
+    houseBudget,
     advances: period.advances.map((a) => ({
       id: a.id,
       payerId: a.payerId,
@@ -363,8 +381,8 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
     })),
     payments: period.payments.map((p) => ({
       id: p.id,
-      fromMemberId: p.fromMemberId,
-      toMemberId: p.toMemberId,
+      fromMemberId: partyFromColumn(p.fromMemberId),
+      toMemberId: partyFromColumn(p.toMemberId),
       amount: toCentavos(p.amount),
       paidOn: p.paidOn,
       note: p.note,
@@ -397,7 +415,7 @@ export interface ViewReceipt {
 
 /**
  * A month's receipts (bills and payments), oldest first — only the ones the page's viewer may
- * open: a payment's proof is for PA and the two people in it (canSeePaymentProof). Separate
+ * open: a payment's proof is for PA and the people in it (canOpenReceipt). Separate
  * from getPeriodView, whose query loads every month: only the Receipts and Settle Up tabs need
  * these.
  */
@@ -422,10 +440,13 @@ export async function getPeriodReceipts(periodId: number): Promise<ViewReceipt[]
     .where(or(eq(billItems.periodId, periodId), eq(payments.periodId, periodId)))
     .orderBy(asc(receipts.id));
   return rows
-    .filter(
-      (r) =>
-        r.paymentId === null ||
-        canSeePaymentProof(drawnFor, { fromMemberId: r.paymentFrom!, toMemberId: r.paymentTo! }),
+    .filter((r) =>
+      canOpenReceipt(drawnFor, {
+        payment:
+          r.paymentId === null
+            ? null
+            : { fromMemberId: partyFromColumn(r.paymentFrom), toMemberId: partyFromColumn(r.paymentTo) },
+      }),
     )
     .map((r) => ({
       id: r.id,
@@ -468,7 +489,7 @@ export function waitingPaymentLabels(period: Pick<LoadedPeriod, "payments" | "ba
   const nameOf = new Map(period.balances.map((b) => [b.memberId, b.member.name]));
   return period.payments
     .filter((p) => p.status === "pending")
-    .map((p) => `${nameOf.get(p.fromMemberId) ?? "Someone"} ${formatPHP(toCentavos(p.amount))}`);
+    .map((p) => `${(p.fromMemberId !== null && nameOf.get(p.fromMemberId)) || "Someone"} ${formatPHP(toCentavos(p.amount))}`);
 }
 
 export function periodMembers(period: LoadedPeriod) {
@@ -526,7 +547,7 @@ function toMonthInput(period: LoadedPeriod, opening: Map<MemberId, Centavos>): M
       members: c.members,
     })),
     advances: period.advances,
-    payments: period.payments,
+    payments: paymentsOf(period),
     openingBalances: opening,
   };
 }

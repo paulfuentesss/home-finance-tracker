@@ -3,6 +3,7 @@ import {
   canCancelPayment,
   canManageAdvance,
   canManageHelperEntry,
+  canOpenReceipt,
   canSeeBillerField,
   canSeePaymentProof,
   canSubmitPayment,
@@ -11,6 +12,7 @@ import {
   safeNext,
   type Viewer,
 } from "./permissions";
+import { HOUSE_BUDGET } from "./settlement";
 
 const pa: Viewer = { memberId: 5, name: "PA", role: "admin", email: null };
 const housemate: Viewer = { memberId: 3, name: "Housemate", role: "member", email: null };
@@ -106,6 +108,33 @@ describe("canSeePaymentProof", () => {
 
   it("not to another housemate", () => {
     expect(canSeePaymentProof(housemate, { fromMemberId: 4, toMemberId: pa.memberId })).toBe(false);
+  });
+
+  it("with the House Budget on one side: the admin and the housemate in it", () => {
+    expect(canSeePaymentProof(pa, { fromMemberId: 4, toMemberId: HOUSE_BUDGET })).toBe(true);
+    expect(canSeePaymentProof(housemate, { fromMemberId: housemate.memberId, toMemberId: HOUSE_BUDGET })).toBe(true);
+    expect(canSeePaymentProof(housemate, { fromMemberId: HOUSE_BUDGET, toMemberId: housemate.memberId })).toBe(true);
+    expect(canSeePaymentProof(housemate, { fromMemberId: 4, toMemberId: HOUSE_BUDGET })).toBe(false);
+  });
+});
+
+describe("canOpenReceipt", () => {
+  it("opens a bill's proof for everyone", () => {
+    expect(canOpenReceipt(housemate, { payment: null })).toBe(true);
+  });
+
+  // A House Budget side is NULL in the database, so "both sides set" can't be what marks a
+  // payment's receipt: someone else's House Budget payment must stay hidden.
+  it("keeps someone else's House Budget payment proof hidden", () => {
+    expect(canOpenReceipt(housemate, { payment: { fromMemberId: 4, toMemberId: HOUSE_BUDGET } })).toBe(false);
+    expect(canOpenReceipt(housemate, { payment: { fromMemberId: HOUSE_BUDGET, toMemberId: 4 } })).toBe(false);
+  });
+
+  it("opens a payment's proof for the admin and the people in it", () => {
+    expect(canOpenReceipt(pa, { payment: { fromMemberId: 4, toMemberId: HOUSE_BUDGET } })).toBe(true);
+    expect(canOpenReceipt(housemate, { payment: { fromMemberId: housemate.memberId, toMemberId: HOUSE_BUDGET } })).toBe(
+      true,
+    );
   });
 });
 

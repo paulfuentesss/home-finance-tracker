@@ -2,6 +2,8 @@
 // The server enforces these in lib/auth.ts and run() (actions.ts); the UI uses them only to
 // hide buttons that wouldn't work.
 
+import type { Party } from "@/lib/settlement";
+
 export type Role = "admin" | "member";
 
 /** The signed-in household member. */
@@ -42,7 +44,8 @@ export type PaymentStatus = "confirmed" | "pending" | "rejected";
 
 /**
  * Whether the viewer may send an "I paid" (docs/features/settle-up.md): any member but the
- * collector — the payment always goes to the collector, and the server sets both people.
+ * collector — the payment always goes into the House Budget, which the collector checks, and the
+ * server sets both sides.
  */
 export function canSubmitPayment(viewer: Viewer, collectorId: number | null): boolean {
   return collectorId !== null && viewer.memberId !== collectorId;
@@ -52,17 +55,30 @@ export function canSubmitPayment(viewer: Viewer, collectorId: number | null): bo
  * Whether the viewer may cancel (delete) a payment. The admin can delete any; a member only
  * their own "I paid" while it's waiting or rejected — once confirmed, it's the admin's.
  */
-export function canCancelPayment(viewer: Viewer, payment: { fromMemberId: number; status: PaymentStatus }): boolean {
+export function canCancelPayment(viewer: Viewer, payment: { fromMemberId: Party; status: PaymentStatus }): boolean {
   return isAdmin(viewer) || (payment.fromMemberId === viewer.memberId && payment.status !== "confirmed");
 }
 
 /**
  * Whether the viewer may see a payment's proof. A bank-transfer screenshot can show someone's
- * bank and balance, so only the admin and the two people in the payment see it; everyone still
- * sees the payment and its amount. (Bill proofs are for everyone.)
+ * bank and balance, so only the admin and the people in the payment see it (the House Budget
+ * side is the admin's); everyone still sees the payment and its amount. (Bill proofs are for
+ * everyone.)
  */
-export function canSeePaymentProof(viewer: Viewer, payment: { fromMemberId: number; toMemberId: number }): boolean {
+export function canSeePaymentProof(viewer: Viewer, payment: { fromMemberId: Party; toMemberId: Party }): boolean {
   return isAdmin(viewer) || payment.fromMemberId === viewer.memberId || payment.toMemberId === viewer.memberId;
+}
+
+/**
+ * Whether the viewer may open a receipt: a bill's proof, anyone; a payment's, canSeePaymentProof.
+ * `payment` is null only for a bill's receipt — callers decide that from `receipts.payment_id`,
+ * never from the payment's sides (a House Budget side is NULL too).
+ */
+export function canOpenReceipt(
+  viewer: Viewer,
+  receipt: { payment: { fromMemberId: Party; toMemberId: Party } | null },
+): boolean {
+  return receipt.payment === null || canSeePaymentProof(viewer, receipt.payment);
 }
 
 /**

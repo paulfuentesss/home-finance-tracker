@@ -275,12 +275,9 @@ export const payments = pgTable(
     periodId: integer("period_id")
       .notNull()
       .references(() => billingPeriods.id, { onDelete: "restrict" }),
-    fromMemberId: integer("from_member_id")
-      .notNull()
-      .references(() => members.id, { onDelete: "restrict" }),
-    toMemberId: integer("to_member_id")
-      .notNull()
-      .references(() => members.id, { onDelete: "restrict" }),
+    // NULL = the House Budget, the collection account (HOUSE_BUDGET in lib/settlement.ts).
+    fromMemberId: integer("from_member_id").references(() => members.id, { onDelete: "restrict" }),
+    toMemberId: integer("to_member_id").references(() => members.id, { onDelete: "restrict" }),
     amount: money("amount").notNull(),
     paidOn: date("paid_on", { mode: "string" }).notNull(),
     note: text("note"),
@@ -294,6 +291,8 @@ export const payments = pgTable(
   (t) => [
     check("payments_amount_positive", sql`${t.amount} > 0`),
     check("payments_distinct_members", sql`${t.fromMemberId} <> ${t.toMemberId}`),
+    // At most one side is the House Budget.
+    check("payments_has_member", sql`${t.fromMemberId} IS NOT NULL OR ${t.toMemberId} IS NOT NULL`),
     // A rejected payment always has its reason, and nothing else has one.
     check("payments_rejected_reason", sql`(${t.status} = 'rejected') = (${t.rejectedReason} IS NOT NULL)`),
   ],

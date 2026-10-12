@@ -9,6 +9,25 @@ import { splitByWeights, splitEqually, sumCentavos, toCentavos, type Centavos } 
 export type MemberId = number;
 export type SplitMode = "equal" | "points" | "manual";
 
+/**
+ * The household's collection account: housemates pay into it, and the collector pays out of it
+ * (docs/settlement-rules.md → House Budget). A side of a payment, never a member: it takes no
+ * share of anything. Stored as NULL in `payments.from_member_id` / `to_member_id`.
+ */
+export const HOUSE_BUDGET = "house-budget";
+/** One side of a payment: a member, or the House Budget. */
+export type Party = MemberId | typeof HOUSE_BUDGET;
+
+/** A payment side as stored (NULL = the House Budget) → as the app uses it. */
+export function partyFromColumn(memberId: MemberId | null): Party {
+  return memberId ?? HOUSE_BUDGET;
+}
+
+/** A payment side as the app uses it → as stored. */
+export function partyToColumn(party: Party): MemberId | null {
+  return party === HOUSE_BUDGET ? null : party;
+}
+
 export interface SettlementMember {
   id: MemberId;
   name: string;
@@ -52,8 +71,8 @@ export interface SettlementColumn {
 }
 
 export interface SettlementPayment {
-  fromMemberId: MemberId;
-  toMemberId: MemberId;
+  fromMemberId: Party;
+  toMemberId: Party;
   amount: string;
   /** Only confirmed payments count: "pending" waits for PA, "rejected" never counts. */
   status: "confirmed" | "pending" | "rejected";
@@ -251,16 +270,24 @@ export function computeMonth(input: MonthInput): MonthResult {
     columns.push({ id: column.id, name: column.name, splitMode: column.splitMode, total, difference, includedIds });
   }
 
-  // --- Payments: only confirmed ones; a housemate's waiting or rejected "I paid" is ignored ---
+  // --- Payments: only confirmed ones; a housemate's waiting or rejected "I paid" is ignored.
+  //     The House Budget side of one is counted by houseBudgetMonth, not here ---
   for (const payment of input.payments) {
     // Skipped before the member checks, so one that doesn't count can never break the month's
     // numbers (today any payment keeps its payer in the month — hasRecordsIn — so this is defence).
     if (payment.status !== "confirmed") continue;
-    assertMember(payment.fromMemberId, "Payment from");
-    assertMember(payment.toMemberId, "Payment to");
+    if (payment.fromMemberId === HOUSE_BUDGET && payment.toMemberId === HOUSE_BUDGET) {
+      throw new SettlementError("A payment needs a member on at least one side");
+    }
     const amount = toCentavos(payment.amount);
-    row(payment.fromMemberId).paidOut += amount;
-    row(payment.toMemberId).received += amount;
+    if (payment.fromMemberId !== HOUSE_BUDGET) {
+      assertMember(payment.fromMemberId, "Payment from");
+      row(payment.fromMemberId).paidOut += amount;
+    }
+    if (payment.toMemberId !== HOUSE_BUDGET) {
+      assertMember(payment.toMemberId, "Payment to");
+      row(payment.toMemberId).received += amount;
+    }
   }
 
   // --- Totals and carry-over (the same formula for everyone, collector included) ---
@@ -273,31 +300,84 @@ export function computeMonth(input: MonthInput): MonthResult {
   return { rows: members.map((m) => row(m.id)), columns };
 }
 
+export interface HouseBudgetMonth {
+  /** What it held at the start of the month: every earlier month's payments in − out. */
+  opening: Centavos;
+  received: Centavos;
+  paidOut: Centavos;
+  /**
+   * opening + received − paidOut: what it holds now, still to be paid out. The same sign as a
+   * member's Final (positive = still to pay out), so everyone's Final plus this adds up to ₱0.
+   * Negative when more was paid out than came in.
+   */
+  balance: Centavos;
+}
+
+/**
+ * The House Budget's month, from confirmed payments only. Kept apart from computeMonth, which
+ * can fail on a month's other numbers: the House Budget's carry-over depends on payments alone.
+ */
+export function houseBudgetMonth(opening: Centavos, payments: readonly SettlementPayment[]): HouseBudgetMonth {
+  let received = 0;
+  let paidOut = 0;
+  for (const payment of payments) {
+    if (payment.status !== "confirmed") continue;
+    const amount = toCentavos(payment.amount);
+    if (payment.toMemberId === HOUSE_BUDGET) received += amount;
+    if (payment.fromMemberId === HOUSE_BUDGET) paidOut += amount;
+  }
+  return { opening, received, paidOut, balance: opening + received - paidOut };
+}
+
+/**
+ * The House Budget's last month, carried from the first: each month opens with what the one
+ * before left. Pass every month's payments, oldest first, up to the month wanted. Never reset
+ * (not after a closed month, nor a month whose other numbers fail): it depends on payments alone.
+ */
+export function houseBudgetThrough(months: readonly (readonly SettlementPayment[])[]): HouseBudgetMonth {
+  let month = houseBudgetMonth(0, []);
+  for (const payments of months) month = houseBudgetMonth(month.balance, payments);
+  return month;
+}
+
 export interface SuggestedPayment {
-  fromMemberId: MemberId;
-  toMemberId: MemberId;
+  fromMemberId: Party;
+  toMemberId: Party;
   amount: Centavos;
 }
 
 /**
- * The payments that settle everyone with the collector: whoever owes pays the collector
- * their Final, and the collector pays whoever is owed. Largest first. Recording all of them
- * brings every Final to ₱0 except the collector's, which keeps only what doesn't add up
- * (e.g. a Manual column that's ₱0.02 over).
+ * The payments that settle everyone through the House Budget, in the order they happen: whoever
+ * owes pays into the House Budget, the House Budget pays whoever is owed (largest first), and
+ * what's left in it goes to the collector last (or, if it would be short, the collector pays the
+ * difference in). Recording all of them brings every Final and the House Budget to ₱0, except the
+ * collector's, which keeps only what doesn't add up (e.g. a Manual column that's ₱0.02 over).
  */
 export function suggestedPayments(
   balances: readonly { memberId: MemberId; balance: Centavos }[],
   collectorId: MemberId | null,
+  houseBudgetBalance: Centavos,
 ): SuggestedPayment[] {
   if (collectorId === null) return [];
-  return balances
+  const others = balances
     .filter((b) => b.memberId !== collectorId && b.balance !== 0)
-    .sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance))
-    .map((b) =>
-      b.balance > 0
-        ? { fromMemberId: b.memberId, toMemberId: collectorId, amount: b.balance }
-        : { fromMemberId: collectorId, toMemberId: b.memberId, amount: -b.balance },
-    );
+    .sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance));
+  const payIns: SuggestedPayment[] = others
+    .filter((b) => b.balance > 0)
+    .map((b) => ({ fromMemberId: b.memberId, toMemberId: HOUSE_BUDGET, amount: b.balance }));
+  const payOuts: SuggestedPayment[] = others
+    .filter((b) => b.balance < 0)
+    .map((b) => ({ fromMemberId: HOUSE_BUDGET, toMemberId: b.memberId, amount: -b.balance }));
+  // What the House Budget would hold once everyone else is settled.
+  const left =
+    houseBudgetBalance + sumCentavos(payIns.map((p) => p.amount)) - sumCentavos(payOuts.map((p) => p.amount));
+  const last: SuggestedPayment[] =
+    left > 0
+      ? [{ fromMemberId: HOUSE_BUDGET, toMemberId: collectorId, amount: left }]
+      : left < 0
+        ? [{ fromMemberId: collectorId, toMemberId: HOUSE_BUDGET, amount: -left }]
+        : [];
+  return [...payIns, ...payOuts, ...last];
 }
 
 /** Each member's Final this month = their opening balance next month. */

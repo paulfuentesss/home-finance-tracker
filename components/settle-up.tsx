@@ -13,7 +13,7 @@ import {
 } from "@/app/periods/[year]/[month]/actions";
 import { ConfirmDeleteButton } from "@/components/confirm-button";
 import { EditPaymentDialog, RecordPaymentDialog, SubmitPaymentDialog } from "@/components/entry-dialogs";
-import { Pair } from "@/components/member-pair";
+import { Pair, partyName, partyView } from "@/components/member-pair";
 import { ProofThumbs } from "@/components/receipts";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,10 +29,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { useCanEdit, useIsPreviewing, useViewer } from "@/components/viewer-context";
 import { dateLabel, monthLabel } from "@/lib/format";
+import { HOUSE_BUDGET_LABEL } from "@/lib/household-config";
 import { formatPHP, sumCentavos, type Centavos } from "@/lib/money";
 import { canCancelPayment, canSubmitPayment, isAdmin } from "@/lib/permissions";
 import type { PeriodView, ViewPayment, ViewReceipt } from "@/lib/periods";
-import { suggestedPayments } from "@/lib/settlement";
+import { HOUSE_BUDGET, suggestedPayments } from "@/lib/settlement";
 import { cn } from "@/lib/utils";
 
 // Tab: Settle Up. Who still owes whom (one tap records the payment, or a housemate's "I paid"),
@@ -100,11 +101,12 @@ function WhoStillOwes({ view }: { view: PeriodView }) {
   const memberOf = new Map(view.members.map((m) => [m.id, m]));
   const collector = view.members.find((m) => m.isCollector) ?? null;
   const balances = view.rows.map((r) => ({ memberId: r.memberId, balance: r.balance }));
-  const suggestions = suggestedPayments(balances, collector?.id ?? null);
+  const held = view.houseBudget.balance;
+  const suggestions = suggestedPayments(balances, collector?.id ?? null, held);
   const settled = view.rows.filter((r) => r.balance === 0 && r.memberId !== collector?.id);
   const collectorLeft = view.rows.find((r) => r.memberId === collector?.id)?.balance ?? 0;
   const collectorName = collector?.name ?? "the collector";
-  // The housemate's own situation: they owe (their row has "I paid"), or are owed (PA pays them).
+  // The housemate's own situation: they owe (their row has "I paid"), or are owed (paid back from the House Budget).
   const owes = canSend && suggestions.some((s) => s.fromMemberId === viewer.memberId);
   const isOwed = !editable && suggestions.some((s) => s.toMemberId === viewer.memberId);
 
@@ -114,15 +116,29 @@ function WhoStillOwes({ view }: { view: PeriodView }) {
         Who still owes
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Everyone settles with {collector?.name ?? "the collector"}.{" "}
+        Everyone pays into the {HOUSE_BUDGET_LABEL}, and {collectorName} pays out of it.{" "}
         {editable
-          ? "Record a payment when money changes hands; it comes off both people's Final. Housemates can send theirs with “I paid” for you to confirm."
+          ? "Record each transfer when it happens: whoever is owed is paid first, then what's left goes to you. Housemates can send theirs with “I paid” for you to confirm."
           : owes
-            ? `Paid ${collectorName}? Tap “I paid” on your row and attach the screenshot of your transfer. It comes off your Final once ${collectorName} confirms it.`
+            ? `Sent it to the ${HOUSE_BUDGET_LABEL}? Tap “I paid” on your row and attach the screenshot of your transfer. It comes off your Final once ${collectorName} confirms it.`
             : isOwed
-              ? `You paid more than your share, so ${collectorName} pays you back. It shows here once ${collectorName} records it.`
-              : `${collector?.name ?? "The collector"} records each payment when money changes hands; it comes off both people's Final.`}
+              ? `You paid more than your share, so ${collectorName} pays you back from the ${HOUSE_BUDGET_LABEL}. It shows here once ${collectorName} records it.`
+              : `${collectorName} records each payment when money changes hands; it comes off the Final.`}
       </p>
+      {!view.issue && (
+        <p className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-zinc-50 px-2.5 py-1 text-sm">
+          {held >= 0 ? (
+            <>
+              The {HOUSE_BUDGET_LABEL} holds <span className="font-mono font-semibold tabular-nums">{formatPHP(held)}</span>
+            </>
+          ) : (
+            <>
+              The {HOUSE_BUDGET_LABEL} has paid out{" "}
+              <span className="font-mono font-semibold tabular-nums">{formatPHP(-held)}</span> more than came in
+            </>
+          )}
+        </p>
+      )}
 
       {view.issue ? (
         <p className="mt-4 text-sm text-muted-foreground">
@@ -141,11 +157,14 @@ function WhoStillOwes({ view }: { view: PeriodView }) {
       ) : (
         <ul className="mt-4 divide-y">
           {suggestions.map((s) => {
-            const from = memberOf.get(s.fromMemberId)!;
-            const to = memberOf.get(s.toMemberId)!;
-            // Only a housemate's payment to the collector can be waiting.
-            const waiting = s.toMemberId === collector?.id ? waitingFrom(view, s.fromMemberId) : 0;
+            const from = partyView(s.fromMemberId, memberOf)!;
+            const to = partyView(s.toMemberId, memberOf)!;
+            // Only a housemate's payment into the House Budget can be waiting.
+            const waiting =
+              s.toMemberId === HOUSE_BUDGET && s.fromMemberId !== HOUSE_BUDGET ? waitingFrom(view, s.fromMemberId) : 0;
             const own = canSend && s.fromMemberId === viewer.memberId;
+            // Paid out of the House Budget: say so when it doesn't hold that much yet.
+            const short = s.fromMemberId === HOUSE_BUDGET && s.amount > held;
             return (
               // Phone: who over the amount, a small button on the right. Wider: one line.
               <li key={`${s.fromMemberId}-${s.toMemberId}`} className="flex items-center justify-between gap-3 py-3">
@@ -154,6 +173,16 @@ function WhoStillOwes({ view }: { view: PeriodView }) {
                     <Pair from={from} to={to} />
                     <span className="block font-mono font-semibold tabular-nums text-rose-600">{formatPHP(s.amount)}</span>
                   </div>
+                  {s.fromMemberId === HOUSE_BUDGET && s.toMemberId === collector?.id && (
+                    <p className="text-xs text-muted-foreground">
+                      What&apos;s left once everyone is settled — {editable ? "yours to move to your account" : `${collectorName}'s`}
+                    </p>
+                  )}
+                  {short && (
+                    <p className="text-xs text-amber-700">
+                      The {HOUSE_BUDGET_LABEL} holds {formatPHP(Math.max(held, 0))} so far
+                    </p>
+                  )}
                   {waiting > 0 && (
                     <p className="text-xs text-amber-700">
                       {formatPHP(waiting)} sent, waiting for {collector?.name}
@@ -233,9 +262,12 @@ function PaymentRow({ view, payment: p, receipts }: { view: PeriodView; payment:
   const previewing = useIsPreviewing();
   const [editing, setEditing] = useState(false);
   const memberOf = new Map(view.members.map((m) => [m.id, m]));
-  const from = memberOf.get(p.fromMemberId);
-  const to = memberOf.get(p.toMemberId);
-  const label = `${from?.name ?? "Someone"} → ${to?.name ?? "someone"}`;
+  const from = partyView(p.fromMemberId, memberOf);
+  const to = partyView(p.toMemberId, memberOf);
+  const toName = partyName(p.toMemberId, memberOf);
+  const label = `${partyName(p.fromMemberId, memberOf, "Someone")} → ${toName}`;
+  // The collector checks the bank, whoever the payment went to.
+  const confirmer = view.members.find((m) => m.isCollector)?.name ?? "PA";
   const proofs = receipts.filter((r) => r.paymentId === p.id);
   const canCancel =
     view.period.status === "open" && !isAdmin(viewer) && p.status !== "confirmed" && canCancelPayment(viewer, p);
@@ -250,7 +282,7 @@ function PaymentRow({ view, payment: p, receipts }: { view: PeriodView; payment:
         </p>
         {p.status === "pending" && (
           <p className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
-            Waiting for {to?.name ?? "PA"}
+            Waiting for {confirmer}
           </p>
         )}
         {p.status === "rejected" && (
@@ -300,7 +332,7 @@ function PaymentRow({ view, payment: p, receipts }: { view: PeriodView; payment:
           <ConfirmDeleteButton
             label="Cancel this payment"
             title="Cancel this payment?"
-            description={`${formatPHP(p.amount)} to ${to?.name ?? "PA"}, and its screenshot, are removed. Send it again with “I paid” if you need to.`}
+            description={`${formatPHP(p.amount)} to ${p.toMemberId === HOUSE_BUDGET ? `the ${toName}` : toName}, and its screenshot, are removed. Send it again with “I paid” if you need to.`}
             confirmLabel="Cancel payment"
             onConfirm={() => cancelPayment(p.id)}
           />
@@ -505,6 +537,15 @@ function MonthLock({ view }: { view: PeriodView }) {
             </div>
           ) : (
             <p className="text-sm text-emerald-700">Everyone is settled.</p>
+          )}
+          {view.houseBudget.balance !== 0 && (
+            <p className="text-sm">
+              The {HOUSE_BUDGET_LABEL}{" "}
+              {view.houseBudget.balance > 0
+                ? `still holds ${formatPHP(view.houseBudget.balance)}`
+                : `has paid out ${formatPHP(-view.houseBudget.balance)} more than came in`}
+              ; it carries over{next ? ` to ${next}` : ""}.
+            </p>
           )}
           {(emptyBills.length > 0 || offColumns.length > 0) && (
             <ul className="list-disc space-y-1 pl-5 text-sm text-amber-800">

@@ -132,11 +132,14 @@ describe("Route Handlers", () => {
     expect(source).not.toMatch(/export async function (GET|PUT|PATCH|DELETE)/);
   });
 
-  it("app/receipts/[id]/route.ts shows a payment's proof only to PA and the two people in it", () => {
+  it("app/receipts/[id]/route.ts shows a payment's proof only to PA and the people in it", () => {
     const source = read(join(ROOT, "app/receipts/[id]/route.ts"));
-    expect(source).toMatch(/!canSeePaymentProof\(viewer, \{ fromMemberId: receipt\.paymentFrom, toMemberId: receipt\.paymentTo \}\)/);
+    expect(source).toMatch(/if \(!canOpenReceipt\(viewer, \{ payment \}\)\) return/);
+    // Whether it's a payment's receipt comes from receipts.payment_id, never from the payment's
+    // sides: a House Budget side is NULL too.
+    expect(source).toMatch(/receipt\.paymentId === null\s*\?\s*null/);
     // The check happens before the signed link is made.
-    expect(source.indexOf("canSeePaymentProof(viewer")).toBeLessThan(source.indexOf("createSignedUrl"));
+    expect(source.indexOf("canOpenReceipt(viewer")).toBeLessThan(source.indexOf("createSignedUrl"));
   });
 
   it("app/biller-secrets/[id]/route.ts unlocks a password only for someone it's shared with", () => {

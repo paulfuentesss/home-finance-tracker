@@ -23,7 +23,7 @@
   | Log an advance | For anyone, into any column | Their own, into the month's default column (Advances Shared) |
   | Edit / delete an advance | Any | Their own, while it's in the default column — once PA moves it, it's PA's |
   | Log, edit, delete a Helper visit or early pay ([helper.md](helper.md)) | Any, for anyone; and her starting debt | Only ones they paid |
-  | Send a payment to PA ("I paid", with the transfer's screenshot) | — (PA records payments directly) | Their own, in the latest open month; it waits for PA |
+  | Send a payment into the House Budget ("I paid", with the transfer's screenshot) | — (PA records payments directly) | Their own, in the latest open month; it waits for PA |
   | Cancel a payment | Any (delete) | Their own, while it's waiting or rejected |
   | Bills, points, shared columns, recording / confirming / rejecting payments, housemates, starting / closing / reopening months | ✅ | — |
   | See a payment's screenshot | Any | Only payments they're in (bill proofs: all) |
@@ -57,7 +57,7 @@
   for a member the advance actions force the payer to themselves and the column to the default
   one, and check `canManageAdvance` against the stored advance; the Helper actions force the
   payer to themselves, refuse her starting debt, and check `canManageHelperEntry`;
-  `submitPayment` sets the payer to themselves and the receiver to the collector
+  `submitPayment` sets the payer to themselves and the receiver to the House Budget
   (`canSubmitPayment`), and `cancelPayment` checks `canCancelPayment`.
 - `lib/permissions.ts` (pure, tested) — `Viewer`, `isAdmin`, `canManageAdvance`,
   `canManageHelperEntry`, and

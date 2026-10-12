@@ -20,7 +20,7 @@ connects directly ([decisions.md](decisions.md)).
 | `shared_column_members` | Who shares an Auto equal column, or a member's typed amount in a Manual one | [advances](features/advances.md), [manage](features/manage.md) |
 | `advances` | A purchase a member paid for the household, in one shared column | [advances](features/advances.md) |
 | `helper_entries` | Something handed to the Helper in a month: a `visit` (daily pay, part maybe taken off her debt), `early_pay`, or her `opening` debt from the sheet (no payer, in no bill) | [helper](features/helper.md) |
-| `payments` | Money changing hands to settle up; `status` (confirmed / pending = a housemate's "I paid" waiting for PA / rejected, with `rejected_reason`) | [settle up](features/settle-up.md) |
+| `payments` | Money changing hands to settle up; `status` (confirmed / pending = a housemate's "I paid" waiting for PA / rejected, with `rejected_reason`). A NULL `from_member_id` / `to_member_id` is the [House Budget](settlement-rules.md#house-budget); a check keeps a member on at least one side | [settle up](features/settle-up.md) |
 | `receipts` | A proof image (screenshot or photo) for exactly one bill or payment: its name in the private `receipts` Storage bucket, type, size, who uploaded it | [receipts](features/receipts.md) |
 | `bill_emails` | A bill email received: parsed values, payment fee, status (imported / unmatched / dismissed), the bill it filled | [email bills](features/email-bills.md) |
 | `billers` | A company the household pays (electricity, water, internet…): its name and place on the Billers tab. Not tied to a month | [billers](features/billers.md) |
@@ -47,6 +47,7 @@ Add a line here with every new one.
 | `0009_payment-status` | `status` (the `payment_status` enum, default `confirmed` so existing payments are unchanged) and `rejected_reason` on `payments`, with a check that only rejected ones have a reason |
 | `0010_helper-entries` | `helper_entries` (the `helper_entry_kind` enum) and `kind` on `bill_items` (the `bill_kind` enum, one `helper` per month); existing columns named "Helper" become `helper` |
 | `0011_billers` | `billers` and `biller_fields` (the `biller_field_kind` enum) for the Billers tab; adds tables only. Made in parallel with `0010` and renumbered after it; both were applied in this order |
+| `0012_house-budget` | `payments.from_member_id` / `to_member_id` become nullable (NULL = the House Budget), with the `payments_has_member` check. Run **after** the code that reads NULL sides is deployed ([decisions.md](decisions.md), 2026-10-12) |
 
 The receipt files themselves live in Supabase Storage (the private `receipts` bucket), not in
 the database; `receipts.storage_path` names one.

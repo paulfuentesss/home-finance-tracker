@@ -1,6 +1,6 @@
 "use client";
 
-import { Calculator, ChevronRight, Info, Scale, SlidersHorizontal, Zap } from "lucide-react";
+import { Calculator, ChevronRight, Info, Landmark, Scale, SlidersHorizontal, Zap } from "lucide-react";
 import Link from "next/link";
 import { useActionState } from "react";
 import {
@@ -16,6 +16,7 @@ import { InlineInput, type FormAction } from "@/components/inline-input";
 import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { useDragScroll } from "@/hooks/use-drag-scroll";
 import { dayLabel, monthLabel } from "@/lib/format";
+import { HOUSE_BUDGET_LABEL } from "@/lib/household-config";
 import { formatPHP, fromCentavos, sumCentavos } from "@/lib/money";
 import type { PeriodView, ViewBill, ViewColumn, ViewRow } from "@/lib/periods";
 import { cn } from "@/lib/utils";
@@ -33,6 +34,13 @@ export function SplitTable({ view }: { view: PeriodView }) {
   const rowOf = new Map(view.rows.map((r) => [r.memberId, r]));
   const sum = (pick: (r: ViewRow) => number) => sumCentavos(view.rows.map(pick));
   const finalsTotal = sum((r) => r.monthFinal);
+  // The House Budget's own row, once money has gone through it (months before it was used
+  // stay as they were). Its numbers count in the totals, which then still come to ₱0.00. Not
+  // while the numbers have a problem: members then open at ₱0 and the totals wouldn't add up.
+  const budget = view.houseBudget;
+  const showBudget =
+    !view.issue && view.rows.length > 0 && (budget.opening !== 0 || budget.received !== 0 || budget.paidOut !== 0);
+  const budgetIn = (amount: number) => (showBudget ? amount : 0);
   const mismatched = columns.filter((c) => c.difference !== 0);
   const dragScroll = useDragScroll<HTMLDivElement>();
 
@@ -166,6 +174,28 @@ export function SplitTable({ view }: { view: PeriodView }) {
                 );
               })}
 
+              {showBudget && (
+                <tr className="group hover:bg-zinc-50">
+                  <th scope="row" className={cn(cellBase, "sticky left-0 z-10 bg-white group-hover:bg-zinc-50 text-left font-sans font-medium")}>
+                    <span className="flex items-center gap-2">
+                      <Landmark className="size-3.5 text-zinc-500" aria-hidden />
+                      {HOUSE_BUDGET_LABEL}
+                    </span>
+                  </th>
+                  {/* It takes no share of anything: only money in and out. */}
+                  <td colSpan={bills.length + columns.length + 3} />
+                  <td className={cn(cellBase, "text-center", budget.opening ? "text-zinc-700" : "text-zinc-500")}>
+                    {formatPHP(budget.opening)}
+                  </td>
+                  <td className={cn(cellBase, "text-center", paymentsOf(budget) ? "text-zinc-700" : "text-zinc-500")}>
+                    {signedPHP(paymentsOf(budget))}
+                  </td>
+                  <td className={cn(cellBase, "text-center")}>
+                    <HouseBudgetBalance amount={budget.balance} />
+                  </td>
+                </tr>
+              )}
+
               {(["dueDate", "paidOn"] as const).map((field) => (
                 <tr key={field} className="bg-zinc-50 font-sans">
                   <th scope="row" className={cn(cellBase, "sticky left-0 z-10 bg-zinc-50 text-left font-medium text-zinc-600")}>
@@ -197,9 +227,9 @@ export function SplitTable({ view }: { view: PeriodView }) {
                   {formatPHP(finalsTotal)}
                   {finalsTotal !== 0 && <FinalsOffNote mismatched={mismatched} />}
                 </td>
-                <td className={cn(footCell, "text-center")}>{formatPHP(sum((r) => r.opening))}</td>
-                <td className={cn(footCell, "text-center")}>{signedPHP(sum(paymentsOf))}</td>
-                <td className={cn(footCell, "text-center")}>{formatPHP(sum((r) => r.balance))}</td>
+                <td className={cn(footCell, "text-center")}>{formatPHP(sum((r) => r.opening) + budgetIn(budget.opening))}</td>
+                <td className={cn(footCell, "text-center")}>{signedPHP(sum(paymentsOf) + budgetIn(paymentsOf(budget)))}</td>
+                <td className={cn(footCell, "text-center")}>{formatPHP(sum((r) => r.balance) + budgetIn(budget.balance))}</td>
               </tr>
             </tfoot>
           </table>
@@ -219,9 +249,21 @@ export function SplitTable({ view }: { view: PeriodView }) {
 
 /**
  * Payments recorded this month, signed the way they move the Final: paying back lowers what
- * you owe (−), receiving lowers what you're owed (+). Everyone's adds up to ₱0.00.
+ * you owe (−), receiving lowers what you're owed (+). Everyone's plus the House Budget's adds up
+ * to ₱0.00.
  */
-const paymentsOf = (r: ViewRow) => r.received - r.paidOut;
+const paymentsOf = (r: { received: number; paidOut: number }) => r.received - r.paidOut;
+
+/** The House Budget's Final: what it holds, still to be paid out (not "To pay" / "To receive"). */
+function HouseBudgetBalance({ amount }: { amount: number }) {
+  if (amount === 0) return <span className="text-zinc-500">₱0.00 <span className="font-sans text-[11px]">Empty</span></span>;
+  return (
+    <span className="font-semibold text-zinc-700">
+      {formatPHP(Math.abs(amount))}
+      <span className="ml-1 font-sans text-[11px] font-normal">{amount > 0 ? "Holding" : "More out than in"}</span>
+    </span>
+  );
+}
 
 function signedPHP(amount: number): string {
   if (amount === 0) return formatPHP(0);

@@ -13,7 +13,8 @@ the live site all use the same database, logins and receipt files.
   run here: they load a made-up August and run only against a local database
   (`lib/local-database.ts`).
 - `npm run db:migrate` changes the live database immediately, before the code that needs the
-  change is merged — see the next section for the safe order.
+  change is merged — see the next section for the safe order. The exception so far is
+  `0012_house-budget`, which runs *after* its deploy ([decisions.md](decisions.md), 2026-10-12).
 
 This is by choice — one database plus backups, no separate test database
 ([decisions.md](decisions.md)). So when trying something out on `localhost`:

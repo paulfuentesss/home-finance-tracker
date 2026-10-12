@@ -1,5 +1,5 @@
 import { ShieldCheck } from "lucide-react";
-import { Pair } from "@/components/member-pair";
+import { Pair, partyName, partyView } from "@/components/member-pair";
 import { ReceiptsCard, ReceiptsNote, ReceiptsRow } from "@/components/receipts";
 import { dateLabel } from "@/lib/format";
 import { formatPHP } from "@/lib/money";
@@ -85,9 +85,9 @@ export default async function ReceiptsPage({ params }: PageProps<"/periods/[year
         ) : (
           <ul className="divide-y rounded-xl border bg-white px-4 shadow-xs sm:px-5">
             {view.payments.map((p) => {
-              const from = memberOf.get(p.fromMemberId);
-              const to = memberOf.get(p.toMemberId);
-              const label = `${from?.name ?? "?"} → ${to?.name ?? "?"}`;
+              const from = partyView(p.fromMemberId, memberOf);
+              const to = partyView(p.toMemberId, memberOf);
+              const label = `${partyName(p.fromMemberId, memberOf, "?")} → ${partyName(p.toMemberId, memberOf, "?")}`;
               return (
                 <ReceiptsRow
                   key={p.id}

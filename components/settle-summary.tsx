@@ -1,4 +1,5 @@
 import { SettleUpLink } from "@/components/settle-up-link";
+import { HOUSE_BUDGET_LABEL } from "@/lib/household-config";
 import { formatPHP, type Centavos } from "@/lib/money";
 import type { PeriodView, ViewMember } from "@/lib/periods";
 import { cn } from "@/lib/utils";
@@ -6,14 +7,14 @@ import { cn } from "@/lib/utils";
 type Entry = { member: ViewMember; balance: Centavos };
 
 // "Who owes what" above the Split Table, readable on a phone where the wide table isn't.
-// Everyone settles with the collector (docs/settlement-rules.md), so the others are grouped
-// by direction (pays the collector / gets paid by the collector) and the collector's own
-// Final is shown last as the net of the two, not as one more debt.
+// Everyone settles through the House Budget (docs/settlement-rules.md), so the others are
+// grouped by direction (pays into it / gets paid from it) and the collector's own Final is shown
+// last as what's left for them, not as one more debt.
 export function SettleSummary({ view }: { view: PeriodView }) {
   if (view.issue || view.rows.length === 0) return null;
   const rowOf = new Map(view.rows.map((r) => [r.memberId, r]));
   const collector = view.members.find((m) => m.isCollector);
-  const collectorName = collector?.name ?? "the collector";
+  const held = view.houseBudget.balance;
 
   const others: Entry[] = view.members
     .filter((m) => !m.isCollector)
@@ -26,7 +27,7 @@ export function SettleSummary({ view }: { view: PeriodView }) {
   const collects = payers.reduce((sum, e) => sum + e.balance, 0);
   const paysOut = receivers.reduce((sum, e) => sum - e.balance, 0);
   // The collector's Final is negative when they're owed. Flip it so positive means "receives".
-  const collectorNet = collector ? -(rowOf.get(collector.id)?.balance ?? 0) : collects - paysOut;
+  const collectorNet = collector ? -(rowOf.get(collector.id)?.balance ?? 0) : held + collects - paysOut;
 
   return (
     <section aria-labelledby="settle-summary" className="rounded-xl border bg-white p-4 shadow-xs sm:p-5">
@@ -42,10 +43,10 @@ export function SettleSummary({ view }: { view: PeriodView }) {
 
       <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:max-w-3xl">
         {payers.length > 0 && (
-          <Group id="settle-pays" title={`Pays ${collectorName}`} total={collects} tone="owes" entries={payers} />
+          <Group id="settle-pays" title={`Pays into ${HOUSE_BUDGET_LABEL}`} total={collects} tone="owes" entries={payers} />
         )}
         {receivers.length > 0 && (
-          <Group id="settle-gets" title={`${collectorName} pays`} total={paysOut} tone="gets" entries={receivers} />
+          <Group id="settle-gets" title={`${HOUSE_BUDGET_LABEL} pays`} total={paysOut} tone="gets" entries={receivers} />
         )}
       </div>
 
@@ -72,9 +73,12 @@ export function SettleSummary({ view }: { view: PeriodView }) {
                 overall
               </>
             )}{" "}
-            {/* Its own line, so the breakdown never splits mid-sentence on a phone. */}
+            {/* Its own line, so the breakdown never splits mid-sentence on a phone. What it
+                already holds is part of what's left for the collector. */}
             <span className="mt-0.5 block text-xs">
-              {formatPHP(collects)} in − {formatPHP(paysOut)} out
+              {held > 0 && `${formatPHP(held)} in the ${HOUSE_BUDGET_LABEL} + `}
+              {formatPHP(collects)} to come in − {formatPHP(paysOut)} out
+              {held < 0 && ` − ${formatPHP(-held)} already paid out of the ${HOUSE_BUDGET_LABEL}`}
             </span>
           </p>
         )}

@@ -68,7 +68,10 @@ import {
 } from "@/lib/receipts";
 import {
   computeBillShares,
+  HOUSE_BUDGET,
   openingBalancesFrom,
+  partyFromColumn,
+  partyToColumn,
   SettlementError,
   splitOrder,
   type MemberId,
@@ -607,10 +610,12 @@ const helperBillDrivenByEntries = and(
 
 // ---------- Payments ----------
 
-// Money actually changing hands to settle up (usually someone ↔ the collector).
+// Money actually changing hands to settle up (usually someone ↔ the House Budget).
+// Either side may be the House Budget (stored as NULL), never both.
+const party = z.literal(HOUSE_BUDGET).or(id);
 const paymentSchema = z.object({
-  fromMemberId: id,
-  toMemberId: id,
+  fromMemberId: party,
+  toMemberId: party,
   amount: moneyField(false),
   paidOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose the date it was paid"),
   note: z
@@ -624,10 +629,24 @@ const paymentSchema = z.object({
 type PaymentInput = z.output<typeof paymentSchema>;
 
 function checkPaymentMembers(order: MemberId[], data: PaymentInput) {
-  if (data.fromMemberId === data.toMemberId) throw new ActionError("Pick two different people.");
-  if (!order.includes(data.fromMemberId) || !order.includes(data.toMemberId)) {
-    throw new ActionError("Both people have to be in this month.");
+  if (data.fromMemberId === data.toMemberId) {
+    throw new ActionError(data.fromMemberId === HOUSE_BUDGET ? "Pick a person on one side." : "Pick two different people.");
   }
+  const sides = [data.fromMemberId, data.toMemberId].filter((p) => p !== HOUSE_BUDGET);
+  if (!sides.every((m) => order.includes(m))) {
+    throw new ActionError(sides.length === 2 ? "Both people have to be in this month." : "That person has to be in this month.");
+  }
+}
+
+/** A payment's columns as stored: a House Budget side is NULL. */
+function paymentColumns(data: PaymentInput) {
+  return {
+    fromMemberId: partyToColumn(data.fromMemberId),
+    toMemberId: partyToColumn(data.toMemberId),
+    amount: fromCentavos(data.amount),
+    paidOn: data.paidOn,
+    note: data.note,
+  };
 }
 
 export async function addPayment(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -635,7 +654,7 @@ export async function addPayment(_prev: ActionState, formData: FormData): Promis
     await db.transaction(async (tx) => {
       const { order } = await loadOpenPeriod(tx, periodId);
       checkPaymentMembers(order, data);
-      await tx.insert(payments).values({ periodId, ...data, amount: fromCentavos(data.amount) });
+      await tx.insert(payments).values({ periodId, ...paymentColumns(data) });
     });
   });
 }
@@ -647,19 +666,18 @@ export async function updatePayment(_prev: ActionState, formData: FormData): Pro
       if (!payment) throw new ActionError("That payment was deleted.");
       // A waiting one can be fixed before confirming (it stays waiting); a rejected one can't.
       if (payment.status === "rejected") throw new ActionError("A rejected payment can't be edited. Delete it instead.");
-      // A housemate's "I paid" stays theirs, to the collector: only its amount, date or note change.
+      // A housemate's "I paid" stays theirs, into the House Budget: only its amount, date or note
+      // change. Compared as Parties: the stored House Budget side is NULL.
       if (
         payment.status === "pending" &&
-        (data.fromMemberId !== payment.fromMemberId || data.toMemberId !== payment.toMemberId)
+        (data.fromMemberId !== partyFromColumn(payment.fromMemberId) ||
+          data.toMemberId !== partyFromColumn(payment.toMemberId))
       ) {
         throw new ActionError("A waiting payment keeps who paid whom. Change the amount or date, or reject it.");
       }
       const { order } = await loadOpenPeriod(tx, payment.periodId);
       checkPaymentMembers(order, data);
-      await tx
-        .update(payments)
-        .set({ ...data, amount: fromCentavos(data.amount) })
-        .where(eq(payments.id, paymentId));
+      await tx.update(payments).set(paymentColumns(data)).where(eq(payments.id, paymentId));
     });
   });
 }
@@ -672,7 +690,7 @@ export async function deletePayment(paymentId: number): Promise<ActionState> {
 
 // ---------- A housemate's "I paid" (docs/features/settle-up.md) ----------
 
-// A housemate sends their payment to the collector with the transfer's screenshot. It waits
+// A housemate sends their payment into the House Budget with the transfer's screenshot. It waits
 // ("pending", not counted) until PA confirms or rejects it. The server sets who paid whom.
 
 const submitPaymentSchema = z.object({
@@ -703,13 +721,13 @@ export async function submitPayment(_prev: ActionState, formData: FormData): Pro
       await db.transaction(async (tx) => {
         // Locked and checked again: PA may have started the next month or closed this one meanwhile.
         await lockPeriod(tx, periodId);
-        const { collectorId } = await loadPaymentTarget(tx, periodId, viewer);
+        await loadPaymentTarget(tx, periodId, viewer);
         const [payment] = await tx
           .insert(payments)
           .values({
             periodId,
             fromMemberId: viewer.memberId,
-            toMemberId: collectorId,
+            toMemberId: partyToColumn(HOUSE_BUDGET),
             amount: fromCentavos(data.amount),
             paidOn: data.paidOn,
             note: data.note,
@@ -773,12 +791,13 @@ async function loadPaymentTarget(tx: Tx, periodId: number, viewer: Viewer) {
     throw new ActionError(`Send it in ${monthLabel(latest.year, latest.month)}, the latest month.`);
   }
   if (!order.includes(viewer.memberId)) throw new ActionError("You're not in this month.");
+  // The collector checks the House Budget and confirms, so the month needs one.
   const collector = period.balances.find((b) => b.member.isCollector)?.member ?? null;
-  if (!collector) throw new ActionError("This month has nobody to pay.");
+  if (!collector) throw new ActionError("This month has nobody to confirm payments.");
   if (!canSubmitPayment(viewer, collector.id)) {
-    throw new ActionError("Payments come to you — record it under Payments instead.");
+    throw new ActionError("You confirm the payments — record it under Payments instead.");
   }
-  return { period, collectorId: collector.id };
+  return { period };
 }
 
 /**
@@ -811,7 +830,7 @@ async function removePayment(paymentId: number, viewer: Viewer) {
   const files = await db.transaction(async (tx) => {
     const payment = await tx.query.payments.findFirst({ where: eq(payments.id, paymentId) });
     if (!payment) throw new ActionError("That payment was already deleted.");
-    if (!canCancelPayment(viewer, payment)) {
+    if (!canCancelPayment(viewer, { status: payment.status, fromMemberId: partyFromColumn(payment.fromMemberId) })) {
       throw new ActionError(
         payment.status === "confirmed" && payment.fromMemberId === viewer.memberId
           ? "PA has confirmed it, so only PA can change it now."
