@@ -83,6 +83,18 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  /* Behind every page (body::before): amber-50 cream at the top → zinc-50 → a faint peach at
+     the bottom, with a white sheen sweeping in from the top-right. Every stop keeps zinc-500
+     text at 4.5:1 or better, so no stop goes darker than the peach (docs/decisions.md). */
+  --page-gradient:
+    linear-gradient(115deg, transparent 50%, oklch(1 0 0 / 55%) 68%, transparent 88%),
+    linear-gradient(
+      to bottom,
+      oklch(0.987 0.022 95.277) 0%,
+      oklch(0.985 0 0) 45%,
+      oklch(0.985 0 0) 60%,
+      oklch(0.984 0.014 60) 100%
+    );
 }
 
 /* Dark theme = the App.jsx prototype's slate palette (Tailwind slate-*), with emerald
@@ -119,6 +131,7 @@
   --sidebar-accent-foreground: oklch(0.968 0.007 247.896);
   --sidebar-border: oklch(0.372 0.044 257.287 / 60%);
   --sidebar-ring: oklch(0.585 0.233 277.117);
+  --page-gradient: var(--background); /* the warm wash is light-theme only */
 }
 
 @layer base {
@@ -127,6 +140,25 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  /* The page gradient, pinned to the screen. A fixed layer rather than
+     background-attachment: fixed, which iOS Safari ignores (the gradient would stretch down a
+     long page). 100lvh keeps it full-height when the iPhone toolbar collapses. */
+  body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: -1;
+    width: 100%;
+    height: 100lvh;
+    pointer-events: none;
+    background: var(--page-gradient);
+  }
+  @media print {
+    body::before {
+      display: none;
+    }
   }
   html {
     @apply font-sans;

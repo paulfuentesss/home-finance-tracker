@@ -663,3 +663,16 @@ open PRs. Removing a merged, unchanged worktree loses nothing, so it no longer w
 main folder's TypeScript, ESLint and Vitest would pick up their files), Vercel preview links
 instead of local sites (login redirects and the one live database not set up for them), or
 `backups/` linked into worktrees (it holds real data; backups run from the main folder).
+
+## 2026-10-13 — A soft warm gradient behind the pages
+**Decision:** the page background is a gentle gradient instead of flat zinc-50. It goes from
+amber-50 cream at the top, through zinc-50, to a faint peach at the bottom, with a white sheen
+sweeping in from the top-right (`--page-gradient` in `app/globals.css`). The installed app's
+title bar and splash use the top colour. It is painted on a fixed `body::before` layer, so it
+stays put while the page scrolls. The sidebar, cards and header bars keep their solid colours.
+**Why:** the gradient makes the app feel softer. It is warm so it sits with the amber buttons.
+Every stop keeps zinc-500 grey text at 4.5:1 or better (the 2026-10-09 contrast rule), which
+caps how deep the bottom tint can go. iOS Safari ignores `background-attachment: fixed`, and the
+gradient would then stretch down a long Split Table; the fixed layer avoids that.
+**Instead of:** the reference image's sky-blue → lavender → pink, which clashes with
+amber; or a rose-50 bottom, which drops zinc-500 to 4.4:1.

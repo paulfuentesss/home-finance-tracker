@@ -11,9 +11,10 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/",
     scope: "/",
     display: "standalone",
-    // The page background (zinc-50), so the splash screen and title bar match the app.
-    background_color: "#fafafa",
-    theme_color: "#fafafa",
+    // The top of the page gradient (amber-50, app/globals.css), so the splash screen and title
+    // bar match the app.
+    background_color: "#fffbeb",
+    theme_color: "#fffbeb",
     icons: [
       { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
       { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },

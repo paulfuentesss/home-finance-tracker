@@ -29,8 +29,8 @@ export const metadata: Metadata = {
   appleWebApp: { capable: true, title: "My House", statusBarStyle: "default" },
 };
 
-// The page background (zinc-50), matching app/manifest.ts.
-export const viewport: Viewport = { themeColor: "#fafafa" };
+// The top of the page gradient (amber-50, app/globals.css), matching app/manifest.ts.
+export const viewport: Viewport = { themeColor: "#fffbeb" };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
