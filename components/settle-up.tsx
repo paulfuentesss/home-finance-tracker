@@ -281,8 +281,8 @@ function WhoStillOwes({ view }: { view: PeriodView }) {
       ) : (
         <ul className="mt-4 divide-y">
           {suggestions.map((s) => {
-            const from = partyView(s.fromMemberId, memberOf)!;
-            const to = partyView(s.toMemberId, memberOf)!;
+            const from = partyView(s.fromMemberId, memberOf, view.houseBudgetEmoji)!;
+            const to = partyView(s.toMemberId, memberOf, view.houseBudgetEmoji)!;
             // Only a housemate's payment into the House Budget can be waiting.
             const waiting =
               s.toMemberId === HOUSE_BUDGET && s.fromMemberId !== HOUSE_BUDGET ? waitingFrom(view, s.fromMemberId) : 0;
@@ -387,8 +387,8 @@ function PaymentRow({ view, payment: p, receipts }: { view: PeriodView; payment:
   const previewing = useIsPreviewing();
   const [editing, setEditing] = useState(false);
   const memberOf = new Map(view.members.map((m) => [m.id, m]));
-  const from = partyView(p.fromMemberId, memberOf);
-  const to = partyView(p.toMemberId, memberOf);
+  const from = partyView(p.fromMemberId, memberOf, view.houseBudgetEmoji);
+  const to = partyView(p.toMemberId, memberOf, view.houseBudgetEmoji);
   const toName = partyName(p.toMemberId, memberOf);
   const label = `${partyName(p.fromMemberId, memberOf, "Someone")} → ${toName}`;
   // The collector checks the bank, whoever the payment went to.

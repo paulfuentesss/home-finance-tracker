@@ -88,8 +88,8 @@ export default async function ReceiptsPage({ params }: PageProps<"/periods/[year
         ) : (
           <ul className="divide-y rounded-xl border bg-white px-4 shadow-xs sm:px-5">
             {view.payments.map((p) => {
-              const from = partyView(p.fromMemberId, memberOf);
-              const to = partyView(p.toMemberId, memberOf);
+              const from = partyView(p.fromMemberId, memberOf, view.houseBudgetEmoji);
+              const to = partyView(p.toMemberId, memberOf, view.houseBudgetEmoji);
               const label = `${partyName(p.fromMemberId, memberOf, "?")} → ${partyName(p.toMemberId, memberOf, "?")}`;
               return (
                 <ReceiptsRow

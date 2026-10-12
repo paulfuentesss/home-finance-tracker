@@ -134,6 +134,13 @@
       "when": 1791824977787,
       "tag": "0018_member-emoji",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791829347665,
+      "tag": "0019_house-budget-emoji",
+      "breakpoints": true
     }
   ]
 }

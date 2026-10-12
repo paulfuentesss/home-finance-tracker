@@ -23,6 +23,7 @@ import {
   billItemShares,
   db,
   helperEntries,
+  householdSettings,
   members,
   payments,
   periodBalances,
@@ -1301,6 +1302,22 @@ export async function updateMemberEmoji(_prev: ActionState, formData: FormData):
       .where(eq(members.id, memberId))
       .returning({ id: members.id });
     if (!updated) throw new ActionError("That person isn't in the household.");
+  });
+}
+
+/**
+ * Sets the House Budget's emoji, shown in place of its icon (docs/features/manage.md → Emoji).
+ * Admin only: it's PA's account. Empty clears it. The settings row is made the first time.
+ */
+export async function updateHouseBudgetEmoji(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const schema = z.object({ emoji: z.string().max(64) });
+  return run("admin", schema, formData, async ({ emoji }) => {
+    const parsed = parseEmoji(emoji);
+    if (!parsed.ok) throw new ActionError("Type a single emoji, or leave it empty for the bank icon.");
+    await db
+      .insert(householdSettings)
+      .values({ id: 1, houseBudgetEmoji: parsed.emoji })
+      .onConflictDoUpdate({ target: householdSettings.id, set: { houseBudgetEmoji: parsed.emoji } });
   });
 }
 
