@@ -20,6 +20,11 @@ Check:
   removed from `docs/TODO.md`; a choice with a "why" → `docs/decisions.md`; a money rule →
   `docs/settlement-rules.md` and `app/how-it-works/page.tsx`; a table or migration →
   `docs/data-model.md`; a new npm script → `docs/commands.md`.
+- **The Download backup still covers everything** (the "Download backup must keep covering
+  everything" rule in `CLAUDE.md`): a new table has rows in `SAMPLE` in `lib/backup.test.ts`;
+  a new Storage bucket is in `app/backup/route.ts`, `storage:backup`, `storage:restore` and
+  `BACKED_UP_BUCKETS`; data needing a key or service outside the zip is noted in
+  `docs/operations.md` → Backups.
 - **One home per topic.** Flag status, open items, money rules or config values copied into a
   second doc instead of linked.
 - **Docs still match the code.** Spot-check file paths, function names and commands the

@@ -72,6 +72,14 @@ Part of every change, in the same PR — not a separate chore.
   tsx and must use `createDb` from `db/client.ts` instead, because `server-only` throws
   outside Next.
 - Schema changes: `npm run db:generate`, review the SQL, then `npm run db:migrate`. Never `push`.
+- **Download backup must keep covering everything** (`docs/operations.md` → Backups). Every
+  change that stores something new checks it's in the zip and restorable:
+  - A new table is backed up on its own, but needs sample rows in `SAMPLE` in
+    `lib/backup.test.ts` (the test fails otherwise).
+  - A new Storage bucket isn't: add it to `app/backup/route.ts`, `storage:backup` and
+    `storage:restore`, then to `BACKED_UP_BUCKETS` in `lib/backup.test.ts` (fails until then).
+  - Data that needs something outside the zip to use (a key like `BILLER_SECRET_KEY`, another
+    service) → say so in `docs/operations.md` → Backups.
 - **One database:** `localhost`, scripts and the live site share it, so local edits, seeds and
   migrations hit live data. A migration must be safe for the code already deployed (add first,
   remove later; backup before anything destructive) — `docs/operations.md` → One database.
@@ -102,6 +110,8 @@ Part of every change, in the same PR — not a separate chore.
   - Two routes have no login, each checking its shared secret (`checkBearerSecret`) before
     anything else, and each the only reader of it: `/api/bill-email` (the Gmail script,
     `BILL_EMAIL_SECRET`) and `/api/reminders` (Vercel's daily cron, `CRON_SECRET`).
+  - `/api/seen` (who's using My House) checks the login first and writes only the caller's own
+    `member_devices` row — the real viewer, never a preview's housemate (guard-tested).
   - **Emails** go out only through `lib/email.ts` (the only reader of `GMAIL_SMTP_APP_PASSWORD`).
     Only the live site emails housemates and writes `reminder_sends`; localhost redirects every
     email to `EMAIL_TEST_TO` — keep it that way (one database: `docs/features/reminders.md`).

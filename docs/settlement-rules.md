@@ -269,6 +269,33 @@ January of the next year.
 **After a closed month**, "Start next month" copies each person's stored closing balance as
 the new month's opening balance.
 
+## What's still owed after a bill email
+
+Once a month's bill is emailed ([reminders](features/reminders.md)), payments for it usually
+land in the *next* month — "I paid" always goes in the latest one. So what a housemate still
+has to pay for the bill's month (`payablesOf` in `lib/reminders.ts`, `payablesIn` in
+`lib/periods.ts`) is:
+
+- **owes** (Final > 0): that month's Final, less their **confirmed** payments into the House
+  Budget in later months; their **waiting** "I paid"s (that month or later) are shown as
+  waiting, not taken off until confirmed;
+- **is owed** (Final < 0): minus that month's Final, less the House Budget's **confirmed**
+  payments back to them in later months;
+- **never more than they owe (or are owed) overall now** — their Final in the latest month. A
+  later month's own numbers can settle the bill with no payment at all (say, advances they paid
+  in the new month), and then they owe nothing more for it.
+
+With no whole latest Final — they aren't in the latest month, or its numbers (or an earlier
+month's carry-over into it) can't be worked out — there's no cap. The latest Final counts only
+what's in the latest month so far (bills not in yet aren't), so a bill can show as settled and
+later bills simply carry over into the next one.
+
+Rejected payments never count. The "still unpaid from last month" note in the email is their
+Prev Month Unsettled less their **confirmed** payments into the House Budget since (in the
+bill's month or later). Nothing here changes
+any Final; it only decides what the bill email, the housemate's "your bill is ready" banner and
+the admin's "everyone has paid" nudge say.
+
 ## Closing and reopening a month
 
 **Ending** comes first, on its own: once a month's last day has passed (Manila time,

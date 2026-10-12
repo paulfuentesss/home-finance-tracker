@@ -10,7 +10,7 @@ import { getPreview, requireViewer } from "@/lib/auth";
 import { dateInManila, todayInManila } from "@/lib/format";
 import { dotClassOf } from "@/lib/members";
 import { canOpenReceipt } from "@/lib/permissions";
-import { closeCheck, monthHasEnded, reopenCheck, startCheck, type LockCheck } from "@/lib/month-lock";
+import { closeCheck, monthHasEnded, reopenCheck, type LockCheck } from "@/lib/month-lock";
 import { payablesOf, type Payables } from "@/lib/reminders";
 import {
   countsInBill,
@@ -190,8 +190,6 @@ export interface PeriodView {
   isLatest: boolean;
   /** The latest month's status (the deadline banner is about it, whichever month is shown). */
   latestStatus: "open" | "closed";
-  /** Why the month after the latest can't start yet (a waiting payment), or null. */
-  startBlock: string | null;
   canClose: LockCheck;
   canReopen: LockCheck;
   /** Set when the numbers can't be computed (e.g. shares that don't add up). */
@@ -273,14 +271,35 @@ export async function computePeriod(executor: Executor, year: number, month: num
 
 export type ComputedPeriod = NonNullable<Awaited<ReturnType<typeof computePeriod>>>;
 
+/** A computed month plus everyone's Final in the latest month, for what's still owed (payablesIn). */
+export type PayablesPeriod = ComputedPeriod & {
+  /** Each member's live Final in the latest month (empty when it can't be worked out). */
+  latestFinals: ReadonlyMap<MemberId, Centavos>;
+};
+
+/** computePeriod for a month whose bill is (or will be) emailed, with the latest month's Finals. */
+export async function computeForPayables(executor: Executor, year: number, month: number): Promise<PayablesPeriod | null> {
+  const computed = await computePeriod(executor, year, month);
+  if (!computed) return null;
+  const last = computed.all[computed.all.length - 1];
+  const latest = last.id === computed.period.id ? computed : await computePeriod(executor, last.year, last.month);
+  // Only Finals that are whole: with an `issue`, a later month may have been computed without an
+  // earlier month's carry-over, and capping by it could call someone settled who isn't.
+  const rows = latest && !latest.issue ? (latest.result?.rows ?? []) : [];
+  const latestFinals = new Map(rows.map((r) => [r.member.id, r.balance]));
+  return { ...computed, latestFinals };
+}
+
 /**
- * What a member still has to pay (or get back) for a computed month
- * (docs/features/reminders.md): its Final, less their waiting "I paid"s and what moved between
- * them and the House Budget in later months. Null when they aren't in it or the numbers can't
- * be worked out. `carriedOver` = their Prev Month Unsettled when they owed it.
+ * What a member still has to pay (or get back) for a month (docs/settlement-rules.md → "What's
+ * still owed after a bill email"): its Final, less their waiting "I paid"s and what moved between
+ * them and the House Budget in later months — but never more than they owe (or are owed)
+ * overall now, their latest Final, since a later month's own numbers can settle it too. Null
+ * when they aren't in it or the numbers can't be worked out. `carriedOver` = what's still unpaid
+ * of their Prev Month Unsettled, after their payments since.
  */
 export function payablesIn(
-  computed: ComputedPeriod,
+  computed: PayablesPeriod,
   memberId: MemberId,
 ): { payables: Payables; carriedOver: Centavos } | null {
   const row = computed.result?.rows.find((r) => r.member.id === memberId);
@@ -296,7 +315,12 @@ export function payablesIn(
       return direction ? [{ amount: toCentavos(p.amount), status: p.status, later: i > 0, direction }] : [];
     }),
   );
-  return { payables: payablesOf(row.balance, payments), carriedOver: Math.max(0, row.opening) };
+  // Last month's unpaid amount, less what they've paid in since (this month or later).
+  const paidIn = sumCentavos(payments.filter((p) => p.direction === "in" && p.status === "confirmed").map((p) => p.amount));
+  return {
+    payables: payablesOf(row.balance, payments, computed.latestFinals.get(memberId)),
+    carriedOver: Math.max(0, row.opening - paidIn),
+  };
 }
 
 /** A month's payments with each side as a Party (a NULL side is the House Budget). */
@@ -439,7 +463,6 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
     next: summaries[index + 1] ?? null,
     isLatest: index === all.length - 1,
     latestStatus: all[all.length - 1].status,
-    startBlock: startCheck(waitingPaymentLabels(all[all.length - 1])).reason ?? null,
     canClose: closeCheck(period, all[index - 1] ?? null, issue, pendingBillNames(period), waitingPaymentLabels(period)),
     canReopen: reopenCheck(period, all[index + 1] ?? null),
     issue,

@@ -111,6 +111,44 @@ describe("payablesOf", () => {
     });
   });
 
+  it("is never more than they owe overall now (the latest Final)", () => {
+    // Ben owes ₱1,000.00 for September; October's own numbers (advances he paid) bring his
+    // latest Final to ₱0.00 — nothing more to pay, though no payment was made.
+    expect(payablesOf(100_000, [], 0)).toEqual({ kind: "settled" });
+    // Latest Final ₱400.00: only ₱400.00 of September's ₱1,000.00 is still to pay.
+    expect(payablesOf(100_000, [], 40_000)).toEqual({ kind: "owes", due: 40_000, waiting: 0, left: 40_000 });
+    // A latest Final above it (new spending since) doesn't raise the bill's amount.
+    expect(payablesOf(100_000, [], 250_000)).toEqual({ kind: "owes", due: 100_000, waiting: 0, left: 100_000 });
+    // Owed overall now (negative latest Final): nothing to pay.
+    expect(payablesOf(100_000, [], -5_000)).toEqual({ kind: "settled" });
+  });
+
+  it("caps after later payments, and shows waiting payments against the capped amount", () => {
+    // ₱1,000.00 owed, ₱600.00 paid in October, latest Final ₱300.00: ₱300.00 left, not ₱400.00.
+    expect(payablesOf(100_000, [paid(60_000, "confirmed", true)], 30_000)).toEqual({
+      kind: "owes",
+      due: 30_000,
+      waiting: 0,
+      left: 30_000,
+    });
+    // ₱1,000.00 sent with I paid (waiting), latest Final ₱800.00: all ₱800.00 of it is waiting.
+    expect(payablesOf(100_000, [paid(100_000, "pending", true)], 80_000)).toEqual({
+      kind: "owes",
+      due: 80_000,
+      waiting: 80_000,
+      left: 0,
+    });
+  });
+
+  it("is never more owed back than they're owed overall now", () => {
+    // Cara is owed ₱1,000.00 for September; October brings her latest Final to ₱0.00.
+    expect(payablesOf(-100_000, [], 0)).toEqual({ kind: "settled" });
+    expect(payablesOf(-100_000, [], -30_000)).toEqual({ kind: "owed", amount: 30_000 });
+    expect(payablesOf(-100_000, [], -250_000)).toEqual({ kind: "owed", amount: 100_000 });
+    // Owing overall now (positive latest Final): nothing to get back.
+    expect(payablesOf(-100_000, [], 5_000)).toEqual({ kind: "settled" });
+  });
+
   it("is owed back when the Final is negative, less what's been paid back since", () => {
     expect(payablesOf(-12_345, [])).toEqual({ kind: "owed", amount: 12_345 });
     // ₱123.45 owed, ₱100.00 paid back in the next month: ₱23.45 left. Their own "I paid"s don't count.

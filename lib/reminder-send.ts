@@ -12,7 +12,7 @@ import { monthLabel } from "@/lib/format";
 import { sharesCosts } from "@/lib/members";
 import { monthHasEnded, payablesCheck } from "@/lib/month-lock";
 import { startNextMonthIn } from "@/lib/month-start";
-import { computePeriod, payablesIn, pendingBillNames } from "@/lib/periods";
+import { computeForPayables, payablesIn, pendingBillNames } from "@/lib/periods";
 import { monthEndEmail, payablesEmail, readyEmail, startBlockedEmail, type Email } from "@/lib/reminder-emails";
 import { findAdminNudge } from "@/lib/reminder-status";
 import { daysLeftIn, reminderDue } from "@/lib/reminders";
@@ -144,7 +144,7 @@ async function sendOnce(periodId: number, kind: ReminderKind, to: Recipient, ema
 export async function sendPayables(periodId: number): Promise<void> {
   const target = await db.query.billingPeriods.findFirst({ where: eq(billingPeriods.id, periodId) });
   if (!target) throw new ActionError("That month no longer exists.");
-  const computed = await computePeriod(db, target.year, target.month);
+  const computed = await computeForPayables(db, target.year, target.month);
   if (!computed) throw new ActionError("That month no longer exists.");
   const check = payablesCheck(computed.issue, pendingBillNames(computed.period));
   if (!check.ok) throw new ActionError(check.reason!);

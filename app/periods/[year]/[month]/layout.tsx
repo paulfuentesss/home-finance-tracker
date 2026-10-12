@@ -10,6 +10,8 @@ import { getPreview, getPreviewChoices, requireViewer } from "@/lib/auth";
 import { backupReminderText } from "@/lib/backup-reminder";
 import { getBackupReminder } from "@/lib/backup-status";
 import { monthLabel, todayInManila } from "@/lib/format";
+import { monthHasEnded } from "@/lib/month-lock";
+import { startBlockReason } from "@/lib/month-start";
 import { isAdmin } from "@/lib/permissions";
 import { getPeriodView } from "@/lib/periods";
 import { getAdminNudge, getBillNotice } from "@/lib/reminder-status";
@@ -41,8 +43,16 @@ export default async function PeriodLayout({ params, children }: Props) {
   const viewer = preview ?? real;
   const previewBy = preview ? real : null;
   const admin = isAdmin(viewer);
-  // For the notices: a housemate's emailed bill still to pay, or the admin's next step.
-  const [bill, nudge] = await Promise.all([getBillNotice(viewer), getAdminNudge(viewer)]);
+  // For the notices: a housemate's emailed bill still to pay, or the admin's next step — and,
+  // once the latest month has ended, why the next one hasn't started (admin only).
+  const today = todayInManila();
+  const latest = view.periods.at(-1);
+  const toStart = admin && latest !== undefined && monthHasEnded(latest.year, latest.month, today);
+  const [bill, nudge, startBlock] = await Promise.all([
+    getBillNotice(viewer),
+    getAdminNudge(viewer),
+    toStart ? startBlockReason() : null,
+  ]);
 
   return (
     <AppShell viewer={viewer} previewBy={previewBy} sidebar={sidebarProps(view, viewer, previewChoices)}>
@@ -50,7 +60,7 @@ export default async function PeriodLayout({ params, children }: Props) {
       <main className="mx-auto w-full max-w-7xl space-y-6 px-4 py-8">
         {/* The admin's own reminder: hidden while previewing as a housemate. */}
         {admin && reminder && <BackupReminderBanner text={backupReminderText(reminder)} />}
-        <MonthNotices view={view} viewer={viewer} bill={bill} nudge={nudge} today={todayInManila()} />
+        <MonthNotices view={view} viewer={viewer} bill={bill} nudge={nudge} startBlock={startBlock} today={today} />
         {view.period.status === "closed" && (
           <div className="flex items-start gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700">
             <Lock className="mt-0.5 size-4 shrink-0" />

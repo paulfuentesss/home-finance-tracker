@@ -95,11 +95,11 @@ function useDialogForm(
   return { state: shown, pending: pending || preparing, previewing, onSubmit };
 }
 
-export function AddAdvanceDialog({ view }: Props) {
+export function AddAdvanceDialog({ view, className }: Props & { className?: string }) {
   const [open, setOpen] = useState(false);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button />}>
+      <DialogTrigger render={<Button className={className} />}>
         <Plus />
         Log new advance
       </DialogTrigger>
@@ -753,11 +753,11 @@ function AddBillForm({ view, onDone }: Props & { onDone: () => void }) {
   );
 }
 
-export function AddMemberDialog() {
+export function AddMemberDialog({ className }: { className?: string }) {
   const [open, setOpen] = useState(false);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="outline" />}>
+      <DialogTrigger render={<Button variant="outline" className={className} />}>
         <UserPlus />
         Add member
       </DialogTrigger>
