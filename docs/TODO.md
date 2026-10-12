@@ -22,10 +22,6 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
       live since 2026-10-13. They come from the household Gmail; mark the first one "Not spam"
       if it lands there.
 
-- [ ] **Invite the housemates** ([auth](features/auth.md)). Login testing is finished
-      (2026-10-09). A test housemate still has a `+` alias of PA's Gmail; swap in their real
-      address. Anyone signing in with Google also needs to be a test user on the consent screen.
-
 - [ ] **Bills to the My House Gmail** ([email-bills](features/email-bills.md)) — *waiting on the
       billers.* Changed in their apps, and each biller was emailed (2026-10-11) after a PLDT bill
       still went to PA's personal email. Remove this once a bill from each has arrived at the My
@@ -40,11 +36,6 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
 - [ ] **Watch where sign-in emails land** ([auth](features/auth.md)): the first code went to
       Promotions, a later one to Primary. If housemates' codes keep getting filed away, move to
       a transactional email service (e.g. Resend) with an own domain once online.
-
-- [ ] **Move the Helper over from the sheet** ([helper](features/helper.md)) — after it's
-      online: on the Helper tab, **Set starting debt** to the sheet's Remaining, then log this
-      month's visits and early pay (the first entry replaces the typed Helper total). Stop
-      updating the sheet's Helper tables after that.
 
 ## Later
 
