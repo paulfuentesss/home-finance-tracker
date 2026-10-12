@@ -389,9 +389,10 @@ worktrees anyway.
 - PA finds out **in the app** (a "Waiting for you" section and a count on the Settle Up tab) —
   no email to set up or maintain.
 - It goes to **the collector only**, in **the latest month**; the server sets both people.
+  (Since 2026-10-12 it goes into the House Budget instead; see that entry.)
 - **One screenshot per "I paid"** — a Server Action carries one file (`bodySizeLimit`); PA can
   attach more.
-- A payment's screenshot is seen only by **PA and the two people in it** (a bank screenshot can
+- A payment's screenshot is seen only by **PA and the people in it** (a bank screenshot can
   show someone's bank and balance); bill proofs stay visible to everyone.
 - **Closing a month, and starting the next one, wait for waiting payments.** In a closed month
   one could never be decided; and the next month's carry-over counts only confirmed payments,
@@ -479,3 +480,27 @@ The cost: losing the key loses the passwords, so a copy of it is kept in a passw
 **Instead of:** plain text hidden from housemates (readable by anyone with the database or a
 backup), or no passwords on the site and a shared password manager only (safest, but a second
 place to look, and PA wanted it in My House).
+
+## 2026-10-12 — The House Budget is a side of a payment, not a member
+**Decision:** housemates pay into the **House Budget** (the collection account, a savings
+account PA looks after) and PA pays out of it — to whoever is owed, then the rest to himself
+([settlement-rules.md → House Budget](settlement-rules.md#house-budget)). It's one side of a
+payment (a NULL `from_member_id` / `to_member_id`), never a member. What it holds is worked out
+from the payments, not stored. It may go negative. Money left in it at month close carries
+over. Bills stay paid from PA's own account, so they're still his advance.
+**Why:** before, a payment "to the collector" counted as PA's money the moment it landed, while
+the cash actually sat in the savings account, part of it owed to someone else. Now PA's Final
+moves only when money is paid out to him, so the app matches the bank. As a payment side it
+takes no shares, needs no login and can't be split into anything; a member row would have needed
+exceptions everywhere members are listed. Deriving its balance needs no new column and nothing
+to snapshot: closed months' payments can't change. Allowing a negative balance lets PA pay
+someone before the money arrives, which happens.
+**Migration order:** `0012_house-budget` runs **after** the deploy, not before as usual (the
+code already deployed is old, and there's no test database). Until it runs, a House Budget
+payment fails on NOT NULL instead of reaching code that can't read a NULL side; the old receipt
+route took a NULL side to mean "not a payment" and would have shown the screenshot to everyone.
+The route now decides from `receipts.payment_id` (`canOpenReceipt`).
+**Instead of:** the savings account as a member (exceptions in every split, list and login
+check), a stored opening balance per month (one more number to snapshot and keep in step), or
+leaving payments to the collector and only showing an "in savings" note (PA's Final would still
+move before the money is his).

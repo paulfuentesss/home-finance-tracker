@@ -8,10 +8,10 @@ begins, then it gets a page here.
 
 | Feature | Status | What it does | Page |
 |---|---|---|---|
-| Monthly Split Table | ✅ | Every bill and shared column split per person, Month Final, carry-over, Final; "Who owes what" cards | [split-table.md](split-table.md) |
+| Monthly Split Table | ✅ | Every bill and shared column split per person, Month Final, carry-over, Final, a House Budget row; "Who owes what" cards | [split-table.md](split-table.md) |
 | Advances | ✅ | Log household purchases into shared columns; per-person report | [advances.md](advances.md) |
 | Helper | ✅ | Her visits and early pay: whoever paid her gets it back, the Helper column fills in by itself, and what she owes carries across months | [helper.md](helper.md) |
-| Settle Up | ✅ | Who owes whom; PA records a payment in one tap, a housemate sends theirs with “I paid” and a screenshot for PA to confirm | [settle-up.md](settle-up.md) |
+| Settle Up | ✅ | Who owes whom, settled through the House Budget; PA records a payment in one tap, a housemate sends theirs with “I paid” and a screenshot for PA to confirm | [settle-up.md](settle-up.md) |
 | Months | ✅ | Month picker, starting the next month, live carry-over, closing / reopening, the backup reminder | [months.md](months.md) |
 | Manage Columns & People | ✅ | Bill and shared columns, Meralco points, housemates moving in and out, Download backup | [manage.md](manage.md) |
 | Login | ✅ | Google or an emailed code; invite-only; the admin edits everything, housemates log their own advances and Helper visits; the admin can preview as a housemate | [auth.md](auth.md) |
@@ -33,7 +33,8 @@ Every feature page uses the same headings: **Status** · **What it does** · **H
 
 | Term | Meaning |
 |---|---|
-| **Collector** | The member who pays the core bills upfront and whom everyone settles with (PA). Absorbs leftover centavos. |
+| **Collector** | The member who pays the core bills upfront and looks after the House Budget (PA). Absorbs leftover centavos; gets what's left in the House Budget once everyone else is settled. |
+| **House Budget** | The household's collection account: housemates pay into it, the collector pays out of it. A side of a payment, not a member ([rules](../settlement-rules.md#house-budget)). |
 | **Admin / member** | Login roles ([auth.md](auth.md)). The admin (PA) can change everything; members see everything and manage their own advances. |
 | **Invite** | A member's login email, set in Manage. Only invited emails can sign in. |
 | **Bill column** | A bill in the Split Table (Meralco, Water, PLDT Wifi, Helper, …), split equally, by points or manually. |

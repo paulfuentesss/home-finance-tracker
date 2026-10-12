@@ -16,8 +16,8 @@ comes with its screenshot ([settle-up.md](settle-up.md)).
 - Tap a proof to see it full size, open the original in a new tab, or (PA, open month) delete it.
 - Everyone signed in can see every **bill** proof, like the rest of the month. A **payment's**
   proof — a bank-transfer screenshot, which can show someone's bank and balance — only PA and
-  the two people in the payment see (`canSeePaymentProof` in `lib/permissions.ts`); everyone
-  still sees the payment and its amount.
+  the people in the payment see (the House Budget side is PA's; `canSeePaymentProof` in
+  `lib/permissions.ts`); everyone still sees the payment and its amount.
 - A housemate's own payment proof comes from "I paid" ([settle-up.md](settle-up.md)), uploaded
   the same way (shrunk in the browser, checked on the server); PA can attach more to it.
 - Receipts never change the math.
@@ -42,7 +42,9 @@ comes with its screenshot ([settle-up.md](settle-up.md)).
   capped by `bodySizeLimit` in `next.config.ts`.
 - **Viewing** goes through `app/receipts/[id]/route.ts`, which checks the login — and, for a
   payment's proof, that the viewer may see it (otherwise "not found", as for a missing one) —
-  and redirects to a link to the file that works for one minute. The lists only include proofs
+  and redirects to a link to the file that works for one minute. Whether a proof is a payment's
+  comes from `receipts.payment_id`, never from the payment's sides, since a House Budget side is
+  NULL too (`canOpenReceipt`). The lists only include proofs
   the page's viewer may open (`getPeriodReceipts`, for a previewed housemate too). The page links there, so links never go stale.
   The images are plain `<img>`s: `next/image` would copy private files into its disk cache.
 - **Deleting** a receipt, a bill or a payment removes the rows first, then the files once that

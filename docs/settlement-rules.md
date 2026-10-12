@@ -13,11 +13,12 @@ and amounts never appear here; they live only in the database.
 ## Members and the collector
 
 **PA is the collector**: he usually pays Meralco, Water, PLDT and the Helper upfront
-and everyone settles with him (`members.is_collector`, at most one). Being the collector
-only means two things in the math:
+and everyone settles up through the [House Budget](#house-budget), the account he looks after
+(`members.is_collector`, at most one). Being the collector only means three things in the math:
 
-1. new bills default to PA as the payer, and
-2. PA absorbs leftover centavos when splitting (see Rounding).
+1. new bills default to PA as the payer,
+2. PA absorbs leftover centavos when splitting (see Rounding), and
+3. what's left in the House Budget once everyone else is settled is paid out to PA.
 
 Otherwise PA is treated exactly like everyone else.
 
@@ -179,37 +180,74 @@ stays in the month it was logged in.
 **Final** = Prev Month Unsettled (opening) + Month Final − paid out + received — the same
 formula for everyone, the collector included.
 
+## House Budget
+
+The **House Budget** is the household's collection account, a savings account PA looks after
+(its name in the bank, `HOUSE_BUDGET_LABEL` in `lib/household-config.ts`). Housemates pay
+what they owe into it; PA pays out of it, first to whoever is owed, then what's left to
+himself. In the math it's **one side of a payment, never a member** (`HOUSE_BUDGET` in
+`lib/settlement.ts`; a NULL side in `payments`): it takes no share of anything and isn't in a
+month's member list.
+
+- **What it holds** = opening + received − paid out (`houseBudgetMonth`). The same sign as a
+  member's Final: positive is money still to be paid out. Only confirmed payments count.
+- **Opening** = every earlier month's House Budget payments, in − out. It's worked out from
+  the payments, not stored: payments in a closed month can't change, so the sum can't either.
+  Money still in it at the end of a month **carries over**, like an unpaid Final.
+- It **may go negative**, when PA pays someone out before the money comes in; the numbers
+  stay right, and Settle Up says so.
+- **Everyone's Final + what the House Budget holds = ₱0.00**, apart from Manual-column
+  differences: each month's stays in the collector's Final and carries over with it, so they
+  add up across months (₱0.02 over in August and again in September → ₱0.04). Money only
+  counts as PA's once it's paid out to him
+  ("House Budget → PA"), so his Final doesn't move when a housemate pays in.
+- PA moving money from the House Budget to his own account **is** that payment: record it.
+  Payments between two members (PA paying someone from his own account) are still allowed.
+
 ## Payments (Settle Up)
 
 A payment (`payments`) records money actually changing hands. It belongs to the month it's
 recorded in: the payer's `paid out` and the receiver's `received` both move toward ₱0.
 The Split Table shows them in the **Payments** column as `received − paid out` (− when
-you paid back, + when you received), which adds up to ₱0.00 across everyone.
+you paid back, + when you received). With the House Budget's row, which shows its own
+`received − paid out`, that column adds up to ₱0.00.
 
-The Settle Up tab suggests the payments that settle everyone with the collector
-(`suggestedPayments` in `lib/settlement.ts`): whoever owes pays the collector their Final,
-and the collector pays whoever is owed. Recording all of them brings every Final to ₱0 except
-the collector's, which keeps only what doesn't add up (a Manual column that's over or short).
-Any other pair and partial amounts are allowed. Payments can be edited or deleted while the
-month is open (a rejected one only deleted; a waiting one keeps who paid whom).
+The Settle Up tab suggests the payments that settle everyone through the House Budget
+(`suggestedPayments` in `lib/settlement.ts`), in the order they happen:
+
+1. whoever owes (other than the collector) pays their Final into the House Budget;
+2. the House Budget pays whoever is owed (other than the collector), largest first;
+3. what the House Budget would hold after that goes to the collector — or, if it would be
+   short, the collector pays the difference in.
+
+Recording all of them brings every Final and the House Budget to ₱0, except the collector's
+Final, which keeps only what doesn't add up (a Manual column that's over or short). Any other
+pair and partial amounts are allowed, with the House Budget on at most one side. Payments can be
+edited or deleted while the month is open (a rejected one only deleted; a waiting one keeps who
+paid whom).
 
 **A housemate's "I paid"** (`payments.status`): a housemate sends their own payment, always
-to the collector, in the latest month, with the transfer's screenshot (required). It is
+into the House Budget, in the latest month, with the transfer's screenshot (required). It is
 **pending** — shown as waiting, **not counted** — until the collector checks it arrived and
 **confirms** it, after which it counts exactly like one the collector recorded. If it didn't
 arrive the collector **rejects** it with a reason: it stays visible as rejected and **never
 counts**. The housemate can cancel their own while it's pending or rejected. Payments the
 collector records himself are confirmed at once. Only confirmed payments enter the ledger
-(`computeMonth`), the carry-over and the suggested payments. A payment's screenshot is seen
-only by the collector and the two people in the payment; everyone sees the payment itself.
+(`computeMonth`, `houseBudgetMonth`), the carry-over and the suggested payments. A payment's
+screenshot is seen only by the collector and the member in the payment (both members, for a
+payment between two); everyone sees the payment itself.
 
-> August: Ana → PA ₱15,353.91 · PA → Cara ₱15,059.19 · Ben → PA ₱10,105.83 ·
-> Dan → PA ₱5,362.76. Afterwards PA's Final is ₱0.02 (the Ice Maker difference).
+> August: Ana ₱15,353.91 · Ben ₱10,105.83 · Dan ₱5,362.76 → House Budget (₱30,822.50 in) ·
+> House Budget → Cara ₱15,059.19 · House Budget → PA ₱15,763.31 (what's left). Afterwards
+> the House Budget is ₱0.00 and PA's Final is ₱0.02 (the Ice Maker difference). Halfway —
+> say only Dan has paid in — PA's Final is still −₱15,763.29 and the House Budget holds
+> ₱5,362.76.
 
 **Carry-over is live:** an open month's opening balance is the previous month's Final,
 computed on the fly back to the first month (or to the last closed month, whose stored
 `period_balances.opening_balance` is used). Unpaid amounts therefore carry over
-automatically, like the sheet's "Prev Month Unsettled".
+automatically, like the sheet's "Prev Month Unsettled". The House Budget always carries over
+from the payments themselves, closed months included ([House Budget](#house-budget)).
 
 **Starting a month** ("Start <next month>" at the bottom of the month picker, on the latest month) creates the next month with
 everyone currently active and carries over (not while a housemate's payment is still waiting
@@ -245,8 +283,8 @@ Rules (`lib/month-lock.ts`):
 - **Blocked while a bill is pending** (emailed, not yet confirmed or discarded), **or a
   housemate's payment is waiting** (not yet confirmed or rejected): once the month and the one
   after it are closed, it could never be. Rejected payments don't block.
-- The confirmation lists who is still unsettled, bills still at ₱0.00, and Manual columns
-  that don't add up; none of them block closing. (A bill still at ₱0.00 may simply not have
+- The confirmation lists who is still unsettled, what the House Budget still holds, bills
+  still at ₱0.00, and Manual columns that don't add up; none of them block closing. (A bill still at ₱0.00 may simply not have
   arrived: bills belong to the month they're for, which has usually ended when they arrive.)
 
 

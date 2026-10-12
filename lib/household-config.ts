@@ -8,6 +8,12 @@ export const MERALCO_POINT_ITEMS = [
   { item: "PA's PC", points: 0.3 },
 ] as const;
 
+/**
+ * What the household's collection account is called (HOUSE_BUDGET in lib/settlement.ts): the
+ * account's name in the bank, so it's the name housemates see when they send money.
+ */
+export const HOUSE_BUDGET_LABEL = "House Budget";
+
 /** When the current Meralco point allocation was agreed. */
 export const MERALCO_POINTS_AS_OF = "April 2026";
 

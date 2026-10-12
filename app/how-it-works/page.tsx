@@ -5,7 +5,12 @@ import { connection } from "next/server";
 import { FaqAccordion } from "@/components/faq-accordion";
 import { monthLabel } from "@/lib/format";
 import { paymentFee } from "@/lib/bill-email/fees";
-import { BILL_EMAIL_COLUMNS, MERALCO_POINT_ITEMS, MERALCO_POINTS_AS_OF } from "@/lib/household-config";
+import {
+  BILL_EMAIL_COLUMNS,
+  HOUSE_BUDGET_LABEL,
+  MERALCO_POINT_ITEMS,
+  MERALCO_POINTS_AS_OF,
+} from "@/lib/household-config";
 import { formatPHP } from "@/lib/money";
 import { getLatestPointsBills } from "@/lib/periods";
 import { cn } from "@/lib/utils";
@@ -123,10 +128,11 @@ export default async function HowItWorksPage() {
           </p>
           <ul className="list-disc space-y-1 pl-5">
             <li>
-              <span className="font-medium text-rose-600">To pay</span> — pay this amount to the admin.
+              <span className="font-medium text-rose-600">To pay</span> — pay this amount into the {HOUSE_BUDGET_LABEL}.
             </li>
             <li>
-              <span className="font-medium text-emerald-700">To receive</span> — the admin pays this amount back to you.
+              <span className="font-medium text-emerald-700">To receive</span> — the admin pays this amount back to you
+              from the {HOUSE_BUDGET_LABEL}.
             </li>
             <li>
               <span className="font-medium text-zinc-600">Settled</span> — ₱0.00, nothing to do.
@@ -144,10 +150,31 @@ export default async function HowItWorksPage() {
       q: "Why does the admin usually pay the bills?",
       a: (
         <p>
-          The admin pays Meralco, Water, PLDT and usually the Helper upfront, and everyone settles with the admin. Whoever
-          pays a bill — the admin or anyone else — gets it counted as money they paid, so it comes off their Month Final.
-          For the Helper, that&apos;s whoever paid her each time (see the Helper question).
+          The admin pays Meralco, Water, PLDT and usually the Helper upfront, and everyone settles up through the{" "}
+          {HOUSE_BUDGET_LABEL} (see the next question). Whoever pays a bill — the admin or anyone else — gets it counted
+          as money they paid, so it comes off their Month Final. For the Helper, that&apos;s whoever paid her each time
+          (see the Helper question).
         </p>
+      ),
+    },
+    {
+      id: "house-budget",
+      q: `What is the ${HOUSE_BUDGET_LABEL}?`,
+      a: (
+        <>
+          <p>
+            The household&apos;s savings account, where everyone sends what they owe. Once the money is in, the admin
+            pays out of it: first to anyone who paid more than their share, then what&apos;s left to the admin, who
+            paid the bills upfront.
+          </p>
+          <p>
+            The Split Table shows it as its own row under everyone: what it holds right now, still to be paid out. Money
+            only comes off the admin&apos;s Final when it&apos;s paid out to them, so the table always matches where
+            the money really is. Everyone&apos;s Final plus what the {HOUSE_BUDGET_LABEL} holds adds up to ₱0.00
+            (or the few centavos a Manual column is over or short). Anything still in it at the end of a month
+            carries over to the next.
+          </p>
+        </>
       ),
     },
     {
@@ -233,7 +260,8 @@ export default async function HowItWorksPage() {
       a: (
         <p>
           Nothing is lost: whatever is still unpaid at the end of a month carries over to the next month&apos;s
-          &ldquo;Prev Month Unsettled&rdquo; column and is added to that month&apos;s Final.
+          &ldquo;Prev Month Unsettled&rdquo; column and is added to that month&apos;s Final. Money still in the{" "}
+          {HOUSE_BUDGET_LABEL} carries over the same way.
         </p>
       ),
     },
@@ -243,21 +271,21 @@ export default async function HowItWorksPage() {
       a: (
         <>
           <p>
-            Everyone settles with the admin. After you transfer the money, open <strong>Settle Up</strong>, tap{" "}
+            Send what you owe to the {HOUSE_BUDGET_LABEL}. Then open <strong>Settle Up</strong>, tap{" "}
             <strong>I paid</strong> on your row and attach the screenshot of the transfer. The amount is filled in with
             what you owe; change it if you only paid part.
           </p>
           <p>
             It shows as <strong>Waiting for the admin</strong> until they check it arrived and confirm it — until then it
             doesn&apos;t count. If it didn&apos;t arrive, they <strong>reject</strong> it with a short reason (say, not in
-            their GCash yet); a rejected payment never counts, and you can cancel it and send it again. You can also
-            cancel your own while it&apos;s waiting. Only you and the admin can see your screenshot; the others see that
-            you paid and how much.
+            the {HOUSE_BUDGET_LABEL} yet); a rejected payment never counts, and you can cancel it and send it again. You
+            can also cancel your own while it&apos;s waiting. Only you and the admin can see your screenshot; the others
+            see that you paid and how much.
           </p>
           <p>
-            Once confirmed, a payment comes off the payer&apos;s Final and the receiver&apos;s, and shows in the Split
-            Table&apos;s Payments column. Pay back everything you owed and your Final goes to ₱0.00 — Settled. The admin
-            can also record a payment directly, which counts right away.
+            Once confirmed, a payment comes off your Final, adds to what the {HOUSE_BUDGET_LABEL} holds, and shows in the
+            Split Table&apos;s Payments column. Pay back everything you owed and your Final goes to ₱0.00 — Settled. The
+            admin can also record a payment directly, which counts right away.
           </p>
         </>
       ),

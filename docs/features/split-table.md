@@ -6,13 +6,16 @@
 ## What it does
 - Shows the month like the household sheet: one row per member, a column per bill and per
   shared column, then Total, Own Advance (−), Month Final, Prev Month Unsettled, Payments, Final.
+- A **House Budget** row under the members, once money has gone through it: what it opened
+  with, its payments, and what it holds ("Holding"). The footer totals include it, so Payments
+  and Final still come to ₱0.00 ([rules](../settlement-rules.md#house-budget)).
 - Bill totals and Manual amounts are edited in place (Enter or click away saves, Escape undoes).
 - Due date and date paid per bill, except the Helper (`bill_items.kind = 'helper'`), whose
   cells stay blank: her visits have their own dates on the [Helper tab](helper.md).
 - Once a month has Helper visits or early pay logged, the Helper column's total comes from the
   Helper tab: shown read-only, linked to it.
-- "Who owes what" cards above the table: who pays the collector, who gets paid — readable on
-  a phone where the wide table isn't.
+- "Who owes what" cards above the table: who pays into the House Budget, who gets paid from
+  it, and what's left for the collector — readable on a phone where the wide table isn't.
 - Flags a Manual column whose amounts don't add up, and shows the Month Final total (₱0.00 when
   everything adds up). When it isn't, a short "should be ₱0.00 ⓘ" note opens a popover naming
   the columns that are over or short (kept short so it doesn't widen the column).

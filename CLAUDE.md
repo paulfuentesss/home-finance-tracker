@@ -4,7 +4,8 @@ Household expense tracker replacing a monthly Google Sheet. Next.js 16 App Route
 shadcn/ui, Drizzle ORM on Supabase Postgres, Vitest.
 
 The user (Paul, "PA" in the data) is both the developer and the household's
-**collector**: he pays the core bills upfront and everyone settles with him. He is
+**collector**: he pays the core bills upfront, and everyone settles up through the **House
+Budget**, the savings account he looks after (a payment side, not a member). He is
 learning these tools, so explain what each step does and why.
 
 GitHub: `paulfuentesss/home-finance-tracker` (**public**). Local folder:
@@ -53,7 +54,11 @@ Part of every change, in the same PR — not a separate chore.
   or `db/schema.ts`.** If a rule changes, update the doc **and** the household-facing
   "How it works" page (`app/how-it-works/page.tsx`) in the same change.
 - Full ledger: everyone's Month Final sums to ₱0.00 (bills paid count as the payer's advance,
-  the collector included). Bill shares come only from `computeBillShares`.
+  the collector included). Bill shares come only from `computeBillShares`. Everyone's Final plus
+  what the House Budget holds sums to ₱0.00 too.
+- A payment side is a `Party` (member id or `HOUSE_BUDGET`); the House Budget is stored as NULL.
+  Convert only with `partyFromColumn` / `partyToColumn`, and never treat a NULL side as "not a
+  payment" (decide from `receipts.payment_id`; `canOpenReceipt`).
 - **Money is never a float.** Postgres `numeric(12,2)` comes back from Drizzle as a string.
   Convert with `toCentavos`, do the math in integer centavos, and write back with
   `fromCentavos`. Splits must always sum exactly to the total.

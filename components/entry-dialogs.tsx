@@ -18,6 +18,7 @@ import {
   updatePayment,
   type ActionState,
 } from "@/app/periods/[year]/[month]/actions";
+import { partyName } from "@/components/member-pair";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -34,11 +35,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useIsPreviewing, useViewer } from "@/components/viewer-context";
 import { CATEGORY_LABELS, todayInManila } from "@/lib/format";
+import { HOUSE_BUDGET_LABEL } from "@/lib/household-config";
 import { formatPHP, fromCentavos, parseMoneyInput, type Centavos } from "@/lib/money";
 import { isAdmin } from "@/lib/permissions";
 import type { PeriodView, ViewAdvance, ViewHelperEntry, ViewPayment } from "@/lib/periods";
 import { prepareReceiptFile } from "@/lib/receipt-image";
 import { MAX_RECEIPT_BYTES } from "@/lib/receipts";
+import { HOUSE_BUDGET, type Party } from "@/lib/settlement";
 
 interface Props {
   view: PeriodView;
@@ -444,15 +447,16 @@ function HelperEntryForm({
 }
 
 export interface PaymentPrefill {
-  fromMemberId: number;
-  toMemberId: number;
+  fromMemberId: Party;
+  toMemberId: Party;
   /** What they owe, pre-filled; change it for a partial payment. */
   amount: Centavos;
 }
 
 /**
  * Records a payment. From a "Who still owes" row it opens pre-filled (who, to whom, the full
- * amount); without `prefill` it's for any other payment between two people.
+ * amount); without `prefill` it's for any other payment (into or out of the House Budget, or
+ * between two people).
  */
 export function RecordPaymentDialog({
   view,
@@ -497,8 +501,8 @@ export function EditPaymentDialog({
 
 /**
  * A housemate's "I paid" (docs/features/settle-up.md): the amount (pre-filled with what they
- * owe), the date, and the transfer's screenshot, which is required. It goes to the collector
- * and waits for them to confirm it; the server sets who paid whom.
+ * owe), the date, and the transfer's screenshot, which is required. It's money into the House
+ * Budget, waiting for the collector to confirm it; the server sets who paid whom.
  */
 export function SubmitPaymentDialog({
   view,
@@ -551,10 +555,10 @@ function SubmitPaymentForm({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>I paid {collector}</DialogTitle>
+        <DialogTitle>I paid into the {HOUSE_BUDGET_LABEL}</DialogTitle>
         <DialogDescription>
-          Attach the screenshot of your transfer. It shows as waiting until {collector} checks it arrived, then it
-          comes off what you owe.
+          Attach the screenshot of your transfer to the {HOUSE_BUDGET_LABEL}. It shows as waiting until {collector}{" "}
+          checks it arrived, then it comes off what you owe.
         </DialogDescription>
       </DialogHeader>
       <form onSubmit={onSubmit} className="grid gap-4">
@@ -583,7 +587,7 @@ function SubmitPaymentForm({
         </div>
         {owed > 0 && typedAmount !== null && typedAmount > owed && (
           <p className="text-xs text-amber-700">
-            More than the {formatPHP(owed)} you owe. {collector} will owe you the difference.
+            More than the {formatPHP(owed)} you owe. You&apos;ll be owed the difference.
           </p>
         )}
         <Field label="Screenshot of the transfer" htmlFor="file">
@@ -614,12 +618,17 @@ function PaymentForm({
   const { state, pending, previewing, onSubmit } = useDialogForm(payment ? updatePayment : addPayment, onDone);
   const [typed, setTyped] = useState(prefill ? fromCentavos(prefill.amount) : "");
   const typedAmount = parseMoneyInput(typed);
-  const nameOf = new Map(view.members.map((m) => [m.id, m.name]));
-  const memberItems = view.members.map((m) => ({ value: String(m.id), label: m.name }));
+  const memberOf = new Map(view.members.map((m) => [m.id, m]));
+  // Either side can be the House Budget (the server refuses it on both).
+  const partyItems = [
+    ...view.members.map((m) => ({ value: String(m.id), label: m.name })),
+    { value: HOUSE_BUDGET, label: HOUSE_BUDGET_LABEL },
+  ];
   const collector = view.members.find((m) => m.isCollector) ?? view.members[0];
   const firstOther = view.members.find((m) => m.id !== collector?.id) ?? collector;
   const from = payment?.fromMemberId ?? prefill?.fromMemberId ?? firstOther?.id;
-  const to = payment?.toMemberId ?? prefill?.toMemberId ?? collector?.id;
+  // Housemates pay into the House Budget, so that's the usual receiver.
+  const to = payment?.toMemberId ?? prefill?.toMemberId ?? HOUSE_BUDGET;
 
   return (
     <>
@@ -627,8 +636,8 @@ function PaymentForm({
         <DialogTitle>{payment ? "Edit payment" : "Record payment"}</DialogTitle>
         <DialogDescription>
           {prefill
-            ? `${nameOf.get(prefill.fromMemberId)} → ${nameOf.get(prefill.toMemberId)}. Change the amount if it was only part of it.`
-            : "Money that changed hands to settle up. It comes off the payer's Final and the receiver's."}
+            ? `${partyName(prefill.fromMemberId, memberOf)} → ${partyName(prefill.toMemberId, memberOf)}. Change the amount if it was only part of it.`
+            : `Money that changed hands to settle up, into or out of the ${HOUSE_BUDGET_LABEL}. It comes off the Final on each side.`}
         </DialogDescription>
       </DialogHeader>
       <form onSubmit={onSubmit} className="grid gap-4">
@@ -639,10 +648,10 @@ function PaymentForm({
         )}
         <div className="grid grid-cols-2 gap-3">
           <Field label="Paid by" htmlFor="fromMemberId">
-            <SelectField id="fromMemberId" items={memberItems} defaultValue={String(from)} />
+            <SelectField id="fromMemberId" items={partyItems} defaultValue={String(from)} />
           </Field>
           <Field label="Paid to" htmlFor="toMemberId">
-            <SelectField id="toMemberId" items={memberItems} defaultValue={String(to)} />
+            <SelectField id="toMemberId" items={partyItems} defaultValue={String(to)} />
           </Field>
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -663,8 +672,10 @@ function PaymentForm({
         </div>
         {prefill && typedAmount !== null && typedAmount > prefill.amount && (
           <p className="text-xs text-amber-700">
-            More than the {formatPHP(prefill.amount)} owed. {nameOf.get(prefill.fromMemberId)} will be owed the
-            difference.
+            More than the {formatPHP(prefill.amount)} owed.{" "}
+            {prefill.fromMemberId === HOUSE_BUDGET
+              ? `${partyName(prefill.toMemberId, memberOf)} will owe the difference back.`
+              : `${partyName(prefill.fromMemberId, memberOf)} will be owed the difference.`}
           </p>
         )}
         <Field label="Note (optional)" htmlFor="note">
