@@ -22,8 +22,10 @@ begins, then it gets a page here.
 | Billers & Accounts | ✅ | Each company the household pays, with account numbers, how it's paid, links and passwords (encrypted, revealed on tap); the admin edits, housemates see what's shared | [billers.md](billers.md) |
 
 Also running, not features of the app itself:
-- **How it works page** (`/how-it-works`) — the household-facing explanation of the rules;
-  it must change whenever a rule does ([settlement-rules.md](../settlement-rules.md)). Its Meralco
+- **How it works page** (`/how-it-works`) — the household-facing explanation of the rules and
+  FAQ, grouped (Paying, Splitting, Emails & the app, Less common) with jump links. It must change
+  whenever a rule does ([settlement-rules.md](../settlement-rules.md)) or something housemates
+  see or do does (CLAUDE.md → Keeping docs up to date). Its Meralco
   points table shows the newest of the last few months whose bill has an amount, so it isn't all
   ₱0.00 while this month's bill is still to come.
 - **Keep-alive job** — keeps the free Supabase project awake ([operations.md](../operations.md#supabase-free-plan-the-project-goes-to-sleep)).

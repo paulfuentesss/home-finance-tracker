@@ -20,6 +20,10 @@ Check:
   removed from `docs/TODO.md`; a choice with a "why" → `docs/decisions.md`; a money rule →
   `docs/settlement-rules.md` and `app/how-it-works/page.tsx`; a table or migration →
   `docs/data-model.md`; a new npm script → `docs/commands.md`.
+- **The FAQ still matches the app.** Anything housemates see or do that changed (a tab, a
+  button, an email, who can do what), or a new feature they'll use → its question on
+  `app/how-it-works/page.tsx` says the same, or a question was added. Flag admin-only detail
+  added there (it belongs in `docs/features/`).
 - **The Download backup still covers everything** (the "Download backup must keep covering
   everything" rule in `CLAUDE.md`): a new table has rows in `SAMPLE` in `lib/backup.test.ts`;
   a new Storage bucket is in `app/backup/route.ts`, `storage:backup`, `storage:restore` and

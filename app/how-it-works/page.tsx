@@ -43,7 +43,18 @@ const TIMELINE = [
   { when: "Bill ready", what: "Pay in Settle Up", icon: ReceiptText, highlight: true },
 ];
 
-// A plain-language guide for the household. Keep it in sync with docs/settlement-rules.md.
+// The jump links under "Your part each month": the question groups, and the points table.
+const JUMP_LINKS = [
+  { href: "#paying", label: "Paying" },
+  { href: "#splitting", label: "Splitting" },
+  { href: "#points-table", label: "Meralco points" },
+  { href: "#the-app", label: "Emails & the app" },
+  { href: "#less-common", label: "Less common" },
+];
+
+// A plain-language guide for the household. Keep it in sync with docs/settlement-rules.md, and with
+// what housemates see and do in the app (CLAUDE.md → Keeping docs up to date). Housemates read it:
+// admin-only detail lives in docs/features/, not here.
 export default async function HowItWorksPage() {
   await connection();
   const real = await requireViewer();
@@ -71,90 +82,37 @@ export default async function HowItWorksPage() {
     .filter((f) => f.fee > 0);
   const fees = feeList.map((f) => `${formatPHP(f.fee)} for ${f.column}${f.note ? `, the ${f.note}` : ""}`);
 
-  const faqs = [
+  // Question ids are link targets: the Split Table's cards open #equal, #points, #shared-advances
+  // and #month-final (components/split-table.tsx), so keep those.
+  const paying = [
     {
-      id: "equal",
-      q: "How are bills split?",
+      id: "payments",
+      q: "How do I record that I paid?",
       a: (
         <>
           <p>
-            Water, PLDT and the Helper are always split <strong>equally</strong> between everyone in the house
-            that month. Amounts are worked out to the exact centavo, so everyone&apos;s shares always add up to the real
-            bill.
+            Send what you owe to the {HOUSE_BUDGET_LABEL}. Then open <strong>Settle Up</strong>, tap{" "}
+            <strong>I paid</strong> on your row and attach the screenshot of the transfer. The amount is filled in with
+            what you owe; change it if you only paid part. The &ldquo;Your bill is ready&rdquo; email and banner link
+            straight there.
           </p>
           <p>
-            When a bill doesn&apos;t divide evenly, the leftover centavos are handed out one each,{" "}
-            <strong>the admin</strong> (who collects) first. Example: ₱1,000.02 split 5 ways is ₱200.004 each, so the
-            admin and one other person pay ₱200.01 and the other three pay ₱200.00.
+            I paid always goes in the <strong>latest</strong> month. Once a new month has started, what you still owe
+            from last month is in its Prev Month Unsettled column, so paying there settles it.
+          </p>
+          <p>
+            It shows as <strong>Waiting for the admin</strong> and doesn&apos;t count until they&apos;ve checked it
+            arrived and confirmed it; then it comes off your Final. If it didn&apos;t arrive, they{" "}
+            <strong>reject</strong> it with a short reason, and you can cancel it and send it again. You can also
+            cancel your own while it&apos;s waiting. Only you and the admin see your screenshot; the others see that
+            you paid and how much.
           </p>
         </>
-      ),
-    },
-    {
-      id: "points",
-      q: "How is Meralco split? What do the points mean?",
-      a: (
-        <>
-          <p>
-            Electricity isn&apos;t used equally — aircon and a PC use a lot more — so Meralco is split with a{" "}
-            <strong>point system</strong>. Each person has points based on what they use (see the table above). The
-            bill is divided into as many equal parts as there are points in total, and each person pays for their own
-            points.
-          </p>
-          <p>
-            <strong>Cost per point = bill ÷ total points.</strong> Someone with 2 points pays twice as much as someone
-            with 1 point. Meralco always uses points; the allocation is changed in Manage Columns &amp; People.
-          </p>
-        </>
-      ),
-    },
-    {
-      id: "manual",
-      q: "Can a new bill be split some other way?",
-      a: (
-        <p>
-          When a new bill column is added it&apos;s set to <strong>Auto equal</strong> or <strong>Manual</strong>, and
-          stays that way. For a Manual bill each person&apos;s amount is typed in, and the bill&apos;s total is the
-          sum.
-        </p>
-      ),
-    },
-    {
-      id: "shared-advances",
-      q: "What are shared advances? Why do some columns leave someone out?",
-      a: (
-        <>
-          <p>
-            A shared advance is something one person paid for the whole house — groceries, palengke, gas, a service.
-            It&apos;s logged into a <strong>shared column</strong>, usually <strong>Advances Shared</strong> (everyone),
-            and everyone in that column pays an equal part — including the person who paid, who gets the rest back.
-          </p>
-          <p>
-            When the usual split doesn&apos;t fit, the admin adds a separate column for that month. For example, if
-            someone is away for part of the month, what&apos;s bought while they&apos;re gone can go into a column like
-            &ldquo;Advances Shared w/o PA&rdquo;, shared only by the people at home.
-          </p>
-          <p>
-            Logged something wrong, or in the wrong column? Edit it in the Advances Log (the pencil next to it) and
-            everyone&apos;s shares are recalculated.
-          </p>
-        </>
-      ),
-    },
-    {
-      id: "custom-split",
-      q: "What if something isn't shared equally?",
-      a: (
-        <p>
-          Switch a shared column to <strong>Manual</strong> and type each person&apos;s amount — for example, when one
-          person covers half of a purchase and everyone else splits the rest. If the typed
-          amounts don&apos;t add up to the column&apos;s total, the table shows how much it&apos;s over or short.
-        </p>
       ),
     },
     {
       id: "month-final",
-      q: "What does Month Final mean?",
+      q: "What do Month Final and Final mean?",
       a: (
         <>
           <p>
@@ -189,33 +147,106 @@ export default async function HowItWorksPage() {
       ),
     },
     {
-      id: "who-pays",
-      q: "Why does the admin usually pay the bills?",
+      id: "carry-over",
+      q: "What if I don't pay in full?",
       a: (
         <p>
-          The admin pays Meralco, Water, PLDT and usually the Helper upfront, and everyone settles up through the{" "}
-          {HOUSE_BUDGET_LABEL} (see the next question). Whoever pays a bill — the admin or anyone else — gets it counted
-          as money they paid, so it comes off their Month Final. For the Helper, that&apos;s whoever paid her each time
-          (see the Helper question).
+          Nothing is lost: whatever is still unpaid at the end of a month carries over to the next month&apos;s
+          &ldquo;Prev Month Unsettled&rdquo; column and is added to that month&apos;s Final. Money still in the{" "}
+          {HOUSE_BUDGET_LABEL} carries over the same way.
         </p>
       ),
     },
     {
-      id: "house-budget",
-      q: `What is the ${HOUSE_BUDGET_LABEL}?`,
+      id: "month-end",
+      q: "What happens when the month ends?",
       a: (
         <>
           <p>
-            The household&apos;s savings account, where everyone sends what they owe. Once the money is in, the admin
-            pays out of it: first to anyone who paid more than their share, then what&apos;s left to the admin, who
-            paid the bills upfront.
+            After a month&apos;s last day it&apos;s <strong>locked for housemates</strong>: you can&apos;t add, edit or
+            delete your advances or Helper visits in it anymore. The admin still can, so if you forgot something, tell
+            the admin.
           </p>
           <p>
-            The Split Table shows it as its own row under everyone: what it holds right now, still to be paid out. Money
-            only comes off the admin&apos;s Final when it&apos;s paid out to them, so the table always matches where
-            the money really is. Everyone&apos;s Final plus what the {HOUSE_BUDGET_LABEL} holds adds up to ₱0.00
-            (or the few centavos a Manual column is over or short). Anything still in it at the end of a month
-            carries over to the next.
+            Anything new goes in the next month, which usually starts by itself on the 1st. (If an I paid is still
+            waiting for the admin, it starts the morning after they&apos;ve dealt with it, so nobody is shown the amount
+            again and pays twice.) An expense keeps its own date, so something from the 30th logged into the next month is fine.
+            Paying isn&apos;t affected: you can still send <strong>I paid</strong> after the month ends — that&apos;s
+            when the bills arrive.
+          </p>
+          <p>
+            Later, usually once everyone has paid, the admin <strong>closes</strong> the month. After that it&apos;s
+            locked for everyone (if something needs fixing, the admin reopens it), and anything still unpaid carries
+            over to the next month.
+          </p>
+        </>
+      ),
+    },
+  ];
+
+  const splitting = [
+    {
+      id: "equal",
+      q: "How are bills split?",
+      a: (
+        <>
+          <p>
+            Water, PLDT and the Helper are always split <strong>equally</strong> between everyone in the house
+            that month. Amounts are worked out to the exact centavo, so everyone&apos;s shares always add up to the real
+            bill.
+          </p>
+          <p>
+            When a bill doesn&apos;t divide evenly, the leftover centavos are handed out one each,{" "}
+            <strong>the admin</strong> (who collects) first. Example: ₱1,000.02 split 5 ways is ₱200.004 each, so the
+            admin and one other person pay ₱200.01 and the other three pay ₱200.00.
+          </p>
+          <p>
+            Meralco is split by points (next question). A bill added later is set to <strong>Auto equal</strong> or{" "}
+            <strong>Manual</strong> when it&apos;s added, and stays that way; for a Manual bill each person&apos;s
+            amount is typed in, and the bill&apos;s total is the sum.
+          </p>
+        </>
+      ),
+    },
+    {
+      id: "points",
+      q: "How is Meralco split? What do the points mean?",
+      a: (
+        <>
+          <p>
+            Electricity isn&apos;t used equally — aircon and a PC use a lot more — so Meralco is split with a{" "}
+            <strong>point system</strong>. Each person has points based on what they use (see the table below). The
+            bill is divided into as many equal parts as there are points in total, and each person pays for their own
+            points.
+          </p>
+          <p>
+            <strong>Cost per point = bill ÷ total points.</strong> Someone with 2 points pays twice as much as someone
+            with 1 point. The admin sets everyone&apos;s points; if yours look wrong, tell the admin.
+          </p>
+        </>
+      ),
+    },
+    {
+      id: "shared-advances",
+      q: "What are shared advances? Why do some columns leave someone out?",
+      a: (
+        <>
+          <p>
+            A shared advance is something one person paid for the whole house — groceries, palengke, gas, a service.
+            It&apos;s logged into a <strong>shared column</strong>, usually <strong>Advances Shared</strong> (everyone),
+            and everyone in that column pays an equal part — including the person who paid, who gets the rest back.
+          </p>
+          <p>
+            When the usual split doesn&apos;t fit, the admin adds a separate column for that month. For example, if
+            someone is away for part of the month, what&apos;s bought while they&apos;re gone can go into a column like
+            &ldquo;Advances Shared w/o PA&rdquo;, shared only by the people at home. And when something isn&apos;t
+            shared equally — say one person covers half of a purchase — the admin sets the column to{" "}
+            <strong>Manual</strong> and types each person&apos;s amount. If those don&apos;t add up to the column&apos;s
+            total, the table shows how much it&apos;s over or short.
+          </p>
+          <p>
+            Logged something wrong? Edit it in the Advances Log (the pencil next to it) until the month ends, and
+            everyone&apos;s shares are recalculated.
           </p>
         </>
       ),
@@ -226,13 +257,13 @@ export default async function HowItWorksPage() {
       a: (
         <>
           <p>
-            Every day the Helper works is logged on the <strong>Helper</strong> tab: the date, her daily pay, and who
-            paid her. Whoever is home can pay her and log it themselves.
+            Every day the Helper works is logged on the <strong>Helper Visits</strong> tab: the date, her daily pay,
+            and who paid her. Whoever is home can pay her and log it themselves.
           </p>
           <p>
             Sometimes she gets money <strong>before</strong> she works — <strong>early pay</strong>. She then owes it,
-            and part of her later daily pay is taken off what she owes instead of being handed to her. The Helper tab
-            keeps track of what she still owes.
+            and part of her later daily pay is taken off what she owes instead of being handed to her. The Helper
+            Visits tab keeps track of what she still owes.
           </p>
           <p>
             <strong>Whoever hands her money gets it back.</strong> The month&apos;s Helper bill is everything handed
@@ -248,115 +279,29 @@ export default async function HowItWorksPage() {
       ),
     },
     {
-      id: "emailed-bills",
-      q: "What does “Pending” on a bill mean?",
+      id: "house-budget",
+      q: `What is the ${HOUSE_BUDGET_LABEL}, and why does the admin pay the bills?`,
       a: (
         <>
           <p>
-            Meralco, Water and PLDT email their bills, and the app reads the amount and due date from the email. The
-            bill goes into the month it&apos;s for — the month the provider names on the bill, not the day the email
-            arrives — marked <strong>Pending</strong>.
+            The household&apos;s savings account, where everyone sends what they owe. The admin pays Meralco, Water,
+            PLDT and usually the Helper upfront, then pays out of the {HOUSE_BUDGET_LABEL}: first to anyone who paid
+            more than their share, then what&apos;s left to the admin.
           </p>
           <p>
-            The small fee for paying it is added and shared like the bill
-            {fees.length > 0 ? `: ${fees.join("; ")}` : ""}. Tap <strong>From email</strong> under the amount to see
-            the emailed bill and the fee that was added.
+            Whoever pays a bill — the admin or anyone else — gets it counted as money they paid, so it comes off their
+            Month Final.
           </p>
           <p>
-            A pending bill is <strong>not counted yet</strong>: nobody&apos;s totals change until the admin checks it and taps{" "}
-            <strong>Confirm</strong>. The admin can still change the amount first. <strong>Discard</strong> puts the bill back
-            to ₱0.00 to type in by hand.
-          </p>
-          <p>
-            An emailed bill never replaces an amount that&apos;s already there. If its month hasn&apos;t started yet,
-            is closed, or already has that bill, it waits in the <strong>Bill Inbox</strong> (Manage) instead. A month
-            can&apos;t be closed while a bill in it is still pending.
+            The Split Table shows the {HOUSE_BUDGET_LABEL} as its own row under everyone: what it holds right now,
+            still to be paid out. Anything still in it at the end of a month carries over to the next.
           </p>
         </>
       ),
     },
-    {
-      id: "move-in-out",
-      q: "What happens when someone moves in or out?",
-      a: (
-        <>
-          <p>
-            Someone who <strong>moves in</strong> joins every open month: equal bills are re-split to include them,
-            they start at 0 Meralco points until theirs are set, and they share the everyday Advances Shared column.
-          </p>
-          <p>
-            Someone who <strong>moves out</strong> is left out of future months. In a month where they already have
-            something recorded — an advance, a payment, a bill they paid, or an amount typed for them in a Manual bill
-            or column — they stay, so that month&apos;s numbers don&apos;t change. Otherwise they&apos;re taken out and
-            the bills re-split. A new month&apos;s bill they&apos;re down as paying but that is still ₱0 goes to the admin.
-          </p>
-          <p>
-            Someone who still owes, or is still owed, money from an earlier month also stays until it&apos;s settled,
-            so an unpaid balance never disappears.
-          </p>
-        </>
-      ),
-    },
-    {
-      id: "carry-over",
-      q: "What happens if I don't pay in full?",
-      a: (
-        <p>
-          Nothing is lost: whatever is still unpaid at the end of a month carries over to the next month&apos;s
-          &ldquo;Prev Month Unsettled&rdquo; column and is added to that month&apos;s Final. Money still in the{" "}
-          {HOUSE_BUDGET_LABEL} carries over the same way.
-        </p>
-      ),
-    },
-    {
-      id: "payments",
-      q: "How do I record that I paid?",
-      a: (
-        <>
-          <p>
-            Send what you owe to the {HOUSE_BUDGET_LABEL}. Then open <strong>Settle Up</strong>, tap{" "}
-            <strong>I paid</strong> on your row and attach the screenshot of the transfer. The amount is filled in with
-            what you owe; change it if you only paid part. The &ldquo;Your bill is ready&rdquo; email and banner link
-            straight there.
-          </p>
-          <p>
-            I paid always goes in the <strong>latest</strong> month. Once the new month has started on the 1st,
-            last month&apos;s bill is paid there: what you owed carries over as Prev Month Unsettled, so paying it in the
-            new month settles it.
-          </p>
-          <p>
-            It shows as <strong>Waiting for the admin</strong> until they check it arrived and confirm it — until then it
-            doesn&apos;t count. If it didn&apos;t arrive, they <strong>reject</strong> it with a short reason (say, not in
-            the {HOUSE_BUDGET_LABEL} yet); a rejected payment never counts, and you can cancel it and send it again. You
-            can also cancel your own while it&apos;s waiting. Only you and the admin can see your screenshot; the others
-            see that you paid and how much.
-          </p>
-          <p>
-            Once confirmed, a payment comes off your Final, adds to what the {HOUSE_BUDGET_LABEL} holds, and shows in the
-            Split Table&apos;s Payments column. Pay back everything you owed and your Final goes to ₱0.00 — Settled. The
-            admin can also record a payment directly, which counts right away.
-          </p>
-        </>
-      ),
-    },
-    {
-      id: "month-end",
-      q: "What happens when the month ends?",
-      a: (
-        <>
-          <p>
-            After a month&apos;s last day it&apos;s <strong>locked for housemates</strong>: you can&apos;t add, edit or
-            delete your advances or Helper visits in it anymore. The admin still can, until the month is closed — so if
-            you forgot something, tell the admin.
-          </p>
-          <p>
-            Anything new goes in the next month, which starts by itself on the 1st. An expense keeps its own date,
-            so something from the 30th logged into the next month is fine. Paying isn&apos;t affected: you can still send{" "}
-            <strong>I paid</strong> in Settle Up after the month ends — that&apos;s when the bills arrive.
-          </p>
-        </>
-      ),
-    },
+  ];
+
+  const theApp = [
     {
       id: "emails",
       q: "What emails will I get, and when?",
@@ -379,10 +324,8 @@ export default async function HowItWorksPage() {
             </li>
           </ul>
           <p>
-            The same reminders show at the top of the month&apos;s pages, so nothing is missed if an email lands in spam.
-            &ldquo;Your bill is ready&rdquo; stays there, with a button to Settle Up, until you&apos;re settled — your
-            payment confirmed, or, if you&apos;ve since paid for things in the new month, once those cover it (you never
-            owe more for a bill than you owe overall).
+            The same reminders show at the top of the month&apos;s pages, in case an email lands in spam. &ldquo;Your
+            bill is ready&rdquo; stays there, with a button to Settle Up, until you&apos;re settled.
           </p>
           <p>
             Amount looks wrong, or a question about an email? Message the admin before paying — they can fix the month
@@ -393,57 +336,117 @@ export default async function HowItWorksPage() {
     },
     {
       id: "who-can-change-what",
-      q: "Who can change what?",
+      q: "Who can see and change what?",
       a: (
         <>
           <p>
             Everyone in the household signs in with their own login — Google, or a code sent to their email — and can
-            see every month. Only emails the admin has added can sign in. The admin can also add someone as{" "}
-            <strong>view only</strong> (say, family abroad): they see every month like you do (but not your payment
-            screenshots), change nothing, and aren&apos;t part of any month, so they share in no bill and never owe or
-            are owed.
+            see every month. Only emails the admin has added can sign in. A <strong>view only</strong> login (say,
+            family abroad) sees the months too but changes nothing, and isn&apos;t part of any month, so they share in
+            no bill and never owe or are owed.
           </p>
           <p>
             You can log your own advances into <strong>Advances Shared</strong> and the Helper visits you paid, and edit
-            or delete them while they&apos;re there — until the month ends (see{" "}
+            or delete them until the month ends (see{" "}
             <a href="#month-end" className="underline underline-offset-2">
               What happens when the month ends?
             </a>
-            ) — and send your own payments to the admin with <strong>I paid</strong>. Everything else —
-            bills, points, other shared columns, confirming payments, attaching proof of bills (Receipts), moving in and
-            out, closing months — is done by the admin. If one of your advances should be split differently (say, not with
-            everyone), the admin moves it to the right column; after that, only the admin can change it.
+            ), and send your payments with <strong>I paid</strong>. Everything else — bills, points, other shared
+            columns, confirming payments, moving in and out, closing months — is done by the admin. If one of your
+            advances should be split differently, the admin moves it to the right column; after that, only the admin
+            can change it.
           </p>
           <p>
-            <strong>Billers &amp; Accounts</strong> — account numbers, how each bill is paid, logins — is kept up to date
-            by the admin. You see what&apos;s shared with you; passwords stay hidden until you tap to reveal one.
+            <strong>Receipts</strong> shows everyone the proof of each bill. A payment&apos;s screenshot, which can show
+            your bank, only you and the admin see. <strong>Billers &amp; Accounts</strong> shows the lines shared with
+            housemates; passwords stay hidden until you tap to reveal one.
           </p>
         </>
       ),
     },
     {
-      id: "closing",
-      q: "What does closing a month do?",
+      id: "install",
+      q: "How do I put My House on my phone?",
       a: (
         <>
+          <p>Installed, My House opens full-screen from your home screen, like an app:</p>
+          <ul className="list-disc space-y-1 pl-5">
+            <li>
+              <strong>Android</strong> (or a computer, in Chrome or Edge) — tap <strong>Install</strong> on the card at
+              the bottom of the screen, or use the browser&apos;s menu (⋮) → Install app.
+            </li>
+            <li>
+              <strong>iPhone</strong> — tap Share (or ••• then Share) → <strong>Add to Home Screen</strong>. Then sign
+              in once more inside the app: on iPhone it keeps its own login.
+            </li>
+            <li>
+              <strong>Opened the link in Messenger, Facebook or Instagram?</strong> Those can&apos;t install anything:
+              open it in Chrome or Safari first.
+            </li>
+          </ul>
           <p>
-            Ending and closing aren&apos;t the same. A month <strong>ends</strong> on its own after its last day, and from
-            then only the admin can change it. Later — usually once everyone has paid, but it doesn&apos;t have to wait
-            — the admin <strong>closes</strong> it in Settle Up. A closed month is locked: nothing in it
-            can be changed (its proofs of payment included), and everyone&apos;s Final is saved as next month&apos;s Prev Month Unsettled. Unpaid
-            amounts simply carry over.
-          </p>
-          <p>
-            Months close in order, oldest first — a month can&apos;t be closed while an earlier one is still open, or
-            while a bill in it is still pending or a payment is still waiting for the admin. The next month starts by
-            itself on the 1st — but not while a payment waits, so nobody is shown the amount again and pays twice; it
-            starts the morning after the admin confirms it. If something needs fixing, the admin can{" "}
-            <strong>reopen</strong> the latest closed month, fix it, and close it again.
+            Closed the card? <strong>Install app</strong> in the menu under your name, at the bottom of the sidebar,
+            brings it back. My House still needs an internet connection.
           </p>
         </>
       ),
     },
   ];
+
+  const lessCommon = [
+    {
+      id: "emailed-bills",
+      q: "What does “Pending” on a bill mean?",
+      a: (
+        <>
+          <p>
+            Meralco, Water and PLDT email their bills, and the app reads the amount and due date from the email. The
+            bill goes into the month it&apos;s for — the month the provider names on the bill, not the day the email
+            arrives — marked <strong>Pending</strong>.
+          </p>
+          <p>
+            The small fee for paying it is added and shared like the bill
+            {fees.length > 0 ? `: ${fees.join("; ")}` : ""}. Tap <strong>From email</strong> under the amount to see
+            the emailed bill and the fee that was added.
+          </p>
+          <p>
+            A pending bill is <strong>not counted yet</strong>: nobody&apos;s totals change until the admin checks it
+            and confirms it.
+          </p>
+        </>
+      ),
+    },
+    {
+      id: "move-in-out",
+      q: "What happens when someone moves in or out?",
+      a: (
+        <>
+          <p>
+            Someone who <strong>moves in</strong> joins every open month: equal bills are re-split to include them,
+            they start at 0 Meralco points until theirs are set, and they share the everyday Advances Shared column.
+          </p>
+          <p>
+            Someone who <strong>moves out</strong> is left out of future months. In a month where they already have
+            something recorded — an advance, a payment, a bill or Helper visit they paid, or an amount typed for them
+            in a Manual bill or column — they stay, so that month&apos;s numbers don&apos;t change. Otherwise
+            they&apos;re taken out and the bills re-split. A new month&apos;s bill they&apos;re down as paying but
+            that is still ₱0 goes to the admin.
+          </p>
+          <p>
+            Someone who still owes, or is still owed, money from an earlier month also stays until it&apos;s settled,
+            so an unpaid balance never disappears.
+          </p>
+        </>
+      ),
+    },
+  ];
+
+  const faqGroup = (id: string, title: string, items: typeof paying) => (
+    <section id={id} className="scroll-mt-6 rounded-xl border bg-white px-5 pt-5 pb-2 shadow-xs">
+      <h2 className="font-semibold">{title}</h2>
+      <FaqAccordion items={items} />
+    </section>
+  );
 
   const page = (
     <div className="min-h-full">
@@ -516,7 +519,23 @@ export default async function HowItWorksPage() {
           </p>
         </section>
 
-        <section id="points-table" className="rounded-xl border bg-white p-5 shadow-xs">
+        <nav aria-label="Questions" className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-muted-foreground">Questions:</span>
+          {JUMP_LINKS.map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              className="rounded-full border bg-white px-3 py-1 text-muted-foreground transition-colors hover:border-amber-300 hover:text-foreground"
+            >
+              {link.label}
+            </a>
+          ))}
+        </nav>
+
+        {faqGroup("paying", "Paying and settling up", paying)}
+        {faqGroup("splitting", "How the costs are split", splitting)}
+
+        <section id="points-table" className="scroll-mt-6 rounded-xl border bg-white p-5 shadow-xs">
           <h2 className="font-semibold">Meralco point system</h2>
           <p className="mt-1 text-sm text-muted-foreground">Current allocation as of {MERALCO_POINTS_AS_OF}.</p>
           {exampleNote && <p className="mt-1 text-sm text-muted-foreground">{exampleNote}</p>}
@@ -594,9 +613,8 @@ export default async function HowItWorksPage() {
           </ul>
         </section>
 
-        <section className="rounded-xl border bg-white px-5 py-2 shadow-xs">
-          <FaqAccordion items={faqs} />
-        </section>
+        {faqGroup("the-app", "Emails and the app", theApp)}
+        {faqGroup("less-common", "Less common questions", lessCommon)}
       </main>
     </div>
   );

@@ -30,6 +30,8 @@ screen, like an app. Not offline yet: that's in [TODO.md](../TODO.md).
   ([auth.md](auth.md)).
 - No connection: instead of the browser's error, pages show a small "No connection — Try again"
   screen. Nothing is stored on the device.
+- **How it works** has a question for housemates: "How do I put My House on my phone?" (Android,
+  iPhone, and the Messenger/Facebook/Instagram browsers).
 
 ## How it's built
 - `app/manifest.ts` — the web app manifest (name, start page, full-screen, colours, icons), served

@@ -644,6 +644,19 @@ or IPs: enough to read "App on iPhone", nothing more about anyone's phone.
 **Instead of:** Supabase's last sign-in (stale), a log row per visit (grows forever, more than
 needed), or tracking per Server Action (misses people who only look; view-only logins never call one).
 
+## 2026-10-13 — The "How it works" FAQ is grouped and written for housemates
+**Decision:** the FAQ is four groups (Paying and settling up, How the costs are split, Emails
+and the app, Less common), each its own accordion, with jump links under "Your part each
+month". Overlapping questions were merged (18 → 14), a question on installing the app was added,
+and admin-only detail (Bill Inbox, Discard, reopening, the order months close in, recording a
+payment directly) was taken out. Any change to what housemates see or do checks its question
+(CLAUDE.md; docs-keeper flags it).
+**Why:** one flat list of 18 questions was too much to scan, and the readers are the
+housemates: the admin has the feature docs. The questions the Split Table links to (`#equal`,
+`#points`, `#shared-advances`, `#month-final`) kept their ids.
+**Instead of:** tabs or a separate admin section — tabs hide the rest of the page from a quick
+scroll, and the admin's detail already has a home in `docs/features/`.
+
 ## 2026-10-13 — One worktree, dev server and PR per session
 **Decision:** every Claude session works on one task in its own worktree, branched fresh from
 `origin/main` (`npm run worktree:new`), and raises its own PR. Raising it includes merging
