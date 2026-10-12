@@ -76,7 +76,7 @@ export function SplitTable({ view }: { view: PeriodView }) {
                   {monthLabel(view.period.year, view.period.month)}
                 </th>
                 {bills.map((bill) => (
-                  <th key={bill.id} className={cn(cellBase, headCell,"min-w-36 text-center font-bold")}>
+                  <th key={bill.id} className={cn(cellBase, headCell, "min-w-36 text-center font-bold")}>
                     {bill.name}
                     {bill.status === "pending" && (
                       <span className="ml-1.5 rounded-full bg-white/70 px-1.5 py-0.5 align-middle text-[10px] font-semibold text-amber-800">
@@ -86,7 +86,7 @@ export function SplitTable({ view }: { view: PeriodView }) {
                   </th>
                 ))}
                 {columns.map((column) => (
-                  <th key={column.id} className={cn(cellBase, headCell,"min-w-36 text-center font-bold")}>
+                  <th key={column.id} className={cn(cellBase, headCell, "min-w-36 text-center font-bold")}>
                     {column.name}
                   </th>
                 ))}
@@ -98,7 +98,7 @@ export function SplitTable({ view }: { view: PeriodView }) {
                   { label: "Payments", title: "Recorded in Settle Up: − paid back, + received" },
                   { label: "Final" },
                 ].map(({ label, title }) => (
-                  <th key={label} title={title} className={cn(cellBase, headCell,"text-center font-bold")}>
+                  <th key={label} title={title} className={cn(cellBase, headCell, "text-center font-bold")}>
                     {label}
                   </th>
                 ))}
