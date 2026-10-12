@@ -42,6 +42,9 @@ Part of every change, in the same PR — not a separate chore.
 - A choice with a "why", including decisions from an approved plan (plans are saved outside
   the repo, in `~/.claude/plans`) → `docs/decisions.md`.
 - A money rule changes → `docs/settlement-rules.md` **and** `app/how-it-works/page.tsx`.
+- Something housemates see or do changes, or a feature they'll use lands → check its question
+  on `app/how-it-works/page.tsx` (the household's FAQ, grouped) still matches, and add one if it's
+  missing. Housemate-facing only: admin-only detail lives in `docs/features/`.
 - New table or migration → `docs/data-model.md`. New command → `docs/commands.md`.
 - **The repo is public:** no amounts, account numbers, card or payment details, phone numbers
   or credentials in code, docs or commits. Scrub email fixtures. Household specifics go in

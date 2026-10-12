@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 /**
- * The "How it works" questions. Links like /how-it-works#points (from the Split Table's
- * explainer cards) open that question, instead of scrolling to it folded shut.
+ * One group of "How it works" questions (the page has one per group). Links like
+ * /how-it-works#points (from the Split Table's explainer cards) open that question, instead of
+ * scrolling to it folded shut; each group opens only its own questions.
  */
 export function FaqAccordion({ items }: { items: { id: string; q: string; a: React.ReactNode }[] }) {
   const [open, setOpen] = useState<string[]>([]);
@@ -27,7 +28,7 @@ export function FaqAccordion({ items }: { items: { id: string; q: string; a: Rea
     <Accordion multiple value={open} onValueChange={(value) => setOpen(value as string[])}>
       {items.map((faq) => (
         <AccordionItem key={faq.id} value={faq.id} id={faq.id} className="scroll-mt-6">
-          <AccordionTrigger className="text-base">{faq.q}</AccordionTrigger>
+          <AccordionTrigger className="text-base hover:no-underline">{faq.q}</AccordionTrigger>
           <AccordionContent className="space-y-2 text-muted-foreground">{faq.a}</AccordionContent>
         </AccordionItem>
       ))}
