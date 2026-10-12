@@ -47,7 +47,7 @@ const TIMELINE = [
 export default async function HowItWorksPage() {
   await connection();
   const real = await requireViewer();
-  const [{ period, bills, members }, preview, previewChoices] = await Promise.all([
+  const [{ period, examplePeriod, bills, members }, preview, previewChoices] = await Promise.all([
     getLatestPointsBills(),
     getPreview(),
     getPreviewChoices(),
@@ -55,6 +55,16 @@ export default async function HowItWorksPage() {
   // Already loaded by getLatestPointsBills (getPeriodView is cached per request).
   const view = period ? await getPeriodView(period.year, period.month) : null;
   const back = period ? `/periods/${period.year}/${period.month}` : "/";
+  // The points example uses the latest month with a Meralco amount (getLatestPointsBills).
+  const hasAmounts = bills.some((b) => b.total > 0);
+  const exampleNote =
+    bills.length === 0
+      ? null
+      : !hasAmounts
+        ? "Shares appear once a Meralco bill is in."
+        : period && examplePeriod && examplePeriod.id !== period.id
+          ? `${monthLabel(period.year, period.month)}'s bill isn't in yet, so the shares are from ${monthLabel(examplePeriod.year, examplePeriod.month)}.`
+          : null;
   // From the BILL_PAYMENT_FEES setting, so this page never shows an old fee.
   const feeList = (Object.keys(BILL_EMAIL_COLUMNS) as (keyof typeof BILL_EMAIL_COLUMNS)[])
     .map((provider) => ({ column: BILL_EMAIL_COLUMNS[provider], ...paymentFee(provider) }))
@@ -509,6 +519,7 @@ export default async function HowItWorksPage() {
         <section id="points-table" className="rounded-xl border bg-white p-5 shadow-xs">
           <h2 className="font-semibold">Meralco point system</h2>
           <p className="mt-1 text-sm text-muted-foreground">Current allocation as of {MERALCO_POINTS_AS_OF}.</p>
+          {exampleNote && <p className="mt-1 text-sm text-muted-foreground">{exampleNote}</p>}
 
           {bills.length === 0 ? (
             <p className="mt-4 text-sm text-muted-foreground">
@@ -526,7 +537,7 @@ export default async function HowItWorksPage() {
                         <th className="py-2 font-medium">{bill.name}</th>
                         <th className="py-2 text-right font-medium">Points</th>
                         <th className="py-2 text-right font-medium">
-                          {period ? monthLabel(period.year, period.month) : ""} share
+                          {examplePeriod ? monthLabel(examplePeriod.year, examplePeriod.month) : ""} share
                         </th>
                       </tr>
                     </thead>
@@ -542,7 +553,9 @@ export default async function HowItWorksPage() {
                               </span>
                             </td>
                             <td className="py-2 text-right font-mono tabular-nums">{share?.points ?? 0}</td>
-                            <td className="py-2 text-right font-mono tabular-nums">{formatPHP(share?.amount ?? 0)}</td>
+                            <td className="py-2 text-right font-mono tabular-nums">
+                              {bill.total > 0 ? formatPHP(share?.amount ?? 0) : "—"}
+                            </td>
                           </tr>
                         );
                       })}
@@ -551,7 +564,9 @@ export default async function HowItWorksPage() {
                       <tr>
                         <td className="py-2">Total</td>
                         <td className="py-2 text-right font-mono tabular-nums">{bill.totalPoints}</td>
-                        <td className="py-2 text-right font-mono tabular-nums">{formatPHP(bill.total)}</td>
+                        <td className="py-2 text-right font-mono tabular-nums">
+                          {bill.total > 0 ? formatPHP(bill.total) : "—"}
+                        </td>
                       </tr>
                     </tfoot>
                   </table>

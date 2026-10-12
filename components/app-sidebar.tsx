@@ -130,7 +130,8 @@ function DesktopSidebar(props: SidebarProps) {
 }
 
 /**
- * Phones and tablets: a slim bar with ☰, the house and the month. ☰ slides the sidebar in.
+ * Phones and tablets: a slim bar with ☰, the month in the middle and the house on the right.
+ * ☰ slides the sidebar in.
  * The menu remembers the page it was opened on and counts as open only there, so moving to
  * any other page (a section, a month, How it works) closes it without an effect. Tapping the
  * page you're already on closes it through `onNavigate`.
@@ -141,9 +142,16 @@ function MobileTopBar(props: SidebarProps) {
   const open = openOn === pathname;
 
   return (
-    <div className="sticky top-0 z-30 flex items-center gap-2 border-b bg-white px-2 py-2 lg:hidden">
+    // Three columns, the outer two equal, so the month sits in the middle of the bar.
+    <div className="sticky top-0 z-30 grid grid-cols-[1fr_auto_1fr] items-center gap-2 border-b bg-white px-2 py-2 lg:hidden">
       <Sheet open={open} onOpenChange={(next) => setOpenOn(next ? pathname : null)}>
-        <Button variant="ghost" size="icon-lg" aria-label="Open menu" onClick={() => setOpenOn(pathname)}>
+        <Button
+          variant="ghost"
+          size="icon-lg"
+          aria-label="Open menu"
+          className="justify-self-start"
+          onClick={() => setOpenOn(pathname)}
+        >
           <Menu className="size-5" />
         </Button>
         {/* The menu is portalled to <body>, outside this bar's lg:hidden, so it hides itself on desktop too. */}
@@ -164,8 +172,10 @@ function MobileTopBar(props: SidebarProps) {
           <SidebarContent {...props} onNavigate={() => setOpenOn(null)} />
         </SheetContent>
       </Sheet>
-      <HouseBadge />
       <MonthPicker periods={props.periods} current={props.current} canStartNext={props.canStartNext} />
+      <div className="justify-self-end">
+        <HouseBadge />
+      </div>
     </div>
   );
 }
