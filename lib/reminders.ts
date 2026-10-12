@@ -66,14 +66,18 @@ export type Payables =
  * month's Final. The Final counts only that month's confirmed payments, so this also takes off
  * their waiting "I paid"s and what was paid in later months — where payments go once the next
  * month has started: theirs into the House Budget, or the admin's paying them back. Rejected
- * payments never count.
+ * payments never count. `latestFinal` (their Final in the latest month) caps it: never more
+ * than they owe, or are owed, overall now (docs/settlement-rules.md).
  */
-export function payablesOf(final: Centavos, payments: readonly PaymentSince[]): Payables {
+export function payablesOf(final: Centavos, payments: readonly PaymentSince[], latestFinal?: Centavos): Payables {
+  // Never more than they owe (or are owed) overall now: a later month's own numbers — say,
+  // advances they paid — can settle an earlier bill without any payment.
+  const cap = (amount: Centavos, overall: Centavos) => (latestFinal === undefined ? amount : Math.min(amount, Math.max(0, overall)));
   if (final < 0) {
     const paidBack = payments
       .filter((p) => p.direction === "out" && p.status === "confirmed" && p.later)
       .reduce((sum, p) => sum + p.amount, 0);
-    const owed = -final - paidBack;
+    const owed = cap(-final - paidBack, -(latestFinal ?? 0));
     return owed > 0 ? { kind: "owed", amount: owed } : { kind: "settled" };
   }
   let paidLater = 0;
@@ -83,7 +87,7 @@ export function payablesOf(final: Centavos, payments: readonly PaymentSince[]): 
     if (p.status === "pending") waiting += p.amount;
     else if (p.status === "confirmed" && p.later) paidLater += p.amount;
   }
-  const due = Math.max(0, final - paidLater);
+  const due = Math.max(0, cap(final - paidLater, latestFinal ?? 0));
   if (due === 0) return { kind: "settled" };
   const sent = Math.min(waiting, due);
   return { kind: "owes", due, waiting: sent, left: due - sent };

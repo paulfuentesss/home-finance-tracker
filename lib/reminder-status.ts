@@ -11,7 +11,7 @@ import { sharesCosts } from "@/lib/members";
 import { toCentavos, type Centavos } from "@/lib/money";
 import { closeCheck, monthHasEnded, payablesCheck, type LockCheck } from "@/lib/month-lock";
 import { isAdmin, type Viewer } from "@/lib/permissions";
-import { computePeriod, payablesIn, pendingBillNames, waitingPaymentLabels } from "@/lib/periods";
+import { computeForPayables, payablesIn, pendingBillNames, waitingPaymentLabels } from "@/lib/periods";
 import { adminNudge, type AdminNudge, type MonthEndReminder, type Payables } from "@/lib/reminders";
 
 export interface BillNotice {
@@ -39,7 +39,7 @@ export async function getBillNotice(viewer: Viewer): Promise<BillNotice | null> 
     .orderBy(desc(billingPeriods.year), desc(billingPeriods.month))
     .limit(1);
   if (!last) return null;
-  const computed = await computePeriod(db, last.year, last.month);
+  const computed = await computeForPayables(db, last.year, last.month);
   const owed = computed && payablesIn(computed, viewer.memberId);
   if (!computed || owed?.payables.kind !== "owes") return null;
   const latest = computed.all.at(-1)!;
@@ -59,7 +59,7 @@ export async function findAdminNudge(today: string): Promise<AdminNudge | null> 
     .orderBy(asc(billingPeriods.year), asc(billingPeriods.month));
   const target = months.find((m) => m.status === "open" && monthHasEnded(m.year, m.month, today));
   if (!target) return null;
-  const computed = await computePeriod(db, target.year, target.month);
+  const computed = await computeForPayables(db, target.year, target.month);
   if (!computed) return null;
   const { all, index, period, issue } = computed;
   const [emailed] = await db
@@ -118,7 +118,7 @@ function billSentOn(sentAt: Date | undefined): string | null {
 /** The admin's view of a month's emails, for Settle Up. Null for anyone else (pass the real viewer). */
 export async function getEmailStatus(viewer: Viewer, year: number, month: number): Promise<EmailStatus | null> {
   if (!isAdmin(viewer)) return null;
-  const computed = await computePeriod(db, year, month);
+  const computed = await computeForPayables(db, year, month);
   if (!computed) return null;
   const sends = await db
     .select({ kind: reminderSends.kind, memberId: reminderSends.memberId, sentAt: reminderSends.sentAt })

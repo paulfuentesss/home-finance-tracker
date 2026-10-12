@@ -154,7 +154,7 @@ export function AdvancesLog({ view }: { view: PeriodView }) {
           <h2 className="text-lg font-semibold">Advances &amp; Out-of-Pocket Expenses Log</h2>
           <p className="mt-1 text-sm text-muted-foreground">Everything each person paid this month, grouped by person.</p>
         </div>
-        {canAdd && <AddAdvanceDialog view={view} />}
+        {canAdd && <AddAdvanceDialog view={view} className="w-full sm:w-auto" />}
       </div>
 
       <div className="space-y-2 border-b bg-zinc-50/60 px-5 py-3">

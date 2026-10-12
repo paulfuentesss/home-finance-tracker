@@ -3,7 +3,7 @@
 // up made-up rows, restore them into a fresh database and compare.
 
 import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import { unzipSync } from "fflate";
 import { describe, expect, it } from "vitest";
@@ -53,6 +53,13 @@ const SAMPLE = `
     ('2026/08/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.jpg', 'image/jpeg', 1234, NULL, 1, 1);
   INSERT INTO keep_alive (id, pinged_at) VALUES (1, '2026-10-08T07:13:20Z');
   INSERT INTO backups (taken_at, taken_by_id) VALUES ('2026-10-01T07:00:00Z', 1);
+  INSERT INTO helper_entries (period_id, kind, payer_id, on_date, amount, deduction, note) VALUES
+    (1, 'opening', NULL, NULL, 2000.00, 0, NULL), (1, 'visit', 3, '2026-08-09', 600.00, 100.00, 'Half day');
+  INSERT INTO reminder_sends (period_id, kind, member_id, sent_at) VALUES (1, 'last_day', 3, '2026-08-31T00:00:00Z');
+  INSERT INTO member_devices (member_id, via, platform) VALUES (1, 'app', 'iphone'), (3, 'web', 'other');
+  INSERT INTO billers (name, sort_order) VALUES ('Water Co', 1);
+  INSERT INTO biller_fields (biller_id, kind, label, value, secret_value, housemates_can_see) VALUES
+    (1, 'text', 'Account no.', 'X-0001', NULL, true), (1, 'secret', 'Password', NULL, 'v1:bm9uY2U=:Y2lwaGVy', false);
 `;
 
 /** Every table's rows as text, to compare two databases. */
@@ -97,6 +104,9 @@ describe("buildBackupSql", () => {
     await source.exec(SAMPLE);
     await source.exec(`CREATE SCHEMA drizzle; CREATE TABLE drizzle.__drizzle_migrations (id serial);
       INSERT INTO drizzle.__drizzle_migrations DEFAULT VALUES; INSERT INTO drizzle.__drizzle_migrations DEFAULT VALUES;`);
+    // A new table needs sample rows above, or a backup bug in it would go unnoticed here.
+    const empty = Object.entries(await snapshot(source)).filter(([, rows]) => rows.length === 0);
+    expect(empty.map(([name]) => name), "tables with no rows in SAMPLE").toEqual([]);
     const dump = await buildBackupSql(queryOf(source), { now: NOW, commit: "abc1234" });
 
     expect(dump).toMatch(/^-- Made 2026-10-11 \(Manila\)/m);
@@ -241,5 +251,34 @@ describe("backupZipStream", () => {
     const date = view.getUint16(12, true);
     // NOW is 06:03 UTC → 14:03 in Manila.
     expect([1980 + (date >> 9), (date >> 5) & 15, date & 31, time >> 11, (time >> 5) & 63]).toEqual([2026, 10, 11, 14, 3]);
+  });
+});
+
+describe("what the backup covers", () => {
+  // New tables are covered on their own (read from the catalog; SAMPLE must fill them). Files
+  // aren't: each Storage bucket has to be added to the zip (app/backup/route.ts) and to
+  // storage:backup / storage:restore by hand. This fails until a new bucket is.
+  const BACKED_UP_BUCKETS = ["RECEIPTS_BUCKET"];
+
+  function sourceFiles(dir: string): string[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) return entry.name === "node_modules" || entry.name.startsWith(".") ? [] : sourceFiles(path);
+      return /\.(ts|tsx|mts)$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name) ? [path] : [];
+    });
+  }
+
+  it("has every Storage bucket the code uses", () => {
+    const root = join(__dirname, "..");
+    const used = ["app", "components", "lib", "db", "scripts"]
+      .flatMap((d) => sourceFiles(join(root, d)))
+      .flatMap((file) =>
+        [...readFileSync(file, "utf8").matchAll(/storage\s*\.\s*(?:from|createBucket|updateBucket|getBucket)\(\s*([^),]+)/g)].map(
+          (m) => `${m[1].trim()} (${relative(root, file)})`,
+        ),
+      );
+    expect(used.length).toBeGreaterThan(0);
+    const unknown = used.filter((u) => !BACKED_UP_BUCKETS.includes(u.split(" ")[0]));
+    expect(unknown, "buckets the Download backup doesn't cover").toEqual([]);
   });
 });

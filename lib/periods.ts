@@ -10,7 +10,7 @@ import { getPreview, requireViewer } from "@/lib/auth";
 import { dateInManila, todayInManila } from "@/lib/format";
 import { dotClassOf } from "@/lib/members";
 import { canOpenReceipt } from "@/lib/permissions";
-import { closeCheck, monthHasEnded, reopenCheck, startCheck, type LockCheck } from "@/lib/month-lock";
+import { closeCheck, monthHasEnded, reopenCheck, type LockCheck } from "@/lib/month-lock";
 import { payablesOf, type Payables } from "@/lib/reminders";
 import {
   countsInBill,
@@ -192,16 +192,14 @@ export interface PeriodView {
   isLatest: boolean;
   /** The latest month's status (the deadline banner is about it, whichever month is shown). */
   latestStatus: "open" | "closed";
-  /** Why the month after the latest can't start yet (a waiting payment), or null. */
-  startBlock: string | null;
   canClose: LockCheck;
   canReopen: LockCheck;
   /** Set when the numbers can't be computed (e.g. shares that don't add up). */
   issue: string | null;
   /**
    * What each member still has to pay or get back for this month, by member id (payablesIn: the
-   * Final, less their waiting "I paid"s and what was paid in later months), the same as the bill
-   * banner and email say. Missing for someone the numbers can't be worked out for. The greeting.
+   * Final, less their waiting "I paid"s and what was paid in later months, capped by their latest
+   * Final), the same as the bill banner and email say. Missing for someone the numbers can't be worked out for. The greeting.
    */
   payables: Record<string, Payables>;
   /** Settle Up on the latest month, where "I paid" goes (components/settle-up.tsx). */
@@ -283,14 +281,35 @@ export async function computePeriod(executor: Executor, year: number, month: num
 
 export type ComputedPeriod = NonNullable<Awaited<ReturnType<typeof computePeriod>>>;
 
+/** A computed month plus everyone's Final in the latest month, for what's still owed (payablesIn). */
+export type PayablesPeriod = ComputedPeriod & {
+  /** Each member's live Final in the latest month (empty when it can't be worked out). */
+  latestFinals: ReadonlyMap<MemberId, Centavos>;
+};
+
+/** computePeriod for a month whose bill is (or will be) emailed, with the latest month's Finals. */
+export async function computeForPayables(executor: Executor, year: number, month: number): Promise<PayablesPeriod | null> {
+  const computed = await computePeriod(executor, year, month);
+  if (!computed) return null;
+  const last = computed.all[computed.all.length - 1];
+  const latest = last.id === computed.period.id ? computed : await computePeriod(executor, last.year, last.month);
+  // Only Finals that are whole: with an `issue`, a later month may have been computed without an
+  // earlier month's carry-over, and capping by it could call someone settled who isn't.
+  const rows = latest && !latest.issue ? (latest.result?.rows ?? []) : [];
+  const latestFinals = new Map(rows.map((r) => [r.member.id, r.balance]));
+  return { ...computed, latestFinals };
+}
+
 /**
- * What a member still has to pay (or get back) for a computed month
- * (docs/features/reminders.md): its Final, less their waiting "I paid"s and what moved between
- * them and the House Budget in later months. Null when they aren't in it or the numbers can't
- * be worked out. `carriedOver` = their Prev Month Unsettled when they owed it.
+ * What a member still has to pay (or get back) for a month (docs/settlement-rules.md → "What's
+ * still owed after a bill email"): its Final, less their waiting "I paid"s and what moved between
+ * them and the House Budget in later months — but never more than they owe (or are owed)
+ * overall now, their latest Final, since a later month's own numbers can settle it too. Null
+ * when they aren't in it or the numbers can't be worked out. `carriedOver` = what's still unpaid
+ * of their Prev Month Unsettled, after their payments since.
  */
 export function payablesIn(
-  computed: ComputedPeriod,
+  computed: PayablesPeriod,
   memberId: MemberId,
 ): { payables: Payables; carriedOver: Centavos } | null {
   const row = computed.result?.rows.find((r) => r.member.id === memberId);
@@ -306,7 +325,12 @@ export function payablesIn(
       return direction ? [{ amount: toCentavos(p.amount), status: p.status, later: i > 0, direction }] : [];
     }),
   );
-  return { payables: payablesOf(row.balance, payments), carriedOver: Math.max(0, row.opening) };
+  // Last month's unpaid amount, less what they've paid in since (this month or later).
+  const paidIn = sumCentavos(payments.filter((p) => p.direction === "in" && p.status === "confirmed").map((p) => p.amount));
+  return {
+    payables: payablesOf(row.balance, payments, computed.latestFinals.get(memberId)),
+    carriedOver: Math.max(0, row.opening - paidIn),
+  };
 }
 
 /** A month's payments with each side as a Party (a NULL side is the House Budget). */
@@ -324,7 +348,9 @@ function paymentsOf(period: LoadedPeriod) {
  */
 export const getPeriodView = cache(async (year: number, month: number): Promise<PeriodView | null> => {
   await requireViewer();
-  const computed = await computePeriod(db, year, month);
+  // With the latest month's Finals too, so the greeting's "still to pay" (payables below) is
+  // capped the same way as the bill banner's. Viewing the latest month costs nothing extra.
+  const computed = await computeForPayables(db, year, month);
   if (!computed) return null;
   const { all, index, period, result, issue, houseBudget } = computed;
 
@@ -450,7 +476,6 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
     next: summaries[index + 1] ?? null,
     isLatest: index === all.length - 1,
     latestStatus: all[all.length - 1].status,
-    startBlock: startCheck(waitingPaymentLabels(all[all.length - 1])).reason ?? null,
     canClose: closeCheck(period, all[index - 1] ?? null, issue, pendingBillNames(period), waitingPaymentLabels(period)),
     canReopen: reopenCheck(period, all[index + 1] ?? null),
     issue,
@@ -517,17 +542,41 @@ export async function getPeriodReceipts(periodId: number): Promise<ViewReceipt[]
     }));
 }
 
-/** Points-mode bills in the latest month, for the "How it works" page. */
+// How many months back the "How it works" example looks for a points bill with an amount.
+const POINTS_EXAMPLE_LOOKBACK = 3;
+
+/**
+ * Points-mode bills for the "How it works" example. `period` is the latest month (the page's Back
+ * link and sidebar); `examplePeriod` is the newest of the last few months whose points bill has an
+ * amount, so the example isn't all ₱0.00 while this month's Meralco bill isn't in yet. When none
+ * has one, the example is the latest month.
+ */
 export async function getLatestPointsBills() {
   await requireViewer();
-  const latest = await getLatestPeriod();
-  if (!latest) return { period: null, bills: [] as ViewBill[], members: [] as ViewMember[] };
-  const view = await getPeriodView(latest.year, latest.month);
-  return {
-    period: latest,
-    bills: (view?.bills ?? []).filter((b) => b.splitMode === "points"),
-    members: view?.members ?? [],
+  const recent = await db
+    .select({ id: billingPeriods.id, year: billingPeriods.year, month: billingPeriods.month })
+    .from(billingPeriods)
+    .orderBy(desc(billingPeriods.year), desc(billingPeriods.month))
+    .limit(POINTS_EXAMPLE_LOOKBACK);
+  const latest = recent[0];
+  if (!latest) {
+    return { period: null, examplePeriod: null, bills: [] as ViewBill[], members: [] as ViewMember[] };
+  }
+
+  const pointsBillsOf = async (p: PeriodSummary) => {
+    const view = await getPeriodView(p.year, p.month);
+    return {
+      examplePeriod: p,
+      bills: (view?.bills ?? []).filter((b) => b.splitMode === "points"),
+      members: view?.members ?? [],
+    };
   };
+  for (const p of recent) {
+    const example = await pointsBillsOf(p);
+    if (example.bills.some((b) => b.total > 0)) return { period: latest, ...example };
+  }
+  // getPeriodView is cached per request, so this reuses the latest month's view.
+  return { period: latest, ...(await pointsBillsOf(latest)) };
 }
 
 function emailedOf(emails: LoadedPeriod["billItems"][number]["emails"]): ViewBill["emailed"] {

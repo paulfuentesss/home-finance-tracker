@@ -8,18 +8,19 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
 
 ## Next
 
+- [ ] **Add the worktrees' local sites to Supabase's Redirect URLs** (Paul, in the dashboard):
+      `http://localhost:3001/**` up to `http://localhost:3005/**` ([setup.md](setup.md) step 5,
+      [commands.md → Working in parallel](commands.md#working-in-parallel)). Until then, signing
+      in fresh on a worktree's site ends on the live site; a sign-in on `localhost:3000` carries over.
 - [ ] **Set up the passwords key, then fill in the Billers tab** ([billers](features/billers.md)).
       `BILLER_SECRET_KEY` in `.env.local` and Vercel, plus a copy in a password manager
       ([setup.md](setup.md) step 5g) — *before merging*, or saving a password on the live site
       says "Passwords aren't set up". Then type in the billers from the old sheet, and delete the
       passwords from the sheet.
 
-- [ ] **Reminders go live** ([reminders](features/reminders.md)) — the settings are in Vercel
-      and it was tried on localhost (2026-10-12). After the merge: check Settings → Cron Jobs
-      lists `/api/reminders`, and **Run** it once. Before it goes live, decide September: it's
-      still open, so it locks for housemates at once and the "ready" nudges start with it —
-      close it, or let the nudges walk you through it. Tell the housemates to expect the emails
-      (and to check spam the first time).
+- [ ] **Tell the housemates about the reminder emails** ([reminders](features/reminders.md)) —
+      live since 2026-10-13. They come from the household Gmail; mark the first one "Not spam"
+      if it lands there.
 
 - [ ] **Invite the housemates** ([auth](features/auth.md)). Login testing is finished
       (2026-10-09). A test housemate still has a `+` alias of PA's Gmail; swap in their real

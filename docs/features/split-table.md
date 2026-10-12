@@ -21,8 +21,9 @@
   have to pay ("You have ₱X left to pay into the House Budget" with a Settle up link to the
   latest month, where "I paid" goes), "Your payment is waiting for PA to confirm", "The
   House Budget pays you ₱X" or "You're all settled 🎉". That's their Final less waiting "I paid"s
-  and later payments (`payablesIn`), the same as the bill banner and email, so nobody is asked to
-  pay twice. The collector sees "You get back ₱X overall" (they paid the bills upfront), as in Who owes what. A view-only login
+  and later payments, never more than they owe overall now (`payablesIn`, [settlement-rules.md →
+  What's still owed](../settlement-rules.md)), the same as the bill banner and email, so nobody
+  is asked to pay twice. The collector sees "You get back ₱X overall" (they paid the bills upfront), as in Who owes what. A view-only login
   gets only the hello; a closed month just says it's closed.
 - "Who owes what" cards above the table: who pays into the House Budget, who gets paid from
   it, and what's left for the collector — readable on a phone where the wide table isn't.

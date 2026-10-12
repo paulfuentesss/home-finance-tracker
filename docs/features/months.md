@@ -4,8 +4,8 @@
 ✅ Working.
 
 ## What it does
-- **Month picker** at the top of the sidebar (on phones and tablets, in the top bar beside ☰,
-  with the short name, "SEP 2026"); the home page opens the most recent month. Switching keeps
+- **Month picker** at the top of the sidebar (on phones and tablets, centred in the top bar
+  between ☰ and the house, with the short name, "SEP 2026"); the home page opens the most recent month. Switching keeps
   the section you're on.
 - **Sidebar:** every month page and How it works (on the latest month) has a dark sidebar with the month, the sections (This month:
   Split Table, Advances, Helper Visits, Receipts, Settle Up; Household: Billers & Accounts,

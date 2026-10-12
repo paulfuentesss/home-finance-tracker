@@ -1678,7 +1678,6 @@ async function resolveColumn(tx: Tx, periodId: number, columnId: number, order: 
   return columnId;
 }
 
-/** The month's everyday "Advances Shared" column (everyone, equal), created if missing. */
 async function periodOrder(tx: Tx, periodId: number): Promise<MemberId[]> {
   const balances = await tx.query.periodBalances.findMany({
     where: eq(periodBalances.periodId, periodId),

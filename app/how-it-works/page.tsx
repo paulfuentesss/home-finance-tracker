@@ -48,7 +48,7 @@ const TIMELINE = [
 export default async function HowItWorksPage() {
   await connection();
   const real = await requireViewer();
-  const [{ period, bills, members }, preview, previewChoices] = await Promise.all([
+  const [{ period, examplePeriod, bills, members }, preview, previewChoices] = await Promise.all([
     getLatestPointsBills(),
     getPreview(),
     getPreviewChoices(),
@@ -56,6 +56,16 @@ export default async function HowItWorksPage() {
   // Already loaded by getLatestPointsBills (getPeriodView is cached per request).
   const view = period ? await getPeriodView(period.year, period.month) : null;
   const back = period ? `/periods/${period.year}/${period.month}` : "/";
+  // The points example uses the latest month with a Meralco amount (getLatestPointsBills).
+  const hasAmounts = bills.some((b) => b.total > 0);
+  const exampleNote =
+    bills.length === 0
+      ? null
+      : !hasAmounts
+        ? "Shares appear once a Meralco bill is in."
+        : period && examplePeriod && examplePeriod.id !== period.id
+          ? `${monthLabel(period.year, period.month)}'s bill isn't in yet, so the shares are from ${monthLabel(examplePeriod.year, examplePeriod.month)}.`
+          : null;
   // From the BILL_PAYMENT_FEES setting, so this page never shows an old fee.
   const feeList = (Object.keys(BILL_EMAIL_COLUMNS) as (keyof typeof BILL_EMAIL_COLUMNS)[])
     .map((provider) => ({ column: BILL_EMAIL_COLUMNS[provider], ...paymentFee(provider) }))
@@ -371,11 +381,34 @@ export default async function HowItWorksPage() {
           </ul>
           <p>
             The same reminders show at the top of the month&apos;s pages, so nothing is missed if an email lands in spam.
-            &ldquo;Your bill is ready&rdquo; stays there, with a button to Settle Up, until your payment is confirmed.
+            &ldquo;Your bill is ready&rdquo; stays there, with a button to Settle Up, until you&apos;re settled — your
+            payment confirmed, or, if you&apos;ve since paid for things in the new month, once those cover it (you never
+            owe more for a bill than you owe overall).
           </p>
           <p>
             Amount looks wrong, or a question about an email? Message the admin before paying — they can fix the month
             and send the bill again.
+          </p>
+        </>
+      ),
+    },
+    {
+      id: "greeting-emoji",
+      q: "What's the greeting at the top, and how do I change my emoji?",
+      a: (
+        <>
+          <p>
+            The card at the top of the Split Table says hello and tells you your own number in plain words: what you
+            still have to pay into the House Budget (with a <strong>Settle up</strong> link), that your payment is
+            waiting for the admin to confirm, that the House Budget pays you, or that you&apos;re all settled. It&apos;s
+            the same amount as your bill email and banner, so a payment you&apos;ve already sent is never asked for
+            again. Your own row in the table, and in Who owes what, is marked <strong>You</strong>.
+          </p>
+          <p>
+            Everyone shows with their emoji, or a colour dot if they haven&apos;t picked one. To change yours, open the
+            menu with your name at the bottom of the sidebar and type or paste one emoji into{" "}
+            <strong>Your emoji</strong>; leave it empty to go back to the dot. The house icon at the top takes you back
+            to this month&apos;s Split Table from anywhere.
           </p>
         </>
       ),
@@ -417,8 +450,8 @@ export default async function HowItWorksPage() {
         <>
           <p>
             Ending and closing aren&apos;t the same. A month <strong>ends</strong> on its own after its last day, and from
-            then only the admin can change it. Once everyone&apos;s settled, the admin <strong>closes</strong> it in
-            Settle Up. A closed month is locked: nothing in it
+            then only the admin can change it. Later — usually once everyone has paid, but it doesn&apos;t have to wait
+            — the admin <strong>closes</strong> it in Settle Up. A closed month is locked: nothing in it
             can be changed (its proofs of payment included), and everyone&apos;s Final is saved as next month&apos;s Prev Month Unsettled. Unpaid
             amounts simply carry over.
           </p>
@@ -508,6 +541,7 @@ export default async function HowItWorksPage() {
         <section id="points-table" className="rounded-xl border bg-white p-5 shadow-xs">
           <h2 className="font-semibold">Meralco point system</h2>
           <p className="mt-1 text-sm text-muted-foreground">Current allocation as of {MERALCO_POINTS_AS_OF}.</p>
+          {exampleNote && <p className="mt-1 text-sm text-muted-foreground">{exampleNote}</p>}
 
           {bills.length === 0 ? (
             <p className="mt-4 text-sm text-muted-foreground">
@@ -525,7 +559,7 @@ export default async function HowItWorksPage() {
                         <th className="py-2 font-medium">{bill.name}</th>
                         <th className="py-2 text-right font-medium">Points</th>
                         <th className="py-2 text-right font-medium">
-                          {period ? monthLabel(period.year, period.month) : ""} share
+                          {examplePeriod ? monthLabel(examplePeriod.year, examplePeriod.month) : ""} share
                         </th>
                       </tr>
                     </thead>
@@ -541,7 +575,9 @@ export default async function HowItWorksPage() {
                               </span>
                             </td>
                             <td className="py-2 text-right font-mono tabular-nums">{share?.points ?? 0}</td>
-                            <td className="py-2 text-right font-mono tabular-nums">{formatPHP(share?.amount ?? 0)}</td>
+                            <td className="py-2 text-right font-mono tabular-nums">
+                              {bill.total > 0 ? formatPHP(share?.amount ?? 0) : "—"}
+                            </td>
                           </tr>
                         );
                       })}
@@ -550,7 +586,9 @@ export default async function HowItWorksPage() {
                       <tr>
                         <td className="py-2">Total</td>
                         <td className="py-2 text-right font-mono tabular-nums">{bill.totalPoints}</td>
-                        <td className="py-2 text-right font-mono tabular-nums">{formatPHP(bill.total)}</td>
+                        <td className="py-2 text-right font-mono tabular-nums">
+                          {bill.total > 0 ? formatPHP(bill.total) : "—"}
+                        </td>
                       </tr>
                     </tfoot>
                   </table>

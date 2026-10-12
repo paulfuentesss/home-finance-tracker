@@ -157,8 +157,9 @@ landed on the wrong branch. Git can't tell whether another session is open, but 
 leaves (a feature branch, uncommitted files) can be shown up front.
 **Instead of:** blocking `git switch` with a hook — the report plus the CLAUDE.md rule covers
 it without getting in the way of normal branch work.
-**Superseded 2026-10-11:** sessions now share one folder and one dev server (below), and a hook
-does block `git switch`; the startup check stays.
+**Superseded 2026-10-11, back 2026-10-13:** sessions shared one folder for two days (below);
+now each has its own worktree again, and a hook blocks every `git switch` except
+`git switch main`. The startup check stays.
 
 ## 2026-10-08 — Receipts: a private bucket, opened through the app
 **Decision:** receipt files go in a private Supabase Storage bucket that only the server
@@ -267,6 +268,8 @@ added), and deleting them in Finder leaves git's records behind. Checking the me
 not "is the branch merged into main", works with GitHub's merge commits and catches work
 committed after the merge. The running-process check keeps it from pulling a folder out from
 under an open VS Code window, dev server or another session.
+**Changed 2026-10-13:** Claude runs it itself now, and it stops a finished worktree's own dev
+server first (below).
 
 ## 2026-10-10 — Develop against a local Supabase, not a second cloud project
 *Superseded 2026-10-11: one database plus backups, no test database (below).*
@@ -372,7 +375,8 @@ The app uses one per server instance and closes it after 20 s idle; the free pla
 
 ## 2026-10-11 — Worktrees link `.env.local` instead of copying it
 **Decision:** a new worktree gets `.env.local` as a symlink to the main folder's
-(`ln -s ../home-finance-tracker/.env.local .`, [commands.md](commands.md#git-worktrees-only-for-a-separate-pr)).
+([commands.md](commands.md#working-in-parallel)); since 2026-10-13 `npm run worktree:new` makes
+the link, and one for `.private` too.
 **Why:** a copy is frozen at the moment the worktree is made. When the main folder's
 `DATABASE_URL` moved to the session pooler (above), a worktree made earlier that day kept the
 transaction pooler, so its local server hung on the month page while the live site was fine.
@@ -443,6 +447,7 @@ changes.
 **Instead of:** one dev server pointed at whichever worktree is current (swapping folders under
 a running server), or keeping worktrees and just stopping old servers by hand (the pile-up
 comes back with every new session).
+**Superseded 2026-10-13:** back to a worktree, dev server and PR per session (below).
 
 ## 2026-10-12 — The Helper: whoever hands her money gets it back; her early pay is a debt record
 **Decision:** each visit and early pay is a line on a Helper tab (`helper_entries`). The month's
@@ -519,6 +524,7 @@ shared folder under the others.
 **Instead of:** a Claude agent (it only runs when called; the startup hook already runs every
 session), or deleting inside the startup hook (it stays read-only, so it never surprises a
 session mid-work).
+**Changed 2026-10-13:** a branch per task now, each in its own worktree (below).
 
 ## 2026-10-12 — A sidebar instead of a row of tabs
 **Decision:** the month pages' sections live in a dark sidebar, grouped "This month" and
@@ -585,8 +591,8 @@ would have meant nothing until the admin closed it, often days later).
 
 ## 2026-10-12 — Reminders: the household Gmail's SMTP, run by Vercel's cron
 **Decision:** emails are sent with nodemailer over the My House Gmail's SMTP, with an app
-password of their own; Vercel's daily cron (`vercel.json`) runs `/api/reminders` at 09:00
-Manila. Each email is claimed in `reminder_sends` before it's sent, and the job sends the
+password of their own; Vercel's daily cron (`vercel.json`) runs `/api/reminders` each
+morning, Manila time. Each email is claimed in `reminder_sends` before it's sent, and the job sends the
 latest reminder the month has reached, so a missed day is caught up. Only the live site emails
 housemates and records sends; localhost redirects every email to `EMAIL_TEST_TO`.
 **Why:** the Gmail already sends the sign-in codes, so no new service or own domain (Resend can
@@ -637,6 +643,26 @@ from where), not a history of everyone's comings and goings. Coarse device types
 or IPs: enough to read "App on iPhone", nothing more about anyone's phone.
 **Instead of:** Supabase's last sign-in (stale), a log row per visit (grows forever, more than
 needed), or tracking per Server Action (misses people who only look; view-only logins never call one).
+
+## 2026-10-13 — One worktree, dev server and PR per session
+**Decision:** every Claude session works on one task in its own worktree, branched fresh from
+`origin/main` (`npm run worktree:new`), and raises its own PR. Raising it includes merging
+`origin/main` first, then checking GitHub's merge state and fixing conflicts. The main folder
+stays on `main`. `npm run dev` gives a worktree the first free port from 3001 and puts its name
+in the tab title (`[name] My House`); the session gives Paul the link. The guard hook now
+allows only `git switch main`. `edit-overlap.sh` warns across worktrees (same file = a likely
+PR conflict). Claude runs `worktrees:clean` itself, which stops a finished worktree's dev server
+first. Replaces "parallel sessions share one folder" (2026-10-11).
+**Why:** in practice each session works on a different feature. In one shared folder they
+stepped on each other, and one PR mixed unrelated work. Separate folders make overwriting each
+other impossible rather than guarded against, and each feature ships when it's ready. The old
+complaint about worktrees, not knowing which address showed which change, is answered by the
+link each session gives and the tab label. Merging `main` (not rebasing) avoids force-pushes on
+open PRs. Removing a merged, unchanged worktree loses nothing, so it no longer waits for Paul.
+**Instead of:** worktrees inside the repo (`.claude/worktrees/`, Claude Code's default — the
+main folder's TypeScript, ESLint and Vitest would pick up their files), Vercel preview links
+instead of local sites (login redirects and the one live database not set up for them), or
+`backups/` linked into worktrees (it holds real data; backups run from the main folder).
 
 ## 2026-10-13 — An emoji per person instead of photos
 **Decision:** each person's colour dot can become an emoji (`members.emoji`), typed or pasted on

@@ -56,7 +56,8 @@ Two ways, both covering the database and the receipt pictures:
   npm run db:backup        # the database → backups/home-finance-tracker-YYYY-MM-DD.sql
   npm run storage:backup   # receipt files → backups/receipts/ (only new ones are downloaded)
   ```
-  `backups/` is git-ignored.
+  `backups/` is git-ignored. Run these from the main folder: they write to `backups/` in the
+  folder they run from, and a worktree's is deleted with it.
 
 Either way the files hold real household data (login emails, payment screenshots): keep a copy
 somewhere safe off the laptop (a cloud drive), never in the repo. Don't automate them with
