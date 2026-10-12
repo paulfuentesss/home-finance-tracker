@@ -22,7 +22,9 @@
   works). Type or paste one into the **Emoji** field under their name (Enter or click away
   saves); empty brings the dot back. One emoji only: skin tones, families and flags count as
   one; text is refused. Housemates can also set their own from the account menu ("Your emoji",
-  [auth.md](auth.md)).
+  [auth.md](auth.md)). The **House Budget** row at the end of the list takes one the same way,
+  shown in place of its bank icon (Split Table, Settle Up, Receipts); empty brings the icon back.
+  Only the admin can change it.
 - **Login email** per housemate ([auth.md](auth.md)): typing one invites them (Google or an
   emailed code); clearing it takes the login away. PA's own is changed with
   `npm run auth:invite`. Inviting sends no email, so an address whose domain can't receive mail
@@ -57,6 +59,11 @@
   `members_emoji_length` check backs it up. Both fields use `components/inline-input.tsx`.
   `components/member-mark.tsx` draws the emoji or the dot, always in the same square so rows line
   up.
+- House Budget emoji: `household_settings.house_budget_emoji` (one row, made the first time it's
+  set; missing reads as no emoji). `updateHouseBudgetEmoji` is `run("admin", …)`, reuses
+  `parseEmoji`, and upserts the row; the `household_settings_house_budget_emoji_length` check backs
+  it up. `getPeriodView` reads it into `view.houseBudgetEmoji`; `HouseBudgetMark`
+  (`components/member-mark.tsx`) draws it, or the `Landmark` icon, in the same square.
 - Shares are written only through `computeBillShares` (`lib/settlement.ts`) and `writeShares`
   (`lib/bill-shares.ts`).
 - Household facts that aren't data (what the points are based on): `lib/household-config.ts`.
@@ -73,7 +80,7 @@
   only the caller's row, and updates `last_seen_at` only if it's over 5 minutes old. The Manage
   page summarizes the rows (`summarizeDevices`, `seenLabel`, Manila time) and sends only text.
 - Tables: `members`, `bill_items`, `bill_item_shares`, `shared_columns`,
-  `shared_column_members`, `period_balances`, `member_devices`.
+  `shared_column_members`, `period_balances`, `member_devices`, `household_settings`.
 
 ## Rules
 [Members and the collector](../settlement-rules.md#members-and-the-collector) ·

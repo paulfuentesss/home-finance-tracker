@@ -1,10 +1,16 @@
 "use client";
 
-import { removeMember, updateMemberEmail, updateMemberEmoji } from "@/app/periods/[year]/[month]/actions";
+import {
+  removeMember,
+  updateHouseBudgetEmoji,
+  updateMemberEmail,
+  updateMemberEmoji,
+} from "@/app/periods/[year]/[month]/actions";
 import { ConfirmDeleteButton } from "@/components/confirm-button";
 import { AddMemberDialog } from "@/components/entry-dialogs";
 import { InlineInput } from "@/components/inline-input";
-import { MemberMark } from "@/components/member-mark";
+import { HouseBudgetMark, MemberMark } from "@/components/member-mark";
+import { HOUSE_BUDGET_LABEL } from "@/lib/household-config";
 import { MAX_EMOJI_LENGTH } from "@/lib/members";
 import { ChevronRight } from "lucide-react";
 
@@ -35,7 +41,16 @@ export interface MemberActivityView {
   others: string[];
 }
 
-export function ManageMembers({ members, viewerId }: { members: Member[]; viewerId: number }) {
+export function ManageMembers({
+  members,
+  viewerId,
+  houseBudgetEmoji,
+}: {
+  members: Member[];
+  viewerId: number;
+  /** The House Budget's emoji, or null for its icon. */
+  houseBudgetEmoji: string | null;
+}) {
   return (
     <section className="rounded-xl border bg-white p-5 shadow-xs">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -177,6 +192,26 @@ export function ManageMembers({ members, viewerId }: { members: Member[]; viewer
             </div>
           </li>
         ))}
+        {/* Not a housemate, but it shows beside the names the same way (updateHouseBudgetEmoji). */}
+        <li className="rounded-lg border bg-zinc-50/60 px-4 py-3">
+          <span className="flex items-center gap-2.5 font-medium">
+            <HouseBudgetMark emoji={houseBudgetEmoji} className="size-8 text-2xl" />
+            {HOUSE_BUDGET_LABEL}
+          </span>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            Emoji
+            <InlineInput
+              action={updateHouseBudgetEmoji}
+              hidden={{}}
+              name="emoji"
+              value={houseBudgetEmoji ?? ""}
+              label={`${HOUSE_BUDGET_LABEL}'s emoji`}
+              maxLength={MAX_EMOJI_LENGTH}
+              inputClassName="w-14 px-2 py-1 text-center text-base"
+            />
+            <span className="text-xs">One emoji; empty for the bank icon.</span>
+          </div>
+        </li>
       </ul>
     </section>
   );

@@ -182,6 +182,8 @@ export interface PeriodView {
   rows: ViewRow[];
   /** The collection account's month (docs/settlement-rules.md → House Budget). */
   houseBudget: HouseBudgetMonth;
+  /** The House Budget's emoji, shown in place of its icon (set on the Manage page), or null. */
+  houseBudgetEmoji: string | null;
   advances: ViewAdvance[];
   payments: ViewPayment[];
   helper: ViewHelper;
@@ -350,7 +352,10 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
   await requireViewer();
   // With the latest month's Finals too, so the greeting's "still to pay" (payables below) is
   // capped the same way as the bill banner's. Viewing the latest month costs nothing extra.
-  const computed = await computeForPayables(db, year, month);
+  const [computed, settings] = await Promise.all([
+    computeForPayables(db, year, month),
+    db.query.householdSettings.findFirst(),
+  ]);
   if (!computed) return null;
   const { all, index, period, result, issue, houseBudget } = computed;
 
@@ -486,6 +491,7 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
       }),
     ),
     latestSettleHref: `/periods/${all[all.length - 1].year}/${all[all.length - 1].month}/settle`,
+    houseBudgetEmoji: settings?.houseBudgetEmoji ?? null,
   };
 });
 

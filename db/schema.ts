@@ -419,6 +419,21 @@ export const keepAlive = pgTable(
   (t) => [check("keep_alive_single_row", sql`${t.id} = 1`)],
 ).enableRLS();
 
+// Household-wide settings, one row (docs/features/manage.md). Missing until first set, which
+// reads as "nothing set". `house_budget_emoji`: shown in place of the House Budget's icon, or null
+// for the icon; one emoji, checked by parseEmoji (lib/members.ts), the check below a backstop.
+export const householdSettings = pgTable(
+  "household_settings",
+  {
+    id: integer("id").primaryKey().default(1),
+    houseBudgetEmoji: text("house_budget_emoji"),
+  },
+  (t) => [
+    check("household_settings_single_row", sql`${t.id} = 1`),
+    check("household_settings_house_budget_emoji_length", sql`char_length(${t.houseBudgetEmoji}) <= 32`),
+  ],
+).enableRLS();
+
 // Who was emailed what for a month (docs/features/reminders.md). The daily job claims a row
 // before sending, so a reminder never goes out twice; a failed send removes its claim, so the
 // next day's run retries it. A payables row is rewritten on each resend, and tells the

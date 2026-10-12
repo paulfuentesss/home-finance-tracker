@@ -83,6 +83,7 @@ export default async function ManagePage({ params }: PageProps<"/periods/[year]/
         <MeralcoPoints view={view} />
         <ManageMembers
           viewerId={viewer.memberId}
+          houseBudgetEmoji={view.houseBudgetEmoji}
           members={active.map((m) => ({
             id: m.id,
             name: m.name,

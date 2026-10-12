@@ -48,7 +48,9 @@
   wait for pending ones. A payment side is a `Party`: a member id or `HOUSE_BUDGET`, stored as
   NULL (`partyFromColumn` / `partyToColumn`, used only in `lib/periods.ts` and the actions).
   `computePeriod` carries the House Budget across months.
-- Shown as "● Ana → 🏛 House Budget" by `Pair` / `partyView` in `components/member-pair.tsx`.
+- Shown as "● Ana → 🏛 House Budget" by `Pair` / `partyView` in `components/member-pair.tsx`: each
+  member's emoji or dot, and the House Budget's emoji or bank icon (`view.houseBudgetEmoji`,
+  [manage.md](manage.md)).
 - Permissions: `canSubmitPayment`, `canCancelPayment`, `canSeePaymentProof`, `canOpenReceipt`
   in `lib/permissions.ts` (pure, tested).
 - Actions in `app/periods/[year]/[month]/actions.ts`: `addPayment`, `updatePayment`,

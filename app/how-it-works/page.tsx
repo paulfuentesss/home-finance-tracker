@@ -350,7 +350,8 @@ export default async function HowItWorksPage() {
           <p>
             Everyone shows with their emoji, or a colour dot if they haven&apos;t picked one. To change yours, open the
             menu with your name at the bottom of the sidebar and type or paste one emoji into{" "}
-            <strong>Your emoji</strong>; leave it empty to go back to the dot. The house icon at the top takes you back
+            <strong>Your emoji</strong>; leave it empty to go back to the dot. The {HOUSE_BUDGET_LABEL} shows with the
+            emoji the admin picks for it, or a bank icon. The house icon at the top takes you back
             to this month&apos;s Split Table from anywhere.
           </p>
         </>
