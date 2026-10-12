@@ -60,6 +60,10 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
       signing out must clear the cache.
 - [ ] **Check the installed app on real phones** once it's online ([install-app](features/install-app.md)):
       Android install, iPhone Add to Home Screen + Google sign-in inside it, a link from Messenger.
+      The phone menu's swipes ([months](features/months.md)): open from near the left edge on
+      Android with gesture navigation and on iPhone, stays open when the finger lifts (if not,
+      open on `touchend` in `useEdgeSwipe`), drag back to close. Pull-to-refresh gone inside the
+      app, still there in a Chrome tab.
 
 ## Ideas (not decided)
 
