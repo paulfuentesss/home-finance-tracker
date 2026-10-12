@@ -8,13 +8,6 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
 
 ## Next
 
-- [ ] **Turn on the House Budget** ([settle-up](features/settle-up.md)) — *right after the PR
-      merges and Vercel's deploy is green, not before:* `npm run db:migrate` (`0012_house-budget`;
-      why the order: [decisions.md](decisions.md), 2026-10-12). Until it runs, recording a House
-      Budget payment or a housemate's "I paid" fails, so keep the gap to minutes. Then, in the open
-      month, edit each housemate payment recorded "→ PA" before the switch to "→ House Budget",
-      and check PA's Final and the House Budget row.
-
 - [ ] **Set up the passwords key, then fill in the Billers tab** ([billers](features/billers.md)).
       `BILLER_SECRET_KEY` in `.env.local` and Vercel, plus a copy in a password manager
       ([setup.md](setup.md) step 5g) — *before merging*, or saving a password on the live site
