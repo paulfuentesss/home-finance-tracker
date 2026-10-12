@@ -2,7 +2,10 @@ import { ArrowLeft, CircleHelp } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
+import { AppShell } from "@/components/app-sidebar";
 import { FaqAccordion } from "@/components/faq-accordion";
+import { sidebarProps } from "@/components/period-header";
+import { getPreview, getPreviewChoices, requireViewer } from "@/lib/auth";
 import { monthLabel } from "@/lib/format";
 import { paymentFee } from "@/lib/bill-email/fees";
 import {
@@ -12,7 +15,7 @@ import {
   MERALCO_POINTS_AS_OF,
 } from "@/lib/household-config";
 import { formatPHP } from "@/lib/money";
-import { getLatestPointsBills } from "@/lib/periods";
+import { getLatestPointsBills, getPeriodView } from "@/lib/periods";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "How it works" };
@@ -20,7 +23,14 @@ export const metadata: Metadata = { title: "How it works" };
 // A plain-language guide for the household. Keep it in sync with docs/settlement-rules.md.
 export default async function HowItWorksPage() {
   await connection();
-  const { period, bills, members } = await getLatestPointsBills();
+  const real = await requireViewer();
+  const [{ period, bills, members }, preview, previewChoices] = await Promise.all([
+    getLatestPointsBills(),
+    getPreview(),
+    getPreviewChoices(),
+  ]);
+  // Already loaded by getLatestPointsBills (getPeriodView is cached per request).
+  const view = period ? await getPeriodView(period.year, period.month) : null;
   const back = period ? `/periods/${period.year}/${period.month}` : "/";
   // From the BILL_PAYMENT_FEES setting, so this page never shows an old fee.
   const feeList = (Object.keys(BILL_EMAIL_COLUMNS) as (keyof typeof BILL_EMAIL_COLUMNS)[])
@@ -297,7 +307,10 @@ export default async function HowItWorksPage() {
         <>
           <p>
             Everyone in the household signs in with their own login — Google, or a code sent to their email — and can
-            see every month. Only emails the admin has added can sign in.
+            see every month. Only emails the admin has added can sign in. The admin can also add someone as{" "}
+            <strong>view only</strong> (say, family abroad): they see every month like you do (but not your payment
+            screenshots), change nothing, and aren&apos;t part of any month, so they share in no bill and never owe or
+            are owed.
           </p>
           <p>
             You can log your own advances into <strong>Advances Shared</strong>, and edit or delete them while
@@ -334,7 +347,7 @@ export default async function HowItWorksPage() {
     },
   ];
 
-  return (
+  const page = (
     <div className="min-h-full">
       <header className="border-b bg-white">
         <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-4 px-4 py-5">
@@ -438,5 +451,14 @@ export default async function HowItWorksPage() {
         </section>
       </main>
     </div>
+  );
+
+  // The same sidebar as the month pages, on the latest month (none yet: just the page).
+  if (!view) return page;
+  const viewer = preview ?? real;
+  return (
+    <AppShell viewer={viewer} previewBy={preview ? real : null} sidebar={sidebarProps(view, viewer, previewChoices)}>
+      {page}
+    </AppShell>
   );
 }

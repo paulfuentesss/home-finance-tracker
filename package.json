@@ -26,6 +26,7 @@
     "storage:backup": "tsx --env-file=.env.local scripts/storage-backup.mts",
     "storage:restore": "tsx --env-file=.env.local scripts/storage-restore.mts",
     "worktrees:clean": "bash scripts/worktrees-clean.sh",
+    "branches:clean": "bash scripts/branches-clean.sh",
     "prepare": "husky"
   },
   "dependencies": {

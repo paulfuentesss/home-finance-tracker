@@ -1,8 +1,6 @@
-import { CircleHelp, Info } from "lucide-react";
-import Link from "next/link";
-import { AccountMenu } from "@/components/account-menu";
-import { HouseBadge } from "@/components/house-badge";
-import { MonthPicker, TabNav } from "@/components/period-nav";
+import { Info } from "lucide-react";
+import type { SidebarProps } from "@/components/app-sidebar";
+import { SectionTitle } from "@/components/period-nav";
 import type { PreviewChoice } from "@/lib/preview";
 import { monthLabel } from "@/lib/format";
 import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
@@ -11,83 +9,37 @@ import { isAdmin, type Viewer } from "@/lib/permissions";
 import type { PeriodView } from "@/lib/periods";
 import { cn } from "@/lib/utils";
 
-// The top of every month tab: the month on the left, its two headline totals on the right, then the tabs.
-// `viewer` is who the page is drawn for: the signed-in member, or the housemate PA is
-// previewing as (lib/preview.ts). `previewChoices` is empty for everyone but PA.
-export function PeriodHeader({
-  view,
-  viewer,
-  previewChoices,
-}: {
-  view: PeriodView;
-  viewer: Viewer;
-  previewChoices: PreviewChoice[];
-}) {
+/**
+ * What the sidebar (components/app-sidebar.tsx) needs from the month. `viewer` is who the page
+ * is drawn for: the signed-in member, or the housemate PA is previewing as (lib/preview.ts).
+ * `previewChoices` is empty for everyone but PA. Only the viewer's dot colour leaves the server,
+ * never a member row.
+ */
+export function sidebarProps(view: PeriodView, viewer: Viewer, previewChoices: PreviewChoice[]): SidebarProps {
   const { year, month, status } = view.period;
-  const base = `/periods/${year}/${month}`;
+  return {
+    base: `/periods/${year}/${month}`,
+    periods: view.periods,
+    current: { year, month },
+    status,
+    canStartNext: view.isLatest && isAdmin(viewer),
+    waiting: view.payments.filter((p) => p.status === "pending").length,
+    dotClass: [...view.members, ...previewChoices].find((m) => m.id === viewer.memberId)?.dotClass ?? "bg-zinc-400",
+    previewChoices,
+  };
+}
+
+// The top of every month page, beside the sidebar: the section's name on the left, the month's
+// two headline totals on the right (under the name on phones).
+export function PeriodHeader({ view }: { view: PeriodView }) {
+  const { year, month } = view.period;
   const pendingBills = view.bills.filter((b) => b.status === "pending");
 
   return (
     <header className="border-b bg-white">
-      {/* The month is shown inside the month picker button, so screen readers get it as the page heading here. */}
-      <h1 className="sr-only">{monthLabel(year, month)}</h1>
-      <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-4 px-4 pt-5 pb-4">
-        {/* Phone: the month (short name, to fit) and the help/account buttons share the first row.
-            Wider: `contents` puts them back in one row with the totals between. */}
-        <div className="flex w-full items-center justify-between gap-2 sm:contents">
-          <div className="flex min-w-0 items-center gap-3">
-            <HouseBadge />
-            <div className="min-w-0">
-              <p className="flex items-center gap-2 px-1.5 text-sm font-semibold text-amber-700">
-                My House
-                {/* Open is the normal state, so only a locked month gets a badge. */}
-                {status === "closed" && (
-                  <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">Closed</span>
-                )}
-              </p>
-              <MonthPicker periods={view.periods} current={{ year, month }} canStartNext={view.isLatest && isAdmin(viewer)} />
-            </div>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-1 sm:order-last sm:gap-2">
-            {/* A popover like the stat cards' (hover or tap), with the link inside — a tooltip
-                never shows on a phone. */}
-            <Popover>
-              <PopoverTrigger
-                openOnHover
-                aria-label="How it works"
-                className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors outline-none hover:bg-zinc-100 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-popup-open:bg-zinc-100 data-popup-open:text-foreground"
-              >
-                <CircleHelp className="size-5" />
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-64">
-                <div>
-                  <PopoverTitle>How it works</PopoverTitle>
-                  <PopoverDescription className="text-xs">
-                    How bills and advances are split, what Month Final and Final mean, settling up, and who can
-                    change what.
-                  </PopoverDescription>
-                </div>
-                <Link
-                  href="/how-it-works"
-                  className="text-xs font-medium text-amber-700 underline-offset-2 hover:underline"
-                >
-                  Read how it works →
-                </Link>
-              </PopoverContent>
-            </Popover>
-            <AccountMenu
-              dotClass={
-                [...view.members, ...previewChoices].find((m) => m.id === viewer.memberId)?.dotClass ?? "bg-zinc-400"
-              }
-              previewChoices={previewChoices}
-            />
-          </div>
-        </div>
-
-        {/* Phone: the two totals share a full-width second row. Wider: they sit on the right,
-            before the help and account buttons. */}
-        <div className="order-last grid w-full grid-cols-2 gap-2 sm:order-none sm:ml-auto sm:flex sm:w-auto">
+      <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-x-4 gap-y-3 px-4 py-4">
+        <SectionTitle month={monthLabel(year, month)} />
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
           <Stat
             label="Total core bills"
             value={view.stats.coreBills}
@@ -107,10 +59,6 @@ export function PeriodHeader({
             accent
           />
         </div>
-
-      </div>
-      <div className="mx-auto w-full max-w-7xl px-4">
-        <TabNav base={base} waiting={view.payments.filter((p) => p.status === "pending").length} />
       </div>
     </header>
   );

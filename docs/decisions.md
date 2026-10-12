@@ -436,8 +436,10 @@ separate branches bought nothing. The 2026-10-08 accident (a session switched br
 another) is covered by the rule that sessions never switch branches, except off a finished one.
 Guards so sessions can't destroy each other's work: Claude's edit tool already refuses to save
 over unread changes; a hook blocks git commands that discard changes or switch branches
-(`git-guard.sh`); another asks Paul before a session edits a file a different session edited
-in the last hour (`edit-overlap.sh`, a log inside `.git`).
+(`git-guard.sh`); another tells a session when a different session edited the same file in the
+last hour (`edit-overlap.sh`, a log inside `.git`). It asked Paul at first; he turned that off
+the same day, because the prompts interrupted work and the edit tool already prevents lost
+changes.
 **Instead of:** one dev server pointed at whichever worktree is current (swapping folders under
 a running server), or keeping worktrees and just stopping old servers by hand (the pile-up
 comes back with every new session).
@@ -504,3 +506,48 @@ The route now decides from `receipts.payment_id` (`canOpenReceipt`).
 check), a stored opening balance per month (one more number to snapshot and keep in step), or
 leaving payments to the collector and only showing an "in savings" note (PA's Final would still
 move before the money is his).
+
+## 2026-10-12 — Finished branches are cleaned by a script the startup check points to
+**Decision:** `npm run branches:clean` removes local branches whose PR is merged (and that have
+nothing committed after the merge), fast-forwards local `main` and prunes `origin/*` names. The
+startup check counts what's left and flags a folder sitting on `main`; Claude runs the cleanup
+when it's flagged. A new branch still starts per batch of work, not per task.
+**Why:** merged branches and a stale `main` piled up with nothing tidying them. Deleting only
+branches already in `main` loses nothing, so Claude can run it without asking, unlike
+`worktrees:clean`, which deletes folders. A branch per task would have one session switching the
+shared folder under the others.
+**Instead of:** a Claude agent (it only runs when called; the startup hook already runs every
+session), or deleting inside the startup hook (it stays read-only, so it never surprises a
+session mid-work).
+
+## 2026-10-12 — A sidebar instead of a row of tabs
+**Decision:** the month pages' sections live in a dark sidebar, grouped "This month" and
+"Household", with the month switcher at its top and the account menu at its bottom. Below
+desktop width the same sidebar slides in from a ☰ in a slim top bar. The two totals moved into
+the page header beside the section's name, which is now the page's visible title.
+**Why:** seven sections no longer fit in one row: on desktop the tabs scrolled sideways, and on
+phones each got a sliver of the width. A sidebar has room for more sections later. The drawer
+gives every section a full-size row on a phone, and the totals stay on screen there without
+opening anything. With the title naming the page, the Billers and Receipts intro cards dropped
+their own copy of it.
+**Instead of:** a phone bottom bar with four sections and "More" (the other three a tap further
+away), or the totals in a card at the bottom of the sidebar (hidden on phones until the menu
+opens).
+
+## 2026-10-12 — View-only logins: a role that's never in a month
+**Decision:** a third role, `view_only`, for family who should see the house's numbers
+without being part of them. A view-only member can sign in and sees what a housemate sees,
+Billers lines included. They are never given a `period_balances` row: "Add member" skips the
+open months for them, and "Start next month" leaves them out. `run()` refuses every change from
+them, and the role is set only when they're added. Anyone who was ever part of a month can't
+be re-added as view only. They stay on that month's list for good, and an open month (or a
+closed one, reopened) would then hold a view-only login half in: on the Split Table with a
+Final they can't settle with "I paid". Checking only open months missed the reopened case and an
+unpaid Final in the latest closed month, so the rule is "never in any month".
+**Why:** a month's membership already decides everything about the money. Every split, Final,
+settle-up list and dropdown reads it, so leaving someone off it keeps them out of the numbers
+with no change to `lib/settlement.ts`. The server refusal comes first, so a missed button in
+the UI can't turn into a change.
+**Instead of:** a "shares costs" flag on a member who is still in each month (they'd sit on
+the Split Table at ₱0, and every split and settle-up list would have to skip them), or giving
+them an ordinary member login (they could log advances and send "I paid").

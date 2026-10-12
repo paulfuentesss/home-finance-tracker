@@ -10,7 +10,7 @@ import { useViewer } from "@/components/viewer-context";
 import { dayLabel } from "@/lib/format";
 import { countsInBill } from "@/lib/helper";
 import { formatPHP } from "@/lib/money";
-import { canManageHelperEntry, isAdmin } from "@/lib/permissions";
+import { canManageHelperEntry, isAdmin, isViewOnly } from "@/lib/permissions";
 import type { PeriodView, ViewHelperEntry } from "@/lib/periods";
 import { cn } from "@/lib/utils";
 
@@ -28,7 +28,7 @@ export function HelperLog({ view }: { view: PeriodView }) {
   const { helper } = view;
   const open = view.period.status === "open";
   // PA logs for anyone; everyone else what they paid, if they're in this month.
-  const canAdd = open && (admin || view.members.some((m) => m.id === viewer.memberId));
+  const canAdd = open && !isViewOnly(viewer) && (admin || view.members.some((m) => m.id === viewer.memberId));
   const canManage = (e: ViewHelperEntry) => open && canManageHelperEntry(viewer, e);
   const editable = open && helper.entries.some(canManage);
   const [editing, setEditing] = useState<ViewHelperEntry | null>(null);

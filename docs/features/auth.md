@@ -15,25 +15,30 @@
   domain can't receive mail is refused, so a typo after the @ shows up straight away.
   Clearing the email (or removing the housemate) takes the login away on their next click. The login page never says which
   emails are invited.
-- **Two roles:**
+- **Three roles:**
 
-  | | PA (`admin`) | Everyone else (`member`) |
-  |---|---|---|
-  | See every month and tab | ✅ | ✅ except Manage |
-  | Log an advance | For anyone, into any column | Their own, into the month's default column (Advances Shared) |
-  | Edit / delete an advance | Any | Their own, while it's in the default column — once PA moves it, it's PA's |
-  | Log, edit, delete a Helper visit or early pay ([helper.md](helper.md)) | Any, for anyone; and her starting debt | Only ones they paid |
-  | Send a payment into the House Budget ("I paid", with the transfer's screenshot) | — (PA records payments directly) | Their own, in the latest open month; it waits for PA |
-  | Cancel a payment | Any (delete) | Their own, while it's waiting or rejected |
-  | Bills, points, shared columns, recording / confirming / rejecting payments, housemates, starting / closing / reopening months | ✅ | — |
-  | See a payment's screenshot | Any | Only payments they're in (bill proofs: all) |
+  | | PA (`admin`) | Housemates (`member`) | View only (`view_only`) |
+  |---|---|---|---|
+  | See every month and tab | ✅ | ✅ except Manage | ✅ except Manage |
+  | Log an advance | For anyone, into any column | Their own, into the month's default column (Advances Shared) | — |
+  | Edit / delete an advance | Any | Their own, while it's in the default column — once PA moves it, it's PA's | — |
+  | Log, edit, delete a Helper visit or early pay ([helper.md](helper.md)) | Any, for anyone; and her starting debt | Only ones they paid | — |
+  | Send a payment into the House Budget ("I paid", with the transfer's screenshot) | — (PA records payments directly) | Their own, in the latest open month; it waits for PA | — |
+  | Cancel a payment | Any (delete) | Their own, while it's waiting or rejected | — |
+  | Bills, points, shared columns, recording / confirming / rejecting payments, housemates, starting / closing / reopening months | ✅ | — | — |
+  | See a payment's screenshot | Any | Only payments they're in (bill proofs: all) | Bill proofs only |
+  | Billers & Accounts lines | All | Those shared with housemates | Those shared with housemates |
 
   Everything still follows the month rules: nothing changes in a closed month.
-- The header's **account menu** (`components/account-menu.tsx`) shows who's signed in — their
-  colour dot and name, like the stat cards next to it. It opens to a greeting, their login
+- **View only** is for someone who should see the house's numbers without being part of them
+  (say, family abroad). PA ticks **View only** when adding them in Manage. They are in no
+  month (no `period_balances` row), so they share in nothing, have no row on the Split Table, and
+  never owe or are owed ([settlement-rules.md → Members](../settlement-rules.md)).
+- The **account menu** at the bottom of the sidebar (`components/account-menu.tsx`) shows who's
+  signed in — their colour dot and name. It opens to a greeting, their login
   email, what they can do, and **Sign out** (this device only; two clicks, so never by accident).
-- **Preview as a housemate** (PA only): the account menu lists every housemate in the household
-  now (admins aside). Picking one shows every month tab as they see it — no Manage tab, no
+- **Preview as a housemate** (PA only): the account menu lists every housemate and view-only
+  login in the household now (admins aside). Picking one shows every month tab as they see it — no Manage tab, no
   PA-only controls, "Log new advance" only for themselves — under a "Previewing as …" strip with
   **Exit preview**. Their forms open but can't be sent, and the server refuses changes too (a
   click would otherwise save as PA). It ends on Exit preview, on signing out or in again, or
@@ -58,8 +63,9 @@
   one, and check `canManageAdvance` against the stored advance; the Helper actions force the
   payer to themselves, refuse her starting debt, and check `canManageHelperEntry`;
   `submitPayment` sets the payer to themselves and the receiver to the House Budget
-  (`canSubmitPayment`), and `cancelPayment` checks `canCancelPayment`.
-- `lib/permissions.ts` (pure, tested) — `Viewer`, `isAdmin`, `canManageAdvance`,
+  (`canSubmitPayment`), and `cancelPayment` checks `canCancelPayment`. A view-only login
+  passes neither level: `run()` refuses it outright, before parsing anything.
+- `lib/permissions.ts` (pure, tested) — `Viewer`, `isAdmin`, `isViewOnly`, `canManageAdvance`,
   `canManageHelperEntry`, and
   `safeNext` (where to go after signing in, blocking open redirects).
 - **Invites:** `lib/invites.ts` creates a confirmed Supabase user for the email (with the
@@ -87,8 +93,8 @@
   `previewFor(viewer)` is set, and the Manage page redirects. Signing in or out deletes the cookie.
 - **Safety net:** `lib/actions-guard.test.ts` fails if a Server Action skips `run()`, if a new
   Route Handler appears, if anything besides the advance, Helper and "I paid" actions is opened to members, if
-  `/receipts/[id]` stops checking `canSeePaymentProof`, or
-  if `run()` stops refusing changes during a preview.
+  `/receipts/[id]` stops checking `canSeePaymentProof`, if `run()` stops refusing changes
+  during a preview, or if it stops refusing a view-only login.
 - Tables: `members` (`email`, `auth_user_id`, `role`). Supabase keeps the logins themselves in
   its own `auth.users`.
 - Setup (Google, the My House Gmail, Supabase settings, keys): [setup.md](../setup.md) step 5.

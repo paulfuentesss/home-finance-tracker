@@ -18,6 +18,12 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
       (2026-10-09). A test housemate still has a `+` alias of PA's Gmail; swap in their real
       address. Anyone signing in with Google also needs to be a test user on the consent screen.
 
+- [ ] **Add the view-only login** ([auth](features/auth.md)) — *only once the view-only change
+      is merged and live*. Older code treats any non-admin as a housemate, and its "Start next
+      month" would put them in the month (localhost shares the database). Who and which email:
+      `.private/NOTES.md`. Manage → Add member → tick View only → type their login email; they
+      sign in with an emailed code. Check with Preview as….
+
 - [ ] **Bills to the My House Gmail** ([email-bills](features/email-bills.md)) — *waiting on the
       billers.* Changed in their apps, and each biller was emailed (2026-10-11) after a PLDT bill
       still went to PA's personal email. Remove this once a bill from each has arrived at the My

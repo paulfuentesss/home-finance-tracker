@@ -44,8 +44,10 @@ export const billKind = pgEnum("bill_kind", ["standard", "helper"]);
 // Google Sheet (already settled there, so it's in no bill).
 export const helperEntryKind = pgEnum("helper_entry_kind", ["visit", "early_pay", "opening"]);
 // admin = PA: can change everything. member = sees everything (except Manage) and logs their
-// own advances in the default column (lib/permissions.ts).
-export const memberRole = pgEnum("member_role", ["admin", "member"]);
+// own advances in the default column (lib/permissions.ts). view_only = a login only: sees what a
+// member sees, changes nothing, and is never in a month (no period_balances row), so shares in
+// no cost.
+export const memberRole = pgEnum("member_role", ["admin", "member", "view_only"]);
 // confirmed = counts (PA recorded it, or confirmed a housemate's) · pending = a housemate's
 // "I paid", waiting for PA · rejected = PA said no, with a reason. Only confirmed ones count.
 export const paymentStatus = pgEnum("payment_status", ["confirmed", "pending", "rejected"]);

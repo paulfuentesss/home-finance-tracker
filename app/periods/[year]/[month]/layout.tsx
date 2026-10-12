@@ -3,9 +3,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BackupReminderBanner } from "@/components/backup-reminder";
-import { PeriodHeader } from "@/components/period-header";
-import { PreviewBanner } from "@/components/preview-banner";
-import { ViewerProvider } from "@/components/viewer-context";
+import { AppShell } from "@/components/app-sidebar";
+import { PeriodHeader, sidebarProps } from "@/components/period-header";
 import { getPreview, getPreviewChoices, requireViewer } from "@/lib/auth";
 import { backupReminderText } from "@/lib/backup-reminder";
 import { getBackupReminder } from "@/lib/backup-status";
@@ -21,7 +20,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return { title: monthLabel(year, month) };
 }
 
-// Shared by all four tabs: the header (month, stats, tabs) and the data-problem banner.
+// Shared by every tab: the sidebar (month, sections, account), the header (section name,
+// stats) and the data-problem banner.
 // The viewer is provided to the tabs only to show or hide controls; getPeriodView and the
 // Server Actions check it themselves. While PA previews as a housemate, everything here is
 // drawn for that housemate under a banner saying so.
@@ -41,9 +41,8 @@ export default async function PeriodLayout({ params, children }: Props) {
   const admin = isAdmin(viewer);
 
   return (
-    <ViewerProvider viewer={viewer} previewBy={previewBy}>
-      <PreviewBanner />
-      <PeriodHeader view={view} viewer={viewer} previewChoices={previewChoices} />
+    <AppShell viewer={viewer} previewBy={previewBy} sidebar={sidebarProps(view, viewer, previewChoices)}>
+      <PeriodHeader view={view} />
       <main className="mx-auto w-full max-w-7xl space-y-6 px-4 py-8">
         {/* The admin's own reminder: hidden while previewing as a housemate. */}
         {admin && reminder && <BackupReminderBanner text={backupReminderText(reminder)} />}
@@ -82,6 +81,6 @@ export default async function PeriodLayout({ params, children }: Props) {
         )}
         {children}
       </main>
-    </ViewerProvider>
+    </AppShell>
   );
 }

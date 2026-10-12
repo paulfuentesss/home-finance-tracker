@@ -46,9 +46,14 @@ echo
 echo "Open PRs:"
 prs=$(gh pr list --limit 10 2> /dev/null) || prs="(couldn't reach GitHub)"
 echo "${prs:-none}"
+# Local branches whose PR is merged; the same rules as npm run branches:clean.
+"$PWD/scripts/branches-clean.sh" --check 2> /dev/null
 
 branch=$(git branch --show-current)
-if [ -n "$branch" ] && [ "$branch" != main ] &&
+if [ "$branch" = main ]; then
+  echo
+  echo "This folder is on main — start a branch before changing anything: git switch -c <branch> origin/main"
+elif [ -n "$branch" ] &&
   merged=$(gh pr list --head "$branch" --state merged --limit 1 --json number -q '.[].number' 2> /dev/null) &&
   [ -n "$merged" ]; then
   echo

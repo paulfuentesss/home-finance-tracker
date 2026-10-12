@@ -770,24 +770,38 @@ export function AddMemberDialog() {
 
 function AddMemberForm({ onDone }: { onDone: () => void }) {
   const { state, pending, previewing, onSubmit } = useDialogForm(addMember, onDone);
+  const [viewOnly, setViewOnly] = useState(false);
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Add housemate</DialogTitle>
+        <DialogTitle>{viewOnly ? "Add a view-only login" : "Add housemate"}</DialogTitle>
         <DialogDescription>
-          They join every open month: equal bills are re-split to include them, and points bills give them 0 points
-          until you set theirs.
+          {viewOnly
+            ? "For someone who should only look (say, family abroad). They see what housemates see, change nothing, and join no month, so they share in nothing. Someone who was in past months can't be view only."
+            : "They join every open month: equal bills are re-split to include them, and points bills give them 0 points until you set theirs."}
         </DialogDescription>
       </DialogHeader>
       <form onSubmit={onSubmit} className="grid gap-4">
         <Field label="Name" htmlFor="member-name">
           <Input id="member-name" name="name" placeholder="Name" required maxLength={40} />
         </Field>
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="viewOnly"
+            checked={viewOnly}
+            onChange={(e) => setViewOnly(e.target.checked)}
+            className="mt-0.5 accent-amber-600"
+          />
+          <span>
+            View only <span className="text-muted-foreground">— sees what housemates see, shares in no costs</span>
+          </span>
+        </label>
         {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
         <DialogFooter>
           <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
           <Button type="submit" disabled={pending || previewing}>
-            {pending ? "Adding…" : "Add housemate"}
+            {pending ? "Adding…" : viewOnly ? "Add view-only login" : "Add housemate"}
           </Button>
         </DialogFooter>
       </form>

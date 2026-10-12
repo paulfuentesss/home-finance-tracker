@@ -8,7 +8,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { db, members } from "@/db";
-import { dotClassOf } from "@/lib/members";
+import { householdDotClassOf } from "@/lib/members";
 import { isAdmin, previewViewer, type Viewer } from "@/lib/permissions";
 import { PREVIEW_COOKIE, parsePreviewCookie, type PreviewChoice } from "@/lib/preview";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -80,11 +80,14 @@ export const getPreview = cache(async (): Promise<Viewer | null> => {
   return viewer ? previewFor(viewer) : null;
 });
 
-/** Who the admin can preview as (the same rule as previewViewer); [] for everyone else. */
+/**
+ * Who the admin can preview as (the same rule as previewViewer: housemates and view-only
+ * logins); [] for everyone else.
+ */
 export const getPreviewChoices = cache(async (): Promise<PreviewChoice[]> => {
   const viewer = await getViewer();
   if (!viewer || !isAdmin(viewer)) return [];
   return (await activeMembers())
     .filter((m) => previewViewer(viewer, m) !== null)
-    .map((m) => ({ id: m.memberId, name: m.name, dotClass: dotClassOf(m) }));
+    .map((m) => ({ id: m.memberId, name: m.name, dotClass: householdDotClassOf(m) }));
 });

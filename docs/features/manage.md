@@ -12,6 +12,11 @@
 - **Housemates:** add (joins every open month) and remove (deactivated, never deleted; stays in
   months where they have records or an unsettled balance). Removing someone also takes their
   login away.
+- **View only:** a box in Add member. A view-only person joins no month and shares in nothing.
+  They can sign in and see what a housemate sees, but change nothing ([auth.md](auth.md)).
+  They're listed with a grey dot and a "view only" badge. Their role is set when they're added
+  (remove and re-add to change it). A former housemate can't be re-added as view only
+  ([settlement-rules.md → Adding](../settlement-rules.md)).
 - **Login email** per housemate ([auth.md](auth.md)): typing one invites them (Google or an
   emailed code); clearing it takes the login away. PA's own is changed with
   `npm run auth:invite`. Inviting sends no email, so an address whose domain can't receive mail

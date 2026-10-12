@@ -24,7 +24,8 @@
 
 ## How it's built
 - Route: `app/periods/[year]/[month]/page.tsx` (tab 1). The layout (`layout.tsx`) loads the
-  month once per request and renders the header (`components/period-header.tsx`).
+  month once per request and renders the sidebar (`components/app-sidebar.tsx`) and the header
+  (`components/period-header.tsx`).
 - Data: `getPeriodView` in `lib/periods.ts` loads the month plus every earlier one (for
   carry-over), runs `computeMonth` (`lib/settlement.ts`, pure, tested) and shapes plain JSON for
   the client.

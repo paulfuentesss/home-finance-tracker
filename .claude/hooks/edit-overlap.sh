@@ -3,9 +3,9 @@
 # (CLAUDE.md → Parallel sessions) don't work on the same file without Paul knowing:
 #   edit-overlap.sh record  (PostToolUse) notes "this session edited this file, now"
 #   edit-overlap.sh check   (PreToolUse)  another session edited it in the last hour →
-#                                         ask Paul before going ahead
+#                                         tell Claude (no prompt for Paul; he asked for none)
 # Claude's edit tool already refuses to save over changes it hasn't read, so nothing is lost
-# either way; this catches two sessions changing the same code for different reasons.
+# either way; the note lets Claude keep to its own part of a file two sessions are changing.
 #
 # The log lives inside .git (never committed): one "epoch<TAB>session<TAB>path" line per edit.
 
@@ -34,8 +34,8 @@ case "$1" in
     [ -z "$last" ] && exit 0
     minutes=$(((now - last) / 60))
     name=${file#"$PWD"/}
-    jq -n --arg reason "Another Claude session edited $name $minutes min ago. Allow this session to change it too?" \
-      '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "ask", permissionDecisionReason: $reason}}'
+    jq -n --arg note "Another Claude session edited $name $minutes min ago. Change only your own part of it, and leave theirs as it is." \
+      '{hookSpecificOutput: {hookEventName: "PreToolUse", additionalContext: $note}}'
     ;;
 esac
 exit 0

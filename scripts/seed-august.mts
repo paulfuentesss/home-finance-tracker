@@ -25,6 +25,7 @@ import {
 } from "../db/schema";
 import { AUGUST_2026, DEFAULT_COLUMN, HOUSEHOLD_MEMBERS, type MemberName } from "../lib/__fixtures__/august-2026";
 import { refuseLiveDatabase } from "../lib/local-database";
+import { sharesCosts } from "../lib/members";
 import { fromCentavos, toCentavos } from "../lib/money";
 import { RECEIPTS_BUCKET } from "../lib/receipts";
 import { computeBillShares, splitOrder } from "../lib/settlement";
@@ -82,13 +83,20 @@ try {
       .values(HOUSEHOLD_MEMBERS.map((m) => ({ ...m, role: m.isCollector ? ("admin" as const) : ("member" as const) })))
       .onConflictDoNothing();
 
-    const allMembers = await tx.query.members.findMany({
-      where: eq(members.active, true),
-      orderBy: (m, { asc }) => [asc(m.sortOrder), asc(m.id)],
-    });
+    // Everyone who shares the costs: a view-only login is in no month (docs/settlement-rules.md).
+    const allMembers = (
+      await tx.query.members.findMany({
+        where: eq(members.active, true),
+        orderBy: (m, { asc }) => [asc(m.sortOrder), asc(m.id)],
+      })
+    ).filter(sharesCosts);
     const idOf = (name: MemberName) => {
       const member = allMembers.find((m) => m.name === name);
-      if (!member) throw new Error(`Member "${name}" isn't active — reactivate them in Manage, or reset the local database.`);
+      if (!member) {
+        throw new Error(
+          `Member "${name}" isn't an active housemate (removed, or view only) — re-add them in Manage, or reset the local database.`,
+        );
+      }
       return member.id;
     };
     const byName = (record: Partial<Record<MemberName, number>>) =>

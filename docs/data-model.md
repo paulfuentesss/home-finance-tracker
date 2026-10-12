@@ -11,7 +11,7 @@ connects directly ([decisions.md](decisions.md)).
 
 | Table | One row is… | Used by |
 |---|---|---|
-| `members` | A household member. Deactivated, never deleted; at most one `is_collector`. Login: `email` (the invite, lowercase), `auth_user_id` (their Supabase login — what every request matches on), `role` (`admin` / `member`) | [manage](features/manage.md), [login](features/auth.md) |
+| `members` | A household member. Deactivated, never deleted; at most one `is_collector`. Login: `email` (the invite, lowercase), `auth_user_id` (their Supabase login — what every request matches on), `role` (`admin` / `member` / `view_only`; a view-only login is never in `period_balances`) | [manage](features/manage.md), [login](features/auth.md) |
 | `billing_periods` | A month (`year`, `month`), `open` or `closed` | [months](features/months.md) |
 | `period_balances` | A member in a month: that month's membership, opening and closing balance | [months](features/months.md), [split table](features/split-table.md) |
 | `bill_items` | A bill column in a month: total, payer, split mode, dates, `source` (manual / email), `status` (confirmed / pending), `kind` (`helper` marks the Helper column, at most one per month) | [split table](features/split-table.md), [manage](features/manage.md), [email bills](features/email-bills.md) |
@@ -48,6 +48,7 @@ Add a line here with every new one.
 | `0010_helper-entries` | `helper_entries` (the `helper_entry_kind` enum) and `kind` on `bill_items` (the `bill_kind` enum, one `helper` per month); existing columns named "Helper" become `helper` |
 | `0011_billers` | `billers` and `biller_fields` (the `biller_field_kind` enum) for the Billers tab; adds tables only. Made in parallel with `0010` and renumbered after it; both were applied in this order |
 | `0012_house-budget` | `payments.from_member_id` / `to_member_id` become nullable (NULL = the House Budget), with the `payments_has_member` check. Run **after** the code that reads NULL sides is deployed ([decisions.md](decisions.md), 2026-10-12) |
+| `0013_view-only-role` | Adds `view_only` to the `member_role` enum ([auth.md](features/auth.md)). Additive; applied before the code that uses it shipped |
 
 The receipt files themselves live in Supabase Storage (the private `receipts` bucket), not in
 the database; `receipts.storage_path` names one.

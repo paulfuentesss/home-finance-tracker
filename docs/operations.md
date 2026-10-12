@@ -174,7 +174,7 @@ script's Script Properties.
 
 ```
 proxy.ts        Runs before every page: refreshes the login, sends logged-out visitors to /login
-app/            Next.js routes: /periods/[year]/[month] (5 tabs), /how-it-works,
+app/            Next.js routes: /periods/[year]/[month] (the sidebar's sections), /how-it-works,
                 /login and /auth/callback (sign-in), /receipts/[id] (opens a receipt file),
                 /backup (the Download backup zip), /api/bill-email (bills from the Gmail script)
 .claude/        Claude Code: review agents (agents/), hooks wired in settings.json (hooks/: the

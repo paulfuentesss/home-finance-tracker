@@ -41,9 +41,9 @@ export function Billers({ billers }: { billers: ViewBiller[] }) {
   return (
     <div className="space-y-6">
       <section className="flex flex-wrap items-start justify-between gap-3 rounded-xl border bg-white p-5 shadow-xs">
+        {/* The page title above (components/period-header.tsx) names the page. */}
         <div>
-          <h2 className="text-lg font-semibold">Billers &amp; Accounts</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Account numbers, how each bill is paid, and the logins that go with them. Passwords stay hidden until you
             tap <Eye className="inline size-3.5 align-[-2px]" aria-label="Reveal" />.
             {admin && " Lines marked Admin only aren't shown to housemates."}
@@ -152,7 +152,7 @@ function BillerCard({
             inputClassName="w-full border-transparent bg-transparent px-1 text-lg font-semibold hover:border-input focus:bg-white"
           />
         ) : (
-          <h3 className="text-lg font-semibold">{biller.name}</h3>
+          <h2 className="text-lg font-semibold">{biller.name}</h2>
         )}
         {edit && (
           <div className="flex shrink-0 items-center">

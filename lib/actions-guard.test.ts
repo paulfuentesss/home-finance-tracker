@@ -111,6 +111,16 @@ describe("Preview as a housemate", () => {
   });
 });
 
+describe("View-only logins", () => {
+  it("run() refuses every change from a view-only login, before anything is parsed or saved", () => {
+    const source = read(join(ROOT, "app/periods/[year]/[month]/actions.ts"));
+    const run = source.slice(source.indexOf("async function run<"));
+    const beforeParsing = run.slice(0, run.indexOf("schema.safeParse("));
+    // Unconditional: not tied to `access`, so a "member" action can't let one through.
+    expect(beforeParsing).toMatch(/^\s*if \(isViewOnly\(viewer\)\) return \{ ok: false,/m);
+  });
+});
+
 describe("Route Handlers", () => {
   it("are only the known ones, each with its own auth", () => {
     const routes = files.filter((f) => /\/route\.ts$/.test(f)).map(rel);
