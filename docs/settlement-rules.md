@@ -24,7 +24,9 @@ Otherwise PA is treated exactly like everyone else.
 
 Members are never deleted, only deactivated (`members.active = false`). Each month has its
 own member list — the rows in `period_balances` — and every split uses that list, so old
-months never change when someone moves in or out.
+months never change when someone moves in or out. A **view-only** login (`members.role =
+view_only`) is never put on that list: they share in no bill or column, have no Month Final,
+and never owe or are owed.
 
 ## The full ledger: Month Final
 
@@ -250,7 +252,7 @@ automatically, like the sheet's "Prev Month Unsettled". The House Budget always 
 from the payments themselves, closed months included ([House Budget](#house-budget)).
 
 **Starting a month** ("Start <next month>" at the bottom of the month picker, on the latest month) creates the next month with
-everyone currently active and carries over (not while a housemate's payment is still waiting
+everyone currently active (view-only logins aside) and carries over (not while a housemate's payment is still waiting
 in the latest month — the new month's carry-over would show them owing it all again, and they
 might pay twice):
 
@@ -293,6 +295,9 @@ Rules (`lib/month-lock.ts`):
 - **Adding** someone adds them to every open month. Equal bills re-split; Meralco gives them
   0 points until set; manual bills and columns give them ₱0; they join Advances Shared but
   not situational Auto-equal columns. Re-adding a former member's name reactivates them.
+  Someone added as **view only** joins no month, ever. So a former member, who stays on the
+  lists of the months they were part of, can't be re-added as view only: they come back as a
+  housemate, or the view-only login is added under another name.
 - **Removing** someone deactivates them (left out of future months). In open months where
   they have no advances, payments, bills paid (with an amount above ₱0), Helper visits or early
   pay, typed amounts in a Manual bill, or Manual column amounts, they're removed and the bills re-split; where they

@@ -92,6 +92,13 @@
       "when": 1791771920875,
       "tag": "0012_house-budget",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791785865324,
+      "tag": "0013_view-only-role",
+      "breakpoints": true
     }
   ]
 }

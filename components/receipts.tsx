@@ -7,7 +7,7 @@ import { ConfirmDeleteButton } from "@/components/confirm-button";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useCanEdit, useViewer } from "@/components/viewer-context";
-import { isAdmin } from "@/lib/permissions";
+import { isAdmin, isViewOnly } from "@/lib/permissions";
 import type { ViewReceipt } from "@/lib/periods";
 import { prepareReceiptFile } from "@/lib/receipt-image";
 import { MAX_RECEIPT_BYTES, MAX_RECEIPTS_PER_ITEM, receiptsLeft } from "@/lib/receipts";
@@ -27,14 +27,16 @@ const receiptUrl = (id: number) => `/receipts/${id}`;
 
 /** The Receipts tab's intro: what the viewer can do with proofs this month. */
 export function ReceiptsNote({ status }: { status: "open" | "closed" }) {
-  const admin = isAdmin(useViewer());
+  const viewer = useViewer();
+  const admin = isAdmin(viewer);
   if (status === "closed") {
     return admin
       ? "This month is closed, so its proofs can't change. Reopen it on Settle Up to attach or delete one."
       : "This month is closed, so its proofs can't change.";
   }
-  return admin
-    ? "Attach a screenshot to each bill and payment. They're made smaller before upload."
+  if (admin) return "Attach a screenshot to each bill and payment. They're made smaller before upload.";
+  return isViewOnly(viewer)
+    ? "The admin attaches the bill proofs. Tap one to see it full size."
     : "The admin attaches the bill proofs; your own payment proofs come from I paid on Settle Up. Tap one to see it full size.";
 }
 

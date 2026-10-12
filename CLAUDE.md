@@ -118,18 +118,22 @@ Part of every change, in the same PR — not a separate chore.
   Claude sessions at once, all in the main folder, all seen on `localhost:3000`; one PR at the
   end covers everything (`docs/commands.md` → Working in parallel). Every session starts with a
   "Startup check" report from `.claude/hooks/checkout-status.sh` (branch, uncommitted changes,
-  dev server, worktrees, open PRs):
+  dev server, worktrees, open PRs, merged branches):
   - Changes you didn't make are another session's work in progress. Never stash, reset, discard
     or reformat them, and stay out of files another session is editing.
   - Change files only with Edit/Write — never through the shell (`sed -i`, `cat >`, a script
     writing files). Edit/Write refuse to save over changes made since your last read; the
     shell doesn't check.
   - Hooks back this up (`.claude/hooks/`): `git-guard.sh` blocks git commands that discard
-    changes or switch branches; `edit-overlap.sh` asks Paul before you edit a file another
-    session edited in the last hour. When one stops you, tell Paul; don't work around it.
+    changes or switch branches; `edit-overlap.sh` tells you (no prompt for Paul) when another
+    session edited the same file in the last hour, so change only your own part of it. When
+    `git-guard.sh` stops you, tell Paul; don't work around it.
   - Never switch branches. One exception: the folder is on `main`, or on a branch whose PR is
     merged (the startup check says so) → `git switch -c <branch> origin/main` (uncommitted
-    changes come along) and tell Paul which branch the batch is on.
+    changes come along) and tell Paul which branch the batch is on. A branch per batch, not per
+    task.
+  - When the startup check says "Merged branches still here", run `npm run branches:clean`
+    yourself (it removes only branches already merged into `main`) and tell Paul what went.
   - Don't start, stop or restart the dev server when `localhost:3000` is up — it's every
     session's (`npm run dev` refuses a second one). Restart it only when it's broken.
   - Commit only when Paul asks for the PR. That commit carries every session's changes: check
@@ -156,6 +160,7 @@ Part of every change, in the same PR — not a separate chore.
 | Every page is a plain "Login isn't configured" message | `proxy.ts` needs `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Add them to `.env.local` (`docs/setup.md` step 5), restart `npm run dev` |
 | Signed in with Google but told "not invited" | The Google address differs from the invited one (dots, a different account), or the member was removed | Invite the exact address Google shows (`docs/features/auth.md`); PA can always fix his own with `npm run auth:invite` |
 | Pages hang 20–100 s, then "Something went wrong"; the dev log shows a query that never returns | `DATABASE_URL` points at the transaction pooler (port 6543), which stops answering when two queries are sent back to back | Use the session pooler (port 5432) for `DATABASE_URL`, locally and in Vercel (`docs/decisions.md`, 2026-10-11) |
+| One existing tab shows "Page not found" (others fine; a made-up path 404s the same way) | A long-running `next dev` lost the route after files changed under it (branch switch, merge); the code is fine (2026-10-12, Helper tab) | Restart the dev server (kill the `next dev` PID, `rm .next/dev/lock`, `npm run dev`). Telling it apart from a real `notFound()` needs a signed-in request, so ask Paul or compare with a tab that works |
 | `CLAUDE.md` shows as modified after `npm run dev` | `next dev` appends the Next.js agent-rules block below | Expected — commit it |
 
 **Fast dev loop:** make the change → `npm run typecheck && npx eslint && npm test` once per chunk (tests run in a few seconds) →

@@ -4,6 +4,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  ChevronsUpDown,
   CalendarPlus,
   HandCoins,
   KeyRound,
@@ -34,59 +35,118 @@ import { isAdmin } from "@/lib/permissions";
 import type { PeriodSummary } from "@/lib/periods";
 import { cn } from "@/lib/utils";
 
-// `short` is shown on phones, where the full labels would push most tabs off-screen.
+// Each month's sections. `nav` is the sidebar's name for it; `label` is the full name, shown
+// as the page title (and used in banner copy like "Fix it in Manage Columns & People").
 const TABS = [
-  { href: "", label: "Monthly Split Table", short: "Split", icon: Layers },
-  { href: "/advances", label: "Advances Log & Report", short: "Advances", icon: PhilippinePeso },
-  { href: "/helper", label: "Helper Visits", short: "Helper", icon: Sparkles },
-  { href: "/receipts", label: "Payment Proofs / Receipts", short: "Receipts", icon: ReceiptText },
-  { href: "/settle", label: "Settle Up", short: "Settle", icon: HandCoins },
-  { href: "/billers", label: "Billers & Accounts", short: "Billers", icon: KeyRound },
-  { href: "/manage", label: "Manage Columns & People", short: "Manage", icon: Settings },
+  { href: "", label: "Monthly Split Table", nav: "Split Table", group: "month", icon: Layers },
+  { href: "/advances", label: "Advances Log & Report", nav: "Advances", group: "month", icon: PhilippinePeso },
+  { href: "/helper", label: "Helper Visits", nav: "Helper Visits", group: "month", icon: Sparkles },
+  { href: "/receipts", label: "Payment Proofs / Receipts", nav: "Receipts", group: "month", icon: ReceiptText },
+  { href: "/settle", label: "Settle Up", nav: "Settle Up", group: "month", icon: HandCoins },
+  { href: "/billers", label: "Billers & Accounts", nav: "Billers & Accounts", group: "household", icon: KeyRound },
+  { href: "/manage", label: "Manage Columns & People", nav: "Manage", group: "household", icon: Settings },
 ] as const;
 
-/** The part of the path after /periods/y/m, so switching months keeps the same tab. */
-function useTabSuffix() {
+const GROUPS = [
+  { id: "month", label: "This month" },
+  { id: "household", label: "Household" },
+] as const;
+
+/** The sidebar's link look, shared with the How it works link in components/app-sidebar.tsx. */
+export const SIDEBAR_LINK =
+  "flex min-h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
+/**
+ * Menus that open from the sidebar (the month list, the account menu): dark like it, so they
+ * read as part of it. Dialogs stay light — they belong to the page.
+ */
+export const SIDEBAR_POPUP = "bg-zinc-800 text-zinc-200 shadow-lg shadow-black/40 ring-white/10";
+
+/** A menu row inside SIDEBAR_POPUP. */
+export const SIDEBAR_POPUP_ITEM =
+  "rounded-md transition-colors outline-none hover:bg-white/10 hover:text-white focus-visible:bg-white/10 focus-visible:text-white";
+
+/**
+ * The part of the path after /periods/y/m, so switching months keeps the same tab. null off the
+ * month pages (How it works), where no section is current and a month opens on its Split Table.
+ */
+function useTabSuffix(): string | null {
   const pathname = usePathname();
-  return pathname.replace(/^\/periods\/\d+\/\d+/, "");
+  const match = pathname.match(/^\/periods\/\d+\/\d+(\/.*)?$/);
+  return match ? (match[1] ?? "") : null;
 }
 
-/** `waiting`: housemates' "I paid" waiting for PA — shown as a count on Settle Up, for PA only. */
-export function TabNav({ base, waiting = 0 }: { base: string; waiting?: number }) {
+/** The section the page is on (undefined if the path isn't one of them). */
+export function useCurrentTab() {
+  const suffix = useTabSuffix();
+  return TABS.find((t) => t.href === suffix);
+}
+
+/** The page title: the section's full name (the page's h1), with the month above it. */
+export function SectionTitle({ month }: { month: string }) {
+  const tab = useCurrentTab();
+  return (
+    <div className="min-w-0">
+      <p className="text-sm font-medium text-amber-700">{month}</p>
+      <h1 className="text-xl font-semibold tracking-tight">{tab?.label ?? month}</h1>
+    </div>
+  );
+}
+
+/**
+ * The sidebar's section links, in two groups. `waiting`: housemates' "I paid" waiting for PA —
+ * shown as a count on Settle Up, for PA only. `onNavigate` lets the phone menu close itself,
+ * even when the link is the page already open.
+ */
+export function SidebarNav({
+  base,
+  waiting = 0,
+  onNavigate,
+}: {
+  base: string;
+  waiting?: number;
+  onNavigate?: () => void;
+}) {
   const suffix = useTabSuffix();
   const admin = isAdmin(useViewer());
   // Manage is PA's (the page itself redirects anyone else).
   const tabs = admin ? TABS : TABS.filter((t) => t.href !== "/manage");
   return (
-    // Phone: every tab shares the width equally (icon over a small label), so all of them fit
-    // and none hide off the right edge. Wider: icon beside the full label, as before.
-    <nav aria-label="Sections" className="-mb-px flex overflow-x-auto sm:gap-1">
-      {tabs.map(({ href, label, short, icon: Icon }) => {
-        const active = suffix === href;
-        return (
-          <Link
-            key={href}
-            href={`${base}${href}`}
-            aria-current={active ? "page" : undefined}
-            className={cn(
-              "flex min-w-0 flex-1 flex-col items-center gap-1 rounded-t-md border-b-2 px-1 py-2 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:flex-none sm:shrink-0 sm:flex-row sm:gap-2 sm:px-3 sm:py-2.5 sm:text-sm",
-              active
-                ? "border-amber-600 text-amber-700"
-                : "border-transparent text-muted-foreground hover:border-zinc-300 hover:text-foreground",
-            )}
-          >
-            <Icon className="size-4" />
-            <span className="sm:hidden">{short}</span>
-            <span className="hidden sm:inline">{label}</span>
-            {href === "/settle" && admin && waiting > 0 && (
-              <span className="rounded-full bg-amber-500 px-1.5 text-xs font-semibold text-white tabular-nums">
-                {waiting}
-                <span className="sr-only"> waiting for you</span>
-              </span>
-            )}
-          </Link>
-        );
-      })}
+    <nav aria-label="Sections" className="space-y-5">
+      {GROUPS.map((group) => (
+        <div key={group.id}>
+          <p className="px-3 pb-1.5 text-[11px] font-semibold tracking-wider text-zinc-500 uppercase">{group.label}</p>
+          <ul className="space-y-0.5">
+            {tabs
+              .filter((t) => t.group === group.id)
+              .map(({ href, nav, icon: Icon }) => {
+                const active = suffix === href;
+                return (
+                  <li key={href}>
+                    <Link
+                      href={`${base}${href}`}
+                      onClick={onNavigate}
+                      aria-current={active ? "page" : undefined}
+                      className={cn(
+                        SIDEBAR_LINK,
+                        active ? "bg-white/10 text-white" : "text-zinc-400 hover:bg-white/5 hover:text-white",
+                      )}
+                    >
+                      <Icon className={cn("size-4 shrink-0", active && "text-amber-400")} aria-hidden />
+                      <span className="min-w-0 flex-1 truncate">{nav}</span>
+                      {href === "/settle" && admin && waiting > 0 && (
+                        <span className="rounded-full bg-amber-500 px-1.5 text-xs font-semibold text-white tabular-nums">
+                          {waiting}
+                          <span className="sr-only"> waiting for you</span>
+                        </span>
+                      )}
+                    </Link>
+                  </li>
+                );
+              })}
+          </ul>
+        </div>
+      ))}
     </nav>
   );
 }
@@ -95,16 +155,20 @@ export function TabNav({ base, waiting = 0 }: { base: string; waiting?: number }
  * "‹ August 2026 ›". The arrows only show when there's a month that way; clicking the month
  * name opens a list of every month that exists (newest first). Switching keeps the same tab.
  * On the latest month the list ends with "Start <next month>", which asks before creating it.
+ * `sidebar`: a card on the dark sidebar, arrows at the edges. `bar`: plain, on the phone's top bar.
  */
 export function MonthPicker({
   periods,
   current,
   canStartNext,
+  variant = "bar",
 }: {
   periods: PeriodSummary[];
   current: { year: number; month: number };
   canStartNext: boolean;
+  variant?: "sidebar" | "bar";
 }) {
+  const dark = variant === "sidebar";
   const suffix = useTabSuffix();
   const [open, setOpen] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -113,24 +177,55 @@ export function MonthPicker({
   const index = periods.findIndex((p) => p.year === current.year && p.month === current.month);
   const prev = index > 0 ? periods[index - 1] : undefined;
   const next = index !== -1 ? periods[index + 1] : undefined;
-  const href = (p: PeriodSummary) => `/periods/${p.year}/${p.month}${suffix}`;
+  const href = (p: PeriodSummary) => `/periods/${p.year}/${p.month}${suffix ?? ""}`;
+
+  // On the dark sidebar the ghost buttons' light hover would flash; these keep it dark.
+  const arrow = dark ? "text-zinc-300 hover:bg-white/10 hover:text-white aria-expanded:bg-white/10" : undefined;
+  // The sidebar card keeps the month name in place when there's no month on one side.
+  const gap = dark ? <span className="size-7 shrink-0" aria-hidden /> : null;
 
   return (
-    <div className="flex items-center gap-1">
-      {prev && (
-        <Button variant="ghost" size="icon-sm" aria-label="Previous month" nativeButton={false} render={<Link href={href(prev)} />}>
+    <div
+      className={cn(
+        "flex items-center gap-1",
+        dark && "justify-between rounded-lg bg-white/5 p-1 ring-1 ring-white/10",
+      )}
+    >
+      {prev ? (
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Previous month"
+          nativeButton={false}
+          className={arrow}
+          render={<Link href={href(prev)} />}
+        >
           <ChevronLeft />
         </Button>
+      ) : (
+        gap
       )}
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger
           aria-label="Choose month"
-          className="cursor-pointer rounded-lg px-1.5 py-0.5 text-xl font-semibold tracking-tight whitespace-nowrap transition-colors outline-none hover:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-ring data-popup-open:bg-zinc-100"
+          className={cn(
+            "flex cursor-pointer items-center gap-1.5 rounded-lg font-semibold tracking-tight whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            dark
+              ? "min-w-0 px-2 py-1 text-sm text-white hover:bg-white/10 data-popup-open:bg-white/10"
+              : "px-1.5 py-0.5 text-lg hover:bg-zinc-100 data-popup-open:bg-zinc-100",
+          )}
         >
-          <span className="sm:hidden">{shortMonthLabel(current.year, current.month)}</span>
-          <span className="hidden sm:inline">{monthLabel(current.year, current.month)}</span>
+          {dark ? (
+            <span className="truncate">{monthLabel(current.year, current.month)}</span>
+          ) : (
+            <>
+              <span className="sm:hidden">{shortMonthLabel(current.year, current.month)}</span>
+              <span className="hidden sm:inline">{monthLabel(current.year, current.month)}</span>
+            </>
+          )}
+          <ChevronsUpDown className={cn("size-3.5 shrink-0", dark ? "text-zinc-400" : "text-muted-foreground")} aria-hidden />
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-48 gap-0 p-1">
+        <PopoverContent align="start" className={cn("w-48 gap-0 p-1", dark && SIDEBAR_POPUP)}>
           <ul>
             {periods.toReversed().map((p) => {
               const active = p.year === current.year && p.month === current.month;
@@ -141,8 +236,9 @@ export function MonthPicker({
                     aria-current={active ? "page" : undefined}
                     onClick={() => setOpen(false)}
                     className={cn(
-                      "flex items-center justify-between rounded-md px-2.5 py-1.5 text-sm transition-colors hover:bg-zinc-100",
-                      active && "font-medium text-amber-700",
+                      "flex items-center justify-between rounded-md px-2.5 py-1.5 text-sm transition-colors",
+                      dark ? SIDEBAR_POPUP_ITEM : "hover:bg-zinc-100",
+                      active && (dark ? "font-medium text-amber-400 hover:text-amber-300" : "font-medium text-amber-700"),
                     )}
                   >
                     {monthLabel(p.year, p.month)}
@@ -159,7 +255,12 @@ export function MonthPicker({
                 setOpen(false);
                 setStarting(true);
               }}
-              className="mt-1 flex w-full items-center gap-2 rounded-md border-t px-2.5 pt-2 pb-1.5 text-left text-sm text-muted-foreground transition-colors hover:bg-zinc-100 hover:text-foreground"
+              className={cn(
+                "mt-1 flex w-full items-center gap-2 rounded-md border-t px-2.5 pt-2 pb-1.5 text-left text-sm transition-colors",
+                dark
+                  ? cn(SIDEBAR_POPUP_ITEM, "border-white/10 text-zinc-400")
+                  : "text-muted-foreground hover:bg-zinc-100 hover:text-foreground",
+              )}
             >
               <CalendarPlus className="size-4" />
               Start {monthLabel(upcoming.year, upcoming.month)}
@@ -174,10 +275,19 @@ export function MonthPicker({
           onOpenChange={setStarting}
         />
       )}
-      {next && (
-        <Button variant="ghost" size="icon-sm" aria-label="Next month" nativeButton={false} render={<Link href={href(next)} />}>
+      {next ? (
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Next month"
+          nativeButton={false}
+          className={arrow}
+          render={<Link href={href(next)} />}
+        >
           <ChevronRight />
         </Button>
+      ) : (
+        gap
       )}
     </div>
   );

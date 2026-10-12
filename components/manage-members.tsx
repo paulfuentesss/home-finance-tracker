@@ -10,6 +10,8 @@ interface Member {
   id: number;
   name: string;
   isCollector: boolean;
+  /** A view-only login: joins no month, shares in nothing. */
+  viewOnly: boolean;
   dotClass: string;
   /** The invited login email, or null. */
   email: string | null;
@@ -24,7 +26,8 @@ export function ManageMembers({ members, viewerId }: { members: Member[]; viewer
         <div>
           <h2 className="text-lg font-semibold">Manage Housemates</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Add or remove people who share the house costs. A <strong>login email</strong> lets someone sign in —
+            Add or remove people who share the house costs, or who only look (<strong>view only</strong>: they see what
+            housemates see, change nothing and share in nothing). A <strong>login email</strong> lets someone sign in —
             with Google, or with a code sent to that email. For Google, use the exact address Google shows (dots
             included). Clear it to take their login away.
           </p>
@@ -41,6 +44,9 @@ export function ManageMembers({ members, viewerId }: { members: Member[]; viewer
                 {m.isCollector && (
                   <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-normal text-zinc-600">collector</span>
                 )}
+                {m.viewOnly && (
+                  <span className="rounded-full bg-sky-50 px-2 py-0.5 text-xs font-normal text-sky-700">view only</span>
+                )}
                 {m.linked && (
                   <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-normal text-emerald-700">
                     can log in
@@ -52,13 +58,20 @@ export function ManageMembers({ members, viewerId }: { members: Member[]; viewer
                   label={`Remove ${m.name}`}
                   title={`Remove ${m.name} from the household?`}
                   description={
-                    <>
-                      {m.name} won&apos;t be included in future months, and their login is taken away. Months where{" "}
-                      {m.name} has advances, payments, paid bills or typed Manual amounts keep them so those numbers
-                      don&apos;t change; otherwise they&apos;re taken out of open months and the bills re-split (a ₱0
-                      bill they&apos;re down as paying goes to the collector). Their history is kept, and adding the
-                      same name again brings them back (invite them again to log in).
-                    </>
+                    m.viewOnly ? (
+                      <>
+                        {m.name}&apos;s login is taken away. They share in nothing, so no numbers change. Adding the
+                        same name again with View only ticked brings them back (invite them again to log in).
+                      </>
+                    ) : (
+                      <>
+                        {m.name} won&apos;t be included in future months, and their login is taken away. Months where{" "}
+                        {m.name} has advances, payments, paid bills or typed Manual amounts keep them so those numbers
+                        don&apos;t change; otherwise they&apos;re taken out of open months and the bills re-split (a ₱0
+                        bill they&apos;re down as paying goes to the collector). Their history is kept, and adding the
+                        same name again brings them back (invite them again to log in).
+                      </>
+                    )
                   }
                   confirmLabel="Remove"
                   onConfirm={() => removeMember(m.id)}

@@ -92,14 +92,22 @@ http://localhost:3000, and one PR at the end ships them all.
   - Claude's edit tool won't save over a file that changed since it last read it.
   - A hook blocks git commands that throw away uncommitted changes or switch branches
     (`.claude/hooks/git-guard.sh`; you can still run them yourself in a terminal).
-  - When a session is about to edit a file another session changed in the last hour, you're
-    asked first (`.claude/hooks/edit-overlap.sh`). Say yes if the changes fit together, no to
-    keep the sessions apart.
+  - When a session is about to edit a file another session changed in the last hour, it's told
+    to keep to its own part of the file (`.claude/hooks/edit-overlap.sh`). It doesn't ask you:
+    the prompts got in the way, and the edit tool already protects the other session's changes.
   - Giving each session its own part of the app still keeps things simplest.
 - When everything's done, ask one session to raise the PR. It commits every session's changes
   together.
 - After the PR merges, the next session to start sees the branch is finished and makes a new
-  one from `main`.
+  one from `main` (one branch per batch of work, not per task: a session switching branches
+  would move every session with it).
+- Finished branches pile up locally after merges. The startup check counts them, and the
+  session that sees it cleans up:
+
+| Command | What it does | When to run it |
+|---|---|---|
+| `npm run branches:clean` | Brings local `main` up to date with GitHub, drops `origin/*` names for branches GitHub deleted, and removes every local branch whose PR is merged and that has nothing committed after the merge. Never `main`, the current branch or one open in a worktree. Lists what it kept and why | When the startup check says "Merged branches still here" — Claude runs it itself (it only removes work already in `main`) |
+| `npm run branches:clean -- --dry-run` | Shows what it would remove, removes nothing | When unsure |
 
 ### Git worktrees (only for a separate PR)
 

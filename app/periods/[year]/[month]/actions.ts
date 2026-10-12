@@ -48,6 +48,7 @@ import {
   toCentavos,
   type Centavos,
 } from "@/lib/money";
+import { sharesCosts } from "@/lib/members";
 import { closeCheck, reopenCheck, startCheck, vanishingBalances } from "@/lib/month-lock";
 import {
   canCancelPayment,
@@ -55,7 +56,7 @@ import {
   canManageHelperEntry,
   canSubmitPayment,
   isAdmin,
-  type Role,
+  isViewOnly,
   type Viewer,
 } from "@/lib/permissions";
 import { computePeriod, pendingBillNames, periodMembers, waitingPaymentLabels } from "@/lib/periods";
@@ -1097,24 +1098,51 @@ export async function deleteSharedColumn(columnId: number): Promise<ActionState>
 // ---------- Members ----------
 
 export async function addMember(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const schema = z.object({ name: z.string().trim().min(1, "Enter a name").max(40) });
-  return run("admin", schema, formData, async ({ name }) => {
+  const schema = z.object({
+    name: z.string().trim().min(1, "Enter a name").max(40),
+    // A checkbox: "on" when ticked, missing otherwise.
+    viewOnly: z.literal("on").optional(),
+  });
+  return run("admin", schema, formData, async ({ name, viewOnly }) => {
     await db.transaction(async (tx) => {
-      const existing = await tx.query.members.findFirst({ where: eq(members.name, name) });
+      // Locked, so a second click (or tab) re-adding the same former member waits and then sees
+      // them active. (Two adds of a brand-new name meet the unique name index instead.)
+      const [existing] = await tx.select().from(members).where(eq(members.name, name)).for("update");
       let memberId: number;
       if (existing?.active) throw new ActionError(`${name} is already in the household.`);
+      if (viewOnly && existing?.role === "admin") {
+        throw new ActionError(`${name} was the admin. Add them again without View only.`);
+      }
+      const role = existing?.role === "admin" ? "admin" : viewOnly ? "view_only" : "member";
       if (existing) {
+        if (role === "view_only") {
+          // A view-only login is in no month, ever (docs/settlement-rules.md). Someone who was
+          // part of a month stays on its list for good, and it can be reopened, so they can't
+          // become one.
+          const [past] = await tx
+            .select({ periodId: periodBalances.periodId })
+            .from(periodBalances)
+            .where(eq(periodBalances.memberId, existing.id))
+            .limit(1);
+          if (past) {
+            throw new ActionError(
+              `${name} was part of past months, so can't be view only. Add them as a housemate, or as view only under another name.`,
+            );
+          }
+        }
         // Someone who moved out and came back keeps their history.
-        await tx.update(members).set({ active: true }).where(eq(members.id, existing.id));
+        await tx.update(members).set({ active: true, role }).where(eq(members.id, existing.id));
         memberId = existing.id;
       } else {
         const [{ top }] = await tx.select({ top: max(members.sortOrder) }).from(members);
         const [row] = await tx
           .insert(members)
-          .values({ name, sortOrder: (top ?? 0) + 1 })
+          .values({ name, sortOrder: (top ?? 0) + 1, role })
           .returning({ id: members.id });
         memberId = row.id;
       }
+      // A view-only login joins no month, so shares in nothing (docs/settlement-rules.md).
+      if (role === "view_only") return;
       for (const period of await openPeriods(tx)) {
         await tx.insert(periodBalances).values({ periodId: period.id, memberId }).onConflictDoNothing();
         // Newcomers share the everyday column; manual columns get them at ₱0; situational
@@ -1143,8 +1171,11 @@ export async function removeMember(memberId: number): Promise<ActionState> {
       // below that keeps them in a month where they paid her.
       await lockHelper(tx);
       if (member.isCollector) throw new ActionError(`${member.name} is the collector and can't be removed.`);
-      const active = await tx.select({ id: members.id }).from(members).where(eq(members.active, true));
-      if (active.length <= 1) throw new ActionError("At least one person has to stay in the household.");
+      const active = await tx.select({ id: members.id, role: members.role }).from(members).where(eq(members.active, true));
+      const staying = active.filter((m) => m.id !== memberId && sharesCosts(m));
+      if (sharesCosts(member) && staying.length === 0) {
+        throw new ActionError("At least one person has to stay in the household.");
+      }
 
       // Deactivated: left out of future months, history kept. Their login goes too, so
       // someone re-added later needs a fresh invite.
@@ -1282,7 +1313,8 @@ export async function startNextMonth(): Promise<ActionState> {
       });
       if (exists) throw new ActionError(`${monthLabel(year, month)} has already been started.`);
 
-      const activeMembers = await tx.query.members.findMany({ where: eq(members.active, true) });
+      // Everyone who shares the costs; a view-only login joins no month.
+      const activeMembers = (await tx.query.members.findMany({ where: eq(members.active, true) })).filter(sharesCosts);
       const order = splitOrder(activeMembers);
       const collector = activeMembers.find((m) => m.isCollector) ?? activeMembers[0];
       if (!collector) throw new ActionError("Add a household member first.");
@@ -1816,10 +1848,11 @@ async function hasRecordsIn(tx: Tx, periodId: number, memberId: number): Promise
 /**
  * Checks who's calling, validates input, runs the change, refreshes the pages, and turns
  * errors into messages. `access` is required: "admin" for PA-only changes, "member" for the
- * few anyone signed in may make (the action then checks ownership itself).
+ * few any housemate may make (the action then checks ownership itself). A view-only login
+ * passes neither.
  */
 async function run<S extends z.ZodType>(
-  access: Role,
+  access: "admin" | "member",
   schema: S,
   input: FormData | Record<string, unknown>,
   fn: (data: z.output<S>, viewer: Viewer) => Promise<string | void>,
@@ -1829,6 +1862,7 @@ async function run<S extends z.ZodType>(
   const viewer = await getViewer();
   if (!viewer) redirect("/login");
   if (access === "admin" && !isAdmin(viewer)) return { ok: false, error: "Only the admin can change this." };
+  if (isViewOnly(viewer)) return { ok: false, error: "Your login is view-only, so it can't change anything." };
   // "Preview as a housemate" only changes what's shown; saving anything would act as the admin.
   // The preview may have started in another tab, which this one doesn't show yet.
   const preview = await previewFor(viewer);

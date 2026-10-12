@@ -21,7 +21,7 @@ import {
 } from "@/lib/advances-log";
 import { CATEGORY_LABELS, dayLabel } from "@/lib/format";
 import { formatPHP, sumCentavos } from "@/lib/money";
-import { canManageAdvance, isAdmin } from "@/lib/permissions";
+import { canManageAdvance, isAdmin, isViewOnly } from "@/lib/permissions";
 import type { PeriodView, ViewAdvance } from "@/lib/periods";
 import { cn } from "@/lib/utils";
 
@@ -42,7 +42,8 @@ export function AdvancesLog({ view }: { view: PeriodView }) {
   const viewer = useViewer();
   const open = view.period.status === "open";
   // PA logs for anyone; everyone else logs their own, if they're in this month.
-  const canAdd = open && (isAdmin(viewer) || view.members.some((m) => m.id === viewer.memberId));
+  const canAdd =
+    open && !isViewOnly(viewer) && (isAdmin(viewer) || view.members.some((m) => m.id === viewer.memberId));
   // Edit/delete: PA any advance; everyone else their own in the default column (lib/permissions.ts).
   const canManage = (a: ViewAdvance) =>
     open &&

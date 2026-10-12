@@ -10,7 +10,7 @@ import { billEmails, db, members } from "@/db";
 import { getPreview, requireViewer } from "@/lib/auth";
 import { getLastBackupAt } from "@/lib/backup-status";
 import { dateInManila } from "@/lib/format";
-import { dotClassOf } from "@/lib/members";
+import { householdDotClassOf, sharesCosts } from "@/lib/members";
 import { toCentavos } from "@/lib/money";
 import { isAdmin } from "@/lib/permissions";
 import { getPeriodView } from "@/lib/periods";
@@ -69,7 +69,8 @@ export default async function ManagePage({ params }: PageProps<"/periods/[year]/
             id: m.id,
             name: m.name,
             isCollector: m.isCollector,
-            dotClass: dotClassOf(m),
+            viewOnly: !sharesCosts(m),
+            dotClass: householdDotClassOf(m),
             email: m.email,
             linked: m.authUserId !== null,
           }))}

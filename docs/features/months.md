@@ -4,10 +4,16 @@
 ✅ Working.
 
 ## What it does
-- **Month picker** in the header; the home page opens the most recent month. On phones it shows
-  the short name ("SEP 2026") so the month, the help and the account buttons fit on one row.
+- **Month picker** at the top of the sidebar (on phones and tablets, in the top bar beside ☰,
+  with the short name, "SEP 2026"); the home page opens the most recent month. Switching keeps
+  the section you're on.
+- **Sidebar:** every month page and How it works (on the latest month) has a dark sidebar with the month, the sections (This month:
+  Split Table, Advances, Helper Visits, Receipts, Settle Up; Household: Billers & Accounts,
+  Manage), How it works, and the account menu. Below desktop width it slides in from ☰ and
+  closes on any link, Escape, or a tap outside. The page header shows the section's name and the
+  month's two totals.
 - **Start <next month>** (on the latest month): creates the next month with everyone currently
-  active, copies the bill columns (split, points, payer, which one is the Helper's) at ₱0.00 and an empty Advances Shared.
+  active (view-only logins aside), copies the bill columns (split, points, payer, which one is the Helper's) at ₱0.00 and an empty Advances Shared.
   Refuses to leave out someone who moved out with an unsettled Final, and waits while a
   housemate's "I paid" is still waiting ([settle-up.md](settle-up.md)).
 - **Live carry-over:** an open month's Prev Month Unsettled is the previous month's Final,
@@ -24,7 +30,9 @@
 ## How it's built
 - Routes: `app/page.tsx` (redirects to the latest month), `app/periods/loading.tsx` (month
   switches), `app/periods/[year]/[month]/loading.tsx` (tab switches).
-- UI: `components/period-nav.tsx` (month picker, Start next month), `components/period-header.tsx`,
+- UI: `components/period-nav.tsx` (sections, month picker, Start next month),
+  `components/app-sidebar.tsx` (the sidebar and the phone menu, on `components/ui/sheet.tsx`),
+  `components/period-header.tsx` (section name, totals),
   close / reopen in `components/settle-up.tsx`, `components/page-skeleton.tsx`.
 - Carry-over: `computePeriod` in `lib/periods.ts` walks every month up to the one shown.
 - Lock rules: `closeCheck`, `startCheck`, `reopenCheck`, `vanishingBalances` in `lib/month-lock.ts` (pure,

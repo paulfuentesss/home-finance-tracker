@@ -14,7 +14,7 @@ begins, then it gets a page here.
 | Settle Up | ✅ | Who owes whom, settled through the House Budget; PA records a payment in one tap, a housemate sends theirs with “I paid” and a screenshot for PA to confirm | [settle-up.md](settle-up.md) |
 | Months | ✅ | Month picker, starting the next month, live carry-over, closing / reopening, the backup reminder | [months.md](months.md) |
 | Manage Columns & People | ✅ | Bill and shared columns, Meralco points, housemates moving in and out, Download backup | [manage.md](manage.md) |
-| Login | ✅ | Google or an emailed code; invite-only; the admin edits everything, housemates log their own advances and Helper visits; the admin can preview as a housemate | [auth.md](auth.md) |
+| Login | ✅ | Google or an emailed code; invite-only; the admin edits everything, housemates log their own advances and Helper visits; view-only logins only look; the admin can preview as a housemate | [auth.md](auth.md) |
 | Email-imported bills | 🚧 | Bill emails, sent hourly by a script in the My House Gmail, become Pending bills with the payment fee added; Bill Inbox. Waiting for its first real bill | [email-bills.md](email-bills.md) |
 | Receipts | ✅ | Proof (screenshots) on each bill and payment, in a private bucket; the admin attaches | [receipts.md](receipts.md) |
 | Billers & Accounts | ✅ | Each company the household pays, with account numbers, how it's paid, links and passwords (encrypted, revealed on tap); the admin edits, housemates see what's shared | [billers.md](billers.md) |
@@ -35,7 +35,7 @@ Every feature page uses the same headings: **Status** · **What it does** · **H
 |---|---|
 | **Collector** | The member who pays the core bills upfront and looks after the House Budget (PA). Absorbs leftover centavos; gets what's left in the House Budget once everyone else is settled. |
 | **House Budget** | The household's collection account: housemates pay into it, the collector pays out of it. A side of a payment, not a member ([rules](../settlement-rules.md#house-budget)). |
-| **Admin / member** | Login roles ([auth.md](auth.md)). The admin (PA) can change everything; members see everything and manage their own advances. |
+| **Admin / member / view only** | Login roles ([auth.md](auth.md)). The admin (PA) can change everything; members see everything and manage their own advances; a view-only login sees what members see, changes nothing, and is in no month, so shares in no cost. |
 | **Invite** | A member's login email, set in Manage. Only invited emails can sign in. |
 | **Bill column** | A bill in the Split Table (Meralco, Water, PLDT Wifi, Helper, …), split equally, by points or manually. |
 | **Daily pay / early pay** | The Helper's pay for a visit / money given to her before she works, which she owes until it's taken off her daily pay ([helper.md](helper.md)). |

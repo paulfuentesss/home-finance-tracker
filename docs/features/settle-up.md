@@ -18,13 +18,13 @@
   into the House Budget and shows as **Waiting for PA**: not counted yet. If they already have
   one waiting, the dialog says so.
 - **PA confirms or rejects it:** a **Waiting for you** section at the top of Settle Up and a
-  count on the Settle Up tab. **Confirm** (after checking the bank) makes it count; **Reject**
+  count on Settle Up in the sidebar. **Confirm** (after checking the bank) makes it count; **Reject**
   asks for a short reason, and it stays in the list as rejected — never counted. The housemate
   can **Cancel** their own while it's waiting or rejected, and send it again. On a member's
   row, a waiting amount shows ("₱X sent, waiting"), so PA doesn't record it a second time.
 - Nothing updates live: the count, like the rest of the month, is as of the page's last load.
   Coming back to the app after 30 seconds or more away refreshes it (`useRefreshOnReturn` in
-  `components/viewer-context.tsx`); moving between tabs alone keeps the month's header as it was.
+  `components/viewer-context.tsx`); moving between tabs alone keeps the month's sidebar and header as they were.
 - A payment's screenshot shows only for PA and the people in it ([receipts.md](receipts.md)).
 - Lists the month's payments, which PA can edit or delete while the month is open (a waiting
   one can be edited before confirming; a rejected one only deleted).
@@ -39,7 +39,7 @@
 - UI: `components/settle-up.tsx` (Waiting for you, suggestions, payments list with Confirm /
   Reject / Cancel, close / reopen section); the payment and **I paid** dialogs in
   `components/entry-dialogs.tsx` (I paid shrinks the screenshot first: `useDialogForm`'s
-  `prepare`); the count on the tab in `components/period-nav.tsx`.
+  `prepare`); the count on Settle Up in `components/period-nav.tsx` (`SidebarNav`).
 - Math: `suggestedPayments`, `computeMonth` and `houseBudgetMonth` in `lib/settlement.ts` (pure,
   tested) count only `confirmed` payments; `closeCheck` / `startCheck` in `lib/month-lock.ts`
   wait for pending ones. A payment side is a `Party`: a member id or `HOUSE_BUDGET`, stored as

@@ -23,16 +23,16 @@ export default async function ReceiptsPage({ params }: PageProps<"/periods/[year
   return (
     <div className="space-y-6">
       <section className="rounded-xl border bg-white p-5 shadow-xs">
-        <h2 className="text-lg font-semibold">Payment Proofs &amp; Receipts</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
+        {/* The page title above (components/period-header.tsx) names the page. */}
+        <p className="text-sm text-muted-foreground">
           Screenshots of bank transfers and bill payments (MariBank, Maya, Bayad, GCash). <ReceiptsNote status={status} />
         </p>
       </section>
 
       <section aria-labelledby="bill-proofs" className="space-y-3">
-        <h3 id="bill-proofs" className="font-semibold">
+        <h2 id="bill-proofs" className="font-semibold">
           Bills
-        </h3>
+        </h2>
         {view.bills.length === 0 ? (
           <p className="rounded-xl border border-dashed bg-white p-10 text-center text-muted-foreground">
             No bills this month yet.
@@ -57,7 +57,7 @@ export default async function ReceiptsPage({ params }: PageProps<"/periods/[year
               >
                 <div className="space-y-1">
                   <div className="flex items-baseline justify-between gap-2">
-                    <h4 className="font-semibold">{bill.name}</h4>
+                    <h3 className="font-semibold">{bill.name}</h3>
                     <span className="font-mono font-semibold text-amber-700 tabular-nums">{formatPHP(bill.total)}</span>
                   </div>
                   <p className="text-sm text-muted-foreground">
@@ -75,9 +75,9 @@ export default async function ReceiptsPage({ params }: PageProps<"/periods/[year
       </section>
 
       <section aria-labelledby="payment-proofs" className="space-y-3">
-        <h3 id="payment-proofs" className="font-semibold">
+        <h2 id="payment-proofs" className="font-semibold">
           Payments
-        </h3>
+        </h2>
         {view.payments.length === 0 ? (
           <p className="rounded-xl border border-dashed bg-white p-10 text-center text-muted-foreground">
             No payments recorded this month yet. They&apos;re recorded on Settle Up.

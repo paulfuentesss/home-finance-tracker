@@ -8,6 +8,7 @@ import {
   canSeePaymentProof,
   canSubmitPayment,
   isAdmin,
+  isViewOnly,
   previewViewer,
   safeNext,
   type Viewer,
@@ -16,11 +17,21 @@ import { HOUSE_BUDGET } from "./settlement";
 
 const pa: Viewer = { memberId: 5, name: "PA", role: "admin", email: null };
 const housemate: Viewer = { memberId: 3, name: "Housemate", role: "member", email: null };
+const onlyLooks: Viewer = { memberId: 7, name: "Family", role: "view_only", email: null };
 
 describe("isAdmin", () => {
   it("is true only for the admin role", () => {
     expect(isAdmin(pa)).toBe(true);
     expect(isAdmin(housemate)).toBe(false);
+    expect(isAdmin(onlyLooks)).toBe(false);
+  });
+});
+
+describe("isViewOnly", () => {
+  it("is true only for the view-only role", () => {
+    expect(isViewOnly(onlyLooks)).toBe(true);
+    expect(isViewOnly(housemate)).toBe(false);
+    expect(isViewOnly(pa)).toBe(false);
   });
 });
 
@@ -33,6 +44,11 @@ describe("canSeeBillerField", () => {
   it("shows a housemate only the lines shared with them", () => {
     expect(canSeeBillerField(housemate, { housematesCanSee: true })).toBe(true);
     expect(canSeeBillerField(housemate, { housematesCanSee: false })).toBe(false);
+  });
+
+  it("shows a view-only login the same lines as a housemate", () => {
+    expect(canSeeBillerField(onlyLooks, { housematesCanSee: true })).toBe(true);
+    expect(canSeeBillerField(onlyLooks, { housematesCanSee: false })).toBe(false);
   });
 });
 
@@ -77,6 +93,20 @@ describe("canSubmitPayment", () => {
   it("not the collector himself, and not when there's no collector", () => {
     expect(canSubmitPayment(pa, pa.memberId)).toBe(false);
     expect(canSubmitPayment(housemate, null)).toBe(false);
+  });
+
+  it("not a view-only login, who owes nothing", () => {
+    expect(canSubmitPayment(onlyLooks, pa.memberId)).toBe(false);
+  });
+});
+
+describe("a view-only login changes nothing, even what's down as theirs", () => {
+  const me = onlyLooks.memberId;
+
+  it("no advance, Helper entry or payment", () => {
+    expect(canManageAdvance(onlyLooks, { payerId: me, inDefaultColumn: true })).toBe(false);
+    expect(canManageHelperEntry(onlyLooks, { kind: "visit", payerId: me })).toBe(false);
+    expect(canCancelPayment(onlyLooks, { fromMemberId: me, status: "pending" })).toBe(false);
   });
 });
 
@@ -143,6 +173,19 @@ describe("previewViewer", () => {
 
   it("lets the admin preview as an active member, shaped like their own login", () => {
     expect(previewViewer(pa, target)).toEqual({ memberId: 3, name: "Housemate", role: "member", email: "h@example.com" });
+  });
+
+  it("previews a view-only login as view-only, so it shows what they really see", () => {
+    expect(previewViewer(pa, { ...target, memberId: 7, role: "view_only" })).toEqual({
+      memberId: 7,
+      name: "Housemate",
+      role: "view_only",
+      email: "h@example.com",
+    });
+  });
+
+  it("ignores a preview for a view-only login", () => {
+    expect(previewViewer(onlyLooks, target)).toBeNull();
   });
 
   it("ignores a preview for a member", () => {
