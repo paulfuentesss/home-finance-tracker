@@ -27,9 +27,20 @@ import { YouTag } from "@/components/you-tag";
 const cellBase = "px-3 py-2.5 whitespace-nowrap";
 // Extra room under the Total row: macOS draws the horizontal scrollbar over the content.
 const footCell = cn(cellBase, "pb-5");
-const headBright = "bg-amber-300 text-zinc-900";
-// The Final column, faintly tinted top to bottom: it's the answer most people look for.
-const finalCol = "border-l border-amber-200 bg-amber-50/60";
+// A pale amber head, the sheet's yellow toned down to match the amber accents elsewhere.
+const headCell = "bg-amber-100 text-amber-950";
+// The Final column, tinted top to bottom: it's the answer most people look for.
+const finalCol = "border-l border-amber-200 bg-amber-100/50";
+// The name column stays put while the table scrolls sideways. Once scrolled, it gets an edge so
+// the columns sliding under it don't peek out as stray characters: a line and a soft fade drawn
+// just past the cell (::after). Not a border, which doesn't travel with a sticky cell under
+// border-collapse, nor a box-shadow, which browsers don't reliably draw on sticky table cells.
+const stickyCol = cn(
+  "sticky left-0 z-10",
+  "after:pointer-events-none after:absolute after:inset-y-0 after:left-full after:w-1.5 after:border-l after:border-zinc-200",
+  "after:bg-linear-to-r after:from-black/5 after:to-transparent after:opacity-0 after:transition-opacity",
+  "group-data-scrolled-left/scroller:after:opacity-100",
+);
 
 export function SplitTable({ view }: { view: PeriodView }) {
   // PA in an open month; everyone else sees plain values.
@@ -56,16 +67,16 @@ export function SplitTable({ view }: { view: PeriodView }) {
       <div className="relative">
         <div
           {...dragScroll}
-          className="peer overflow-x-auto rounded-xl border bg-white shadow-xs data-dragging:cursor-grabbing data-dragging:select-none data-scrollable:cursor-grab"
+          className="peer group/scroller overflow-x-auto rounded-xl border bg-white shadow-xs data-dragging:cursor-grabbing data-dragging:select-none data-scrollable:cursor-grab"
         >
           <table className="w-full border-collapse text-sm">
             <thead>
-              <tr className="border-b border-amber-400">
-                <th className={cn(cellBase, headBright, "sticky left-0 z-10 text-left font-bold")}>
+              <tr className="border-b border-amber-300">
+                <th className={cn(cellBase, headCell, stickyCol, "text-left font-bold")}>
                   {monthLabel(view.period.year, view.period.month)}
                 </th>
                 {bills.map((bill) => (
-                  <th key={bill.id} className={cn(cellBase, headBright, "min-w-36 text-center font-bold")}>
+                  <th key={bill.id} className={cn(cellBase, headCell, "min-w-36 text-center font-bold")}>
                     {bill.name}
                     {bill.status === "pending" && (
                       <span className="ml-1.5 rounded-full bg-white/70 px-1.5 py-0.5 align-middle text-[10px] font-semibold text-amber-800">
@@ -75,7 +86,7 @@ export function SplitTable({ view }: { view: PeriodView }) {
                   </th>
                 ))}
                 {columns.map((column) => (
-                  <th key={column.id} className={cn(cellBase, headBright, "min-w-36 text-center font-bold")}>
+                  <th key={column.id} className={cn(cellBase, headCell, "min-w-36 text-center font-bold")}>
                     {column.name}
                   </th>
                 ))}
@@ -87,7 +98,7 @@ export function SplitTable({ view }: { view: PeriodView }) {
                   { label: "Payments", title: "Recorded in Settle Up: − paid back, + received" },
                   { label: "Final" },
                 ].map(({ label, title }) => (
-                  <th key={label} title={title} className={cn(cellBase, headBright, "text-center font-bold")}>
+                  <th key={label} title={title} className={cn(cellBase, headCell, "text-center font-bold")}>
                     {label}
                   </th>
                 ))}
@@ -97,7 +108,7 @@ export function SplitTable({ view }: { view: PeriodView }) {
             <tbody className="divide-y font-mono tabular-nums">
               {/* "Bill" row: each column's total, like the sheet */}
               <tr className="bg-zinc-50">
-                <th scope="row" className={cn(cellBase, "sticky left-0 z-10 bg-zinc-50 text-left font-sans font-medium italic")}>
+                <th scope="row" className={cn(cellBase, stickyCol, "bg-zinc-50 text-left font-sans font-medium italic")}>
                   Bill
                 </th>
                 {bills.map((bill) => (
@@ -151,7 +162,8 @@ export function SplitTable({ view }: { view: PeriodView }) {
                       scope="row"
                       className={cn(
                         cellBase,
-                        "sticky left-0 z-10 text-left font-sans font-medium",
+                        stickyCol,
+                        "text-left font-sans font-medium",
                         mine ? "bg-sky-50" : "bg-white group-hover:bg-zinc-50",
                       )}
                     >
@@ -192,7 +204,7 @@ export function SplitTable({ view }: { view: PeriodView }) {
 
               {showBudget && (
                 <tr className="group hover:bg-zinc-50">
-                  <th scope="row" className={cn(cellBase, "sticky left-0 z-10 bg-white group-hover:bg-zinc-50 text-left font-sans font-medium")}>
+                  <th scope="row" className={cn(cellBase, stickyCol, "bg-white group-hover:bg-zinc-50 text-left font-sans font-medium")}>
                     <span className="flex items-center gap-2">
                       <Landmark className="size-3.5 text-zinc-500" aria-hidden />
                       {HOUSE_BUDGET_LABEL}
@@ -214,7 +226,7 @@ export function SplitTable({ view }: { view: PeriodView }) {
 
               {(["dueDate", "paidOn"] as const).map((field) => (
                 <tr key={field} className="bg-zinc-50 font-sans">
-                  <th scope="row" className={cn(cellBase, "sticky left-0 z-10 bg-zinc-50 text-left font-medium text-zinc-600")}>
+                  <th scope="row" className={cn(cellBase, stickyCol, "bg-zinc-50 text-left font-medium text-zinc-600")}>
                     {field === "dueDate" ? "Due date" : "Date paid"}
                   </th>
                   {bills.map((bill) => (
@@ -231,7 +243,7 @@ export function SplitTable({ view }: { view: PeriodView }) {
 
             <tfoot className="font-mono tabular-nums">
               <tr className="border-t border-amber-300 bg-amber-50 font-semibold">
-                <th scope="row" className={cn(footCell, "sticky left-0 z-10 bg-amber-50 text-left font-sans")}>
+                <th scope="row" className={cn(footCell, stickyCol, "bg-amber-50 text-left font-sans")}>
                   Total
                 </th>
                 <td colSpan={bills.length + columns.length} />

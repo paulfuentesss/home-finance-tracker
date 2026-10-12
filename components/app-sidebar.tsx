@@ -3,7 +3,7 @@
 import { CircleHelp, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { AccountMenu } from "@/components/account-menu";
 import { HouseBadge } from "@/components/house-badge";
 import { MonthPicker, SIDEBAR_LINK, SidebarNav } from "@/components/period-nav";
@@ -12,6 +12,7 @@ import { SeenTracker } from "@/components/seen-tracker";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetClose, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { ViewerProvider } from "@/components/viewer-context";
+import { IGNORED, moveEdgeSwipe, startEdgeSwipe, type EdgeSwipe, type SwipePoint } from "@/lib/edge-swipe";
 import type { Viewer } from "@/lib/permissions";
 import type { PeriodSummary } from "@/lib/periods";
 import type { PreviewChoice } from "@/lib/preview";
@@ -114,14 +115,15 @@ export function AppShell({
   sidebar: SidebarProps;
   children: ReactNode;
 }) {
+  const pageRef = useRef<HTMLDivElement>(null);
   return (
     <ViewerProvider viewer={viewer} previewBy={previewBy}>
       <div className="flex min-h-dvh">
         <DesktopSidebar {...sidebar} />
         {/* min-w-0 lets this column shrink below its widest table, so wide tables scroll inside
             their own box instead of pushing the page sideways. */}
-        <div className="min-w-0 flex-1">
-          <MobileTopBar {...sidebar} />
+        <div ref={pageRef} className="min-w-0 flex-1">
+          <MobileTopBar {...sidebar} pageRef={pageRef} />
           <PreviewBanner />
           {children}
         </div>
@@ -143,19 +145,25 @@ function DesktopSidebar(props: SidebarProps) {
 
 /**
  * Phones and tablets: a slim bar with ☰, the month in the middle and the house on the right.
- * ☰ slides the sidebar in.
+ * ☰, or a swipe in from the left edge of the page, slides the sidebar in; dragging it back
+ * left closes it (components/ui/sheet.tsx).
  * The menu remembers the page it was opened on and counts as open only there, so moving to
  * any other page (a section, a month, How it works) closes it without an effect. Tapping the
  * page you're already on closes it through `onNavigate`.
  */
-function MobileTopBar(props: SidebarProps) {
+function MobileTopBar({ pageRef, ...props }: SidebarProps & { pageRef: RefObject<HTMLDivElement | null> }) {
   const pathname = usePathname();
   const [openOn, setOpenOn] = useState<string | null>(null);
   const open = openOn === pathname;
+  useEdgeSwipe(
+    pageRef,
+    useCallback(() => setOpenOn(pathname), [pathname]),
+  );
 
   return (
-    // Three columns, the outer two equal, so the month sits in the middle of the bar.
-    <div className="sticky top-0 z-30 grid grid-cols-[1fr_auto_1fr] items-center gap-2 border-b bg-white px-2 py-2 lg:hidden">
+    // Three columns, the outer two equal, so the month sits in the middle of the bar. px-4 matches
+    // the page below (period-header.tsx, the month layout's <main>), so ☰ and the house line up with it.
+    <div className="sticky top-0 z-30 grid grid-cols-[1fr_auto_1fr] items-center gap-2 border-b bg-white px-4 py-2 lg:hidden">
       <Sheet open={open} onOpenChange={(next) => setOpenOn(next ? pathname : null)}>
         <Button
           variant="ghost"
@@ -194,4 +202,64 @@ function MobileTopBar(props: SidebarProps) {
       </Link>
     </div>
   );
+}
+
+/**
+ * Calls `onSwipe` when a finger swipes right from near the left edge of `pageRef`
+ * (lib/edge-swipe.ts decides). Passive listeners, so taps and scrolling are untouched. They're
+ * native, not React's, so dialogs and menus (portalled to <body>) never set it off.
+ */
+function useEdgeSwipe(pageRef: RefObject<HTMLElement | null>, onSwipe: () => void) {
+  useEffect(() => {
+    const page = pageRef.current;
+    if (!page) return;
+    // Tailwind's lg, where the sidebar sits beside the page.
+    const desktop = window.matchMedia("(min-width: 64rem)");
+    let swipe: EdgeSwipe = IGNORED;
+    const at = (event: TouchEvent): SwipePoint => ({
+      x: event.touches[0].clientX,
+      y: event.touches[0].clientY,
+      t: event.timeStamp,
+    });
+
+    const onStart = (event: TouchEvent) => {
+      swipe =
+        event.touches.length === 1 && !desktop.matches && !keepsSwipe(event.target, page)
+          ? startEdgeSwipe(at(event))
+          : IGNORED;
+    };
+    const onMove = (event: TouchEvent) => {
+      if (swipe.phase !== "pending") return;
+      swipe = event.touches.length === 1 ? moveEdgeSwipe(swipe, at(event)) : IGNORED;
+      if (swipe.phase === "open") onSwipe();
+    };
+    const onEnd = () => {
+      swipe = IGNORED;
+    };
+
+    const passive = { passive: true };
+    page.addEventListener("touchstart", onStart, passive);
+    page.addEventListener("touchmove", onMove, passive);
+    page.addEventListener("touchend", onEnd, passive);
+    page.addEventListener("touchcancel", onEnd, passive);
+    return () => {
+      page.removeEventListener("touchstart", onStart);
+      page.removeEventListener("touchmove", onMove);
+      page.removeEventListener("touchend", onEnd);
+      page.removeEventListener("touchcancel", onEnd);
+    };
+  }, [pageRef, onSwipe]);
+}
+
+/**
+ * Whether the touch belongs to what's under it: a box being typed in (dragging selects text), or
+ * something scrolled sideways (a wide table), which a swipe right scrolls back.
+ */
+function keepsSwipe(target: EventTarget | null, page: HTMLElement): boolean {
+  if (!(target instanceof Element)) return false;
+  if (target.closest("input, textarea, select, [contenteditable]")) return true;
+  for (let node: Element | null = target; node && node !== page; node = node.parentElement) {
+    if (node.scrollLeft > 0) return true;
+  }
+  return false;
 }

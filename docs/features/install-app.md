@@ -30,8 +30,16 @@ screen, like an app. Not offline yet: that's in [TODO.md](../TODO.md).
   ([auth.md](auth.md)).
 - No connection: instead of the browser's error, pages show a small "No connection — Try again"
   screen. Nothing is stored on the device.
+- **No pull-to-refresh inside the installed app** (a browser tab keeps it): a stray pull would
+  reload and wipe what's being typed. Nothing depends on it:
+  - Data: every save redraws the page, switching tabs loads that tab fresh, and coming back to
+    the app after a while redraws the month ([months](months.md)).
+  - New versions: after a deploy, the next tab or month switch (or coming back to the app)
+    notices the new version and reloads the whole page; opening the app always loads it fresh.
+    A save made from a page left open across a deploy shows **My House was updated** with a
+    **Reload** button instead of the usual error page.
 - **How it works** has a question for housemates: "How do I put My House on my phone?" (Android,
-  iPhone, and the Messenger/Facebook/Instagram browsers).
+  iPhone, the Messenger/Facebook/Instagram browsers, and swiping in from the left for the menu).
 
 ## How it's built
 - `app/manifest.ts` — the web app manifest (name, start page, full-screen, colours, icons), served
@@ -44,6 +52,12 @@ screen, like an app. Not offline yet: that's in [TODO.md](../TODO.md).
   no Cache Storage. Chrome wants a real fetch handler before it offers to install, which is the
   main reason it exists. `next.config.ts` sends `/sw.js` with `Cache-Control: no-store`, so a
   fixed worker reaches phones on their next visit.
+- `app/globals.css` — `overscroll-behavior-y: none` under `@media (display-mode: standalone)`
+  turns pull-to-refresh off in the installed app only.
+- New versions: Next compares the build of each page it loads with the page already open and
+  reloads in full on a mismatch. A save from an old page throws Next's
+  `UnrecognizedActionError`; `app/error.tsx` spots it and offers a full reload (its usual
+  **Try again** would redraw the same old page).
 - `components/install-prompt.tsx` — the card, in the root layout (`app/layout.tsx`, which also
   sets `appleWebApp` and the `themeColor`). It registers the worker, keeps Chrome's
   `beforeinstallprompt` event, and picks the card from the browser. "Not now" and "I've added

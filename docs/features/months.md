@@ -11,9 +11,11 @@
   Split Table, Advances, Helper Visits, Receipts, Settle Up; Household: Billers & Accounts,
   Manage), How it works, and the account menu (with the person's emoji). The house icon
   (in the sidebar and the phone's top bar; the "My House" name beside it is plain text) goes home: the newest month's Split Table, from any
-  month or page. Below desktop width it slides in from ☰ and
-  closes on any link, Escape, or a tap outside. The page header shows the section's name and the
-  month's two totals.
+  month or page. Below desktop width it slides in from ☰ or a
+  swipe right from near the left edge (start a finger-width in: on Android the very edge is the
+  phone's Back gesture), and closes on any link, Escape, a tap outside, or dragging it back left.
+  Swipes that scroll a wide table back, select text in a box, or start in a dialog don't open
+  it. The page header shows the section's name and the month's two totals.
 - **Starting the next month** happens by itself the morning after the latest month ends
   ([reminders.md](reminders.md)); **Start <next month>** (on the latest month) does it now. Either way it creates the next month with everyone currently
   active (view-only logins aside), copies the bill columns (split, points, payer, which one is the Helper's) at ₱0.00 and an empty Advances Shared.
@@ -38,7 +40,8 @@
 - Routes: `app/page.tsx` (redirects to the latest month), `app/periods/loading.tsx` (month
   switches), `app/periods/[year]/[month]/loading.tsx` (tab switches).
 - UI: `components/period-nav.tsx` (sections, month picker, Start next month),
-  `components/app-sidebar.tsx` (the sidebar and the phone menu, on `components/ui/sheet.tsx`),
+  `components/app-sidebar.tsx` (the sidebar and the phone menu, on `components/ui/sheet.tsx`,
+  Base UI's `Drawer`; the swipe to open is `useEdgeSwipe` there, decided by `lib/edge-swipe.ts`),
   `components/period-header.tsx` (section name, totals),
   close / reopen in `components/settle-up.tsx`, `components/page-skeleton.tsx`.
 - Carry-over: `computePeriod` in `lib/periods.ts` walks every month up to the one shown.

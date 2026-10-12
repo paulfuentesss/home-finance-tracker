@@ -131,4 +131,12 @@
   html {
     @apply font-sans;
   }
+  /* Pull-to-refresh off inside the installed app, where a stray pull would wipe what's being
+     typed; a browser tab keeps it (docs/features/install-app.md). */
+  @media (display-mode: standalone) {
+    html,
+    body {
+      overscroll-behavior-y: none;
+    }
+  }
 }
