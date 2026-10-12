@@ -17,6 +17,7 @@ export function MonthNotices({
   viewer,
   bill,
   nudge,
+  startBlock,
   today,
 }: {
   view: PeriodView;
@@ -24,6 +25,8 @@ export function MonthNotices({
   bill: BillNotice | null;
   /** The admin's next step (null for anyone else). */
   nudge: AdminNudge | null;
+  /** Why the next month can't start yet (lib/month-start.ts → startBlockReason), or null. */
+  startBlock: string | null;
   /** Manila's date, "YYYY-MM-DD". */
   today: string;
 }) {
@@ -46,8 +49,8 @@ export function MonthNotices({
         <Notice icon={<CalendarPlus />} tone="amber">
           {monthLabel(toStart.year, toStart.month)} hasn&apos;t started yet, so housemates have nowhere to log new
           expenses.{" "}
-          {view.startBlock
-            ? `It can't start until this is fixed: ${view.startBlock}`
+          {startBlock
+            ? `It can't start until this is fixed: ${startBlock}`
             : "It starts by itself around 9am, or start it now from the month picker."}
         </Notice>
       )}

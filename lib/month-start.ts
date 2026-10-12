@@ -4,7 +4,7 @@
 
 import "server-only";
 import { and, asc, desc, eq } from "drizzle-orm";
-import { billingPeriods, billItems, members, periodBalances, sharedColumnMembers, sharedColumns } from "@/db";
+import { billingPeriods, billItems, db, members, periodBalances, sharedColumnMembers, sharedColumns } from "@/db";
 import { pointsOf, writeShares, type Tx } from "@/lib/bill-shares";
 import { ActionError } from "@/lib/errors";
 import { monthLabel } from "@/lib/format";
@@ -104,6 +104,25 @@ export async function startNextMonthIn(tx: Tx, { dryRun = false } = {}): Promise
   // Only the everyday "Advances Shared" column carries over; situational ones are added when needed.
   await ensureDefaultColumn(tx, period.id, order);
   return { year, month };
+}
+
+/**
+ * Why the next month can't start right now, in the household's words — or null when it can.
+ * A dry run of startNextMonthIn, so the admin's banner gives the same reason the daily job hits.
+ * Not a read-only transaction on purpose: the dry run still takes startNextMonthIn's row lock
+ * (`FOR UPDATE`), which Postgres refuses in one. It writes nothing and is brief, but a
+ * housemate's "I paid" may wait for it. Only runs while the next month is due and not started.
+ */
+export async function startBlockReason(): Promise<string | null> {
+  try {
+    await db.transaction((tx) => startNextMonthIn(tx, { dryRun: true }));
+    return null;
+  } catch (error) {
+    if (error instanceof ActionError) return error.message;
+    // A banner isn't worth breaking the admin's page for.
+    console.error("Couldn't check whether the next month can start", error);
+    return null;
+  }
 }
 
 /** Locks the latest month's row and returns its id (null when there's no month yet). */

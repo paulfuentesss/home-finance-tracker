@@ -585,8 +585,8 @@ would have meant nothing until the admin closed it, often days later).
 
 ## 2026-10-12 — Reminders: the household Gmail's SMTP, run by Vercel's cron
 **Decision:** emails are sent with nodemailer over the My House Gmail's SMTP, with an app
-password of their own; Vercel's daily cron (`vercel.json`) runs `/api/reminders` at 09:00
-Manila. Each email is claimed in `reminder_sends` before it's sent, and the job sends the
+password of their own; Vercel's daily cron (`vercel.json`) runs `/api/reminders` each
+morning, Manila time. Each email is claimed in `reminder_sends` before it's sent, and the job sends the
 latest reminder the month has reached, so a missed day is caught up. Only the live site emails
 housemates and records sends; localhost redirects every email to `EMAIL_TEST_TO`.
 **Why:** the Gmail already sends the sign-in codes, so no new service or own domain (Resend can

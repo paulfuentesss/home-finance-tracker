@@ -5,6 +5,7 @@ import { ConfirmDeleteButton } from "@/components/confirm-button";
 import { AddMemberDialog } from "@/components/entry-dialogs";
 import { InlineInput } from "@/components/inline-input";
 import { cn } from "@/lib/utils";
+import { ChevronRight } from "lucide-react";
 
 interface Member {
   id: number;
@@ -37,20 +38,43 @@ export function ManageMembers({ members, viewerId }: { members: Member[]; viewer
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold">Manage Housemates</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Add or remove people who share the house costs, or who only look (<strong>view only</strong>: they see what
-            housemates see, change nothing and share in nothing). A <strong>login email</strong> lets someone sign in —
-            with Google, or with a code sent to that email. For Google, use the exact address Google shows (dots
-            included). Clear it to take their login away.
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            <strong>Last seen</strong> is when they last opened My House, in the installed app or a browser.{" "}
-            <strong>App installed</strong> means they&apos;ve opened the app at least once. Both count from when this
-            was added, so someone shows &ldquo;Not seen yet&rdquo; until their next visit.
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">Who shares the house costs, and who can log in.</p>
         </div>
-        <AddMemberDialog />
+        <AddMemberDialog className="w-full sm:w-auto" />
       </div>
+      {/* The terms used on each row, folded away so the list stays the first thing you see. */}
+      <details className="group mt-3 text-sm text-muted-foreground">
+        <summary className="flex w-fit cursor-pointer list-none items-center gap-1 font-medium text-foreground/80 hover:text-foreground [&::-webkit-details-marker]:hidden">
+          <ChevronRight className="size-4 transition-transform group-open:rotate-90" aria-hidden />
+          What the labels mean
+        </summary>
+        <dl className="mt-2 space-y-1.5 border-l pl-4">
+          <div>
+            <dt className="inline font-medium text-foreground">View only</dt>
+            <dd className="inline"> — sees what housemates see, changes nothing, shares in nothing.</dd>
+          </div>
+          <div>
+            <dt className="inline font-medium text-foreground">Login email</dt>
+            <dd className="inline">
+              {" "}
+              — they sign in with Google or a code sent to that email. For Google, use the exact address Google shows
+              (dots included). Clear it to take their login away.
+            </dd>
+          </div>
+          <div>
+            <dt className="inline font-medium text-foreground">Last seen</dt>
+            <dd className="inline">
+              {" "}
+              — when they last opened My House, in the app or a browser. Counted from when this was added, so someone
+              shows &ldquo;Not seen yet&rdquo; until their next visit.
+            </dd>
+          </div>
+          <div>
+            <dt className="inline font-medium text-foreground">App installed</dt>
+            <dd className="inline"> — they&apos;ve opened the installed app at least once.</dd>
+          </div>
+        </dl>
+      </details>
       <ul className="mt-4 space-y-2">
         {members.map((m) => (
           <li key={m.id} className="rounded-lg border bg-zinc-50/60 px-4 py-3">

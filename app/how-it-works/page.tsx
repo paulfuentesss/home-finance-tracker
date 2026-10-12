@@ -370,7 +370,9 @@ export default async function HowItWorksPage() {
           </ul>
           <p>
             The same reminders show at the top of the month&apos;s pages, so nothing is missed if an email lands in spam.
-            &ldquo;Your bill is ready&rdquo; stays there, with a button to Settle Up, until your payment is confirmed.
+            &ldquo;Your bill is ready&rdquo; stays there, with a button to Settle Up, until you&apos;re settled — your
+            payment confirmed, or, if you&apos;ve since paid for things in the new month, once those cover it (you never
+            owe more for a bill than you owe overall).
           </p>
           <p>
             Amount looks wrong, or a question about an email? Message the admin before paying — they can fix the month
@@ -416,8 +418,8 @@ export default async function HowItWorksPage() {
         <>
           <p>
             Ending and closing aren&apos;t the same. A month <strong>ends</strong> on its own after its last day, and from
-            then only the admin can change it. Once everyone&apos;s settled, the admin <strong>closes</strong> it in
-            Settle Up. A closed month is locked: nothing in it
+            then only the admin can change it. Later — usually once everyone has paid, but it doesn&apos;t have to wait
+            — the admin <strong>closes</strong> it in Settle Up. A closed month is locked: nothing in it
             can be changed (its proofs of payment included), and everyone&apos;s Final is saved as next month&apos;s Prev Month Unsettled. Unpaid
             amounts simply carry over.
           </p>

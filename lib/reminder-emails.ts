@@ -75,7 +75,7 @@ export function payablesEmail({
   year: number;
   month: number;
   payables: Payables;
-  /** Their Prev Month Unsettled when it's something they owed (it's in the Final). */
+  /** What's still unpaid of their Prev Month Unsettled, after their payments since (payablesIn). */
   carriedOver: Centavos;
   collectorName: string;
   link: string;
