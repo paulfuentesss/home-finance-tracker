@@ -23,7 +23,9 @@ begins, then it gets a page here.
 
 Also running, not features of the app itself:
 - **How it works page** (`/how-it-works`) — the household-facing explanation of the rules;
-  it must change whenever a rule does ([settlement-rules.md](../settlement-rules.md)).
+  it must change whenever a rule does ([settlement-rules.md](../settlement-rules.md)). Its Meralco
+  points table shows the newest of the last few months whose bill has an amount, so it isn't all
+  ₱0.00 while this month's bill is still to come.
 - **Keep-alive job** — keeps the free Supabase project awake ([operations.md](../operations.md#supabase-free-plan-the-project-goes-to-sleep)).
 
 ## Page template

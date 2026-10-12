@@ -17,7 +17,7 @@ export function BackupReminderBanner({ text }: { text: string }) {
     >
       <HardDriveDownload className="size-4 shrink-0" />
       <p className="min-w-48 flex-1">{text}</p>
-      <a href="/backup" onClick={() => setHidden(true)} className={buttonVariants({ size: "sm" })}>
+      <a href="/backup" onClick={() => setHidden(true)} className={buttonVariants({ size: "sm", className: "ml-auto" })}>
         Download backup
       </a>
     </div>

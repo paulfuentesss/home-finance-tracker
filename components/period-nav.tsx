@@ -181,8 +181,8 @@ export function MonthPicker({
 
   // On the dark sidebar the ghost buttons' light hover would flash; these keep it dark.
   const arrow = dark ? "text-zinc-300 hover:bg-white/10 hover:text-white aria-expanded:bg-white/10" : undefined;
-  // The sidebar card keeps the month name in place when there's no month on one side.
-  const gap = dark ? <span className="size-7 shrink-0" aria-hidden /> : null;
+  // Keeps the month name in place (centred on the phone bar) when there's no month on one side.
+  const gap = <span className="size-7 shrink-0" aria-hidden />;
 
   return (
     <div

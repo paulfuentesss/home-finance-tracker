@@ -522,17 +522,41 @@ export async function getPeriodReceipts(periodId: number): Promise<ViewReceipt[]
     }));
 }
 
-/** Points-mode bills in the latest month, for the "How it works" page. */
+// How many months back the "How it works" example looks for a points bill with an amount.
+const POINTS_EXAMPLE_LOOKBACK = 3;
+
+/**
+ * Points-mode bills for the "How it works" example. `period` is the latest month (the page's Back
+ * link and sidebar); `examplePeriod` is the newest of the last few months whose points bill has an
+ * amount, so the example isn't all ₱0.00 while this month's Meralco bill isn't in yet. When none
+ * has one, the example is the latest month.
+ */
 export async function getLatestPointsBills() {
   await requireViewer();
-  const latest = await getLatestPeriod();
-  if (!latest) return { period: null, bills: [] as ViewBill[], members: [] as ViewMember[] };
-  const view = await getPeriodView(latest.year, latest.month);
-  return {
-    period: latest,
-    bills: (view?.bills ?? []).filter((b) => b.splitMode === "points"),
-    members: view?.members ?? [],
+  const recent = await db
+    .select({ id: billingPeriods.id, year: billingPeriods.year, month: billingPeriods.month })
+    .from(billingPeriods)
+    .orderBy(desc(billingPeriods.year), desc(billingPeriods.month))
+    .limit(POINTS_EXAMPLE_LOOKBACK);
+  const latest = recent[0];
+  if (!latest) {
+    return { period: null, examplePeriod: null, bills: [] as ViewBill[], members: [] as ViewMember[] };
+  }
+
+  const pointsBillsOf = async (p: PeriodSummary) => {
+    const view = await getPeriodView(p.year, p.month);
+    return {
+      examplePeriod: p,
+      bills: (view?.bills ?? []).filter((b) => b.splitMode === "points"),
+      members: view?.members ?? [],
+    };
   };
+  for (const p of recent) {
+    const example = await pointsBillsOf(p);
+    if (example.bills.some((b) => b.total > 0)) return { period: latest, ...example };
+  }
+  // getPeriodView is cached per request, so this reuses the latest month's view.
+  return { period: latest, ...(await pointsBillsOf(latest)) };
 }
 
 function emailedOf(emails: LoadedPeriod["billItems"][number]["emails"]): ViewBill["emailed"] {
