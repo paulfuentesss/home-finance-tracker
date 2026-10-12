@@ -26,6 +26,8 @@ const cellBase = "px-3 py-2.5 whitespace-nowrap";
 // Extra room under the Total row: macOS draws the horizontal scrollbar over the content.
 const footCell = cn(cellBase, "pb-5");
 const headBright = "bg-amber-300 text-zinc-900";
+// The Final column, faintly tinted top to bottom: it's the answer most people look for.
+const finalCol = "border-l border-amber-200 bg-amber-50/60";
 
 export function SplitTable({ view }: { view: PeriodView }) {
   // PA in an open month; everyone else sees plain values.
@@ -133,6 +135,7 @@ export function SplitTable({ view }: { view: PeriodView }) {
                   </td>
                 ))}
                 <td colSpan={5} />
+                <td className={finalCol} />
               </tr>
 
               {members.map((member) => {
@@ -169,7 +172,7 @@ export function SplitTable({ view }: { view: PeriodView }) {
                     <td className={cn(cellBase, "text-center", row && paymentsOf(row) ? "text-zinc-700" : "text-zinc-500")}>
                       {row ? signedPHP(paymentsOf(row)) : "—"}
                     </td>
-                    <td className={cn(cellBase, "text-center")}>{row ? <Balance amount={row.balance} /> : "—"}</td>
+                    <td className={cn(cellBase, finalCol, "text-center")}>{row ? <Balance amount={row.balance} /> : "—"}</td>
                   </tr>
                 );
               })}
@@ -190,7 +193,7 @@ export function SplitTable({ view }: { view: PeriodView }) {
                   <td className={cn(cellBase, "text-center", paymentsOf(budget) ? "text-zinc-700" : "text-zinc-500")}>
                     {signedPHP(paymentsOf(budget))}
                   </td>
-                  <td className={cn(cellBase, "text-center")}>
+                  <td className={cn(cellBase, finalCol, "text-center")}>
                     <HouseBudgetBalance amount={budget.balance} />
                   </td>
                 </tr>
@@ -207,7 +210,8 @@ export function SplitTable({ view }: { view: PeriodView }) {
                     </td>
                   ))}
                   <td colSpan={columns.length} />
-                  <td colSpan={6} />
+                  <td colSpan={5} />
+                  <td className={finalCol} />
                 </tr>
               ))}
             </tbody>
@@ -229,7 +233,9 @@ export function SplitTable({ view }: { view: PeriodView }) {
                 </td>
                 <td className={cn(footCell, "text-center")}>{formatPHP(sum((r) => r.opening) + budgetIn(budget.opening))}</td>
                 <td className={cn(footCell, "text-center")}>{signedPHP(sum(paymentsOf) + budgetIn(paymentsOf(budget)))}</td>
-                <td className={cn(footCell, "text-center")}>{formatPHP(sum((r) => r.balance) + budgetIn(budget.balance))}</td>
+                <td className={cn(footCell, "border-l border-amber-200 text-center")}>
+                  {formatPHP(sum((r) => r.balance) + budgetIn(budget.balance))}
+                </td>
               </tr>
             </tfoot>
           </table>

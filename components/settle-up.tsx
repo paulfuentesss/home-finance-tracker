@@ -166,45 +166,46 @@ function WhoStillOwes({ view }: { view: PeriodView }) {
             // Paid out of the House Budget: say so when it doesn't hold that much yet.
             const short = s.fromMemberId === HOUSE_BUDGET && s.amount > held;
             return (
-              // Phone: who over the amount, a small button on the right. Wider: one line.
-              <li key={`${s.fromMemberId}-${s.toMemberId}`} className="flex items-center justify-between gap-3 py-3">
-                <div className="min-w-0 flex-1 space-y-0.5">
-                  <div className="space-y-0.5 sm:flex sm:items-center sm:justify-between sm:gap-3 sm:space-y-0">
+              // Phone: who over the amount, a small button on the right. Wider: one line. Notes go
+              // underneath, so the button stays level with the amount however many there are.
+              <li key={`${s.fromMemberId}-${s.toMemberId}`} className="space-y-0.5 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1 space-y-0.5 sm:flex sm:items-center sm:justify-between sm:gap-3 sm:space-y-0">
                     <Pair from={from} to={to} />
                     <span className="block font-mono font-semibold tabular-nums text-rose-600">{formatPHP(s.amount)}</span>
                   </div>
-                  {s.fromMemberId === HOUSE_BUDGET && s.toMemberId === collector?.id && (
-                    <p className="text-xs text-muted-foreground">
-                      What&apos;s left once everyone is settled — {editable ? "yours to move to your account" : `${collectorName}'s`}
-                    </p>
+                  {editable && (
+                    <RecordPaymentDialog
+                      view={view}
+                      prefill={s}
+                      label={
+                        <>
+                          Record<span className="hidden sm:inline"> payment</span>
+                        </>
+                      }
+                      variant={waiting > 0 ? "outline" : "default"}
+                      className="shrink-0"
+                    />
                   )}
-                  {short && (
-                    <p className="text-xs text-amber-700">
-                      The {HOUSE_BUDGET_LABEL} holds {formatPHP(Math.max(held, 0))} so far
-                    </p>
-                  )}
-                  {waiting > 0 && (
-                    <p className="text-xs text-amber-700">
-                      {formatPHP(waiting)} sent, waiting for {collector?.name}
-                      {/* So PA confirms it rather than recording the same money again. */}
-                      {editable && " — confirm it above instead of recording it again"}
-                    </p>
-                  )}
+                  {own && <SubmitPaymentDialog view={view} owed={s.amount} waiting={waiting} className="shrink-0" />}
                 </div>
-                {editable && (
-                  <RecordPaymentDialog
-                    view={view}
-                    prefill={s}
-                    label={
-                      <>
-                        Record<span className="hidden sm:inline"> payment</span>
-                      </>
-                    }
-                    variant={waiting > 0 ? "outline" : "default"}
-                    className="shrink-0"
-                  />
+                {s.fromMemberId === HOUSE_BUDGET && s.toMemberId === collector?.id && (
+                  <p className="text-xs text-muted-foreground">
+                    What&apos;s left once everyone is settled — {editable ? "yours to move to your account" : `${collectorName}'s`}
+                  </p>
                 )}
-                {own && <SubmitPaymentDialog view={view} owed={s.amount} waiting={waiting} className="shrink-0" />}
+                {short && (
+                  <p className="text-xs text-amber-700">
+                    The {HOUSE_BUDGET_LABEL} holds {formatPHP(Math.max(held, 0))} so far
+                  </p>
+                )}
+                {waiting > 0 && (
+                  <p className="text-xs text-amber-700">
+                    {formatPHP(waiting)} sent, waiting for {collector?.name}
+                    {/* So PA confirms it rather than recording the same money again. */}
+                    {editable && " — confirm it above instead of recording it again"}
+                  </p>
+                )}
               </li>
             );
           })}
