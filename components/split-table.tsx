@@ -1,6 +1,6 @@
 "use client";
 
-import { Calculator, ChevronRight, Info, Landmark, Scale, SlidersHorizontal, Zap } from "lucide-react";
+import { Calculator, ChevronRight, Info, Scale, SlidersHorizontal, Zap } from "lucide-react";
 import Link from "next/link";
 import { useActionState } from "react";
 import {
@@ -21,7 +21,7 @@ import { formatPHP, fromCentavos, sumCentavos } from "@/lib/money";
 import type { PeriodView, ViewBill, ViewColumn, ViewRow } from "@/lib/periods";
 import { cn } from "@/lib/utils";
 import { useCanEdit, useViewer } from "@/components/viewer-context";
-import { MemberMark } from "@/components/member-mark";
+import { HouseBudgetMark, MemberMark } from "@/components/member-mark";
 import { YouTag } from "@/components/you-tag";
 
 const cellBase = "px-3 py-2.5 whitespace-nowrap";
@@ -206,7 +206,7 @@ export function SplitTable({ view }: { view: PeriodView }) {
                 <tr className="group hover:bg-zinc-50">
                   <th scope="row" className={cn(cellBase, stickyCol, "bg-white group-hover:bg-zinc-50 text-left font-sans font-medium")}>
                     <span className="flex items-center gap-2">
-                      <Landmark className="size-3.5 text-zinc-500" aria-hidden />
+                      <HouseBudgetMark emoji={view.houseBudgetEmoji} />
                       {HOUSE_BUDGET_LABEL}
                     </span>
                   </th>

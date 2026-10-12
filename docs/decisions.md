@@ -721,6 +721,15 @@ up first).
 **Instead of:** sticker photos in the database behind the login (tried; busier, and faces to
 look after), or a fixed emoji picker (typing any emoji is simpler and gives every choice).
 
+## 2026-10-13 — The House Budget's emoji lives in a one-row settings table
+**Decision:** the House Budget gets an emoji too, set by the admin on Manage and kept in
+`household_settings.house_budget_emoji`, a one-row table (like `keep_alive`). Empty keeps its bank icon.
+**Why:** the House Budget isn't a member (it's the NULL payment side), so it has no row to put an
+emoji on. A household-wide settings row makes it editable in the app, is backed up like every
+table, and gives later household-wide settings a home. Admin only: it's PA's account.
+**Instead of:** a constant in `lib/household-config.ts` (a code change and a deploy each time), or
+a fake member row for the House Budget (it would join months and the money math).
+
 ## 2026-10-13 — No proof card for the Helper
 **Decision:** the Receipts tab leaves out the Helper bill's card, unless it already has a proof.
 **Why:** her bill isn't one payment with one screenshot. It's every visit and early pay, handed

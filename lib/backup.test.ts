@@ -52,6 +52,7 @@ const SAMPLE = `
   INSERT INTO receipts (storage_path, content_type, size_bytes, original_name, payment_id, uploaded_by_id) VALUES
     ('2026/08/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.jpg', 'image/jpeg', 1234, NULL, 1, 1);
   INSERT INTO keep_alive (id, pinged_at) VALUES (1, '2026-10-08T07:13:20Z');
+  INSERT INTO household_settings (id, house_budget_emoji) VALUES (1, '🏦');
   INSERT INTO backups (taken_at, taken_by_id) VALUES ('2026-10-01T07:00:00Z', 1);
   INSERT INTO helper_entries (period_id, kind, payer_id, on_date, amount, deduction, note) VALUES
     (1, 'opening', NULL, NULL, 2000.00, 0, NULL), (1, 'visit', 3, '2026-08-09', 600.00, 100.00, 'Half day');
