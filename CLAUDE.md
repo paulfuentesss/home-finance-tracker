@@ -133,39 +133,60 @@ Part of every change, in the same PR — not a separate chore.
   `.github/workflows/checks.yml`). Then the review agents in `.claude/agents/`: **docs-keeper**
   always, **money-reviewer** when money files or the schema changed. They only report; fix what
   they find before committing.
-- **Parallel sessions share one folder, one branch, one dev server.** Paul often runs several
-  Claude sessions at once, all in the main folder, all seen on `localhost:3000`; one PR at the
-  end covers everything (`docs/commands.md` → Working in parallel). Every session starts with a
-  "Startup check" report from `.claude/hooks/checkout-status.sh` (branch, uncommitted changes,
-  dev server, worktrees, open PRs, merged branches):
-  - Changes you didn't make are another session's work in progress. Never stash, reset, discard
-    or reformat them, and stay out of files another session is editing.
+- **Parallel sessions: one task, one worktree, one dev server, one PR.** Paul runs several Claude
+  sessions at once, each on a different task. Each works in its own worktree (a folder next to
+  the main one, on its own branch from GitHub's `main`) and raises its own PR
+  (`docs/commands.md` → Working in parallel). Every session starts with a "Startup check" report
+  from `.claude/hooks/checkout-status.sh` (the main folder, every worktree with its site and PR,
+  open PRs, finished worktrees and branches):
+  - **Start:** before changing anything, `npm run worktree:new -- <name> [<type>/<name>]` (run
+    from the main folder; branch defaults to `feat/<name>`), then `EnterWorktree` with the folder
+    it prints. Continuing a task listed in the startup check → `EnterWorktree` its folder. Tell
+    Paul the folder and branch.
+  - **The main folder stays on `main`** and nobody works in it. Changes there are left from the
+    old shared-folder way: never stash, reset, discard or reformat them. Once its branch's PR is
+    merged and it has no changes, the startup check says to run
+    `git switch main && git merge --ff-only origin/main` there.
+  - **Seeing it in the browser:** `npm run dev` (in the background) from the worktree serves it on
+    the first free port from 3001 and prints the address; the tab reads `[<name>] My House`.
+    Give Paul the link. Start or restart only your own worktree's server; `localhost:3000` is the
+    main folder's.
   - Change files only with Edit/Write — never through the shell (`sed -i`, `cat >`, a script
     writing files). Edit/Write refuse to save over changes made since your last read; the
     shell doesn't check.
   - Hooks back this up (`.claude/hooks/`): `git-guard.sh` blocks git commands that discard
-    changes or switch branches; `edit-overlap.sh` tells you (no prompt for Paul) when another
-    session edited the same file in the last hour, so change only your own part of it. When
-    `git-guard.sh` stops you, tell Paul; don't work around it.
-  - Never switch branches. One exception: the folder is on `main`, or on a branch whose PR is
-    merged (the startup check says so) → `git switch -c <branch> origin/main` (uncommitted
-    changes come along) and tell Paul which branch the batch is on. A branch per batch, not per
-    task.
-  - When the startup check says "Merged branches still here", run `npm run branches:clean`
-    yourself (it removes only branches already merged into `main`) and tell Paul what went.
-  - Don't start, stop or restart the dev server when `localhost:3000` is up — it's every
-    session's (`npm run dev` refuses a second one). Restart it only when it's broken.
-  - Commit only when Paul asks for the PR. That commit carries every session's changes: check
-    with Paul that the others are done, and run the pre-PR checks on all of it.
-  - One database for everyone: only one schema-changing task at a time.
-  - A worktree only when Paul wants a separate PR. When the startup check lists finished
-    worktrees, suggest `npm run worktrees:clean` (removing folders is his to run).
+    changes or switch branches (only `git switch main` is allowed); `edit-overlap.sh` tells you
+    (no prompt for Paul) when another session, in any worktree, changed the same file in the last
+    hour — your PRs will probably conflict there, so keep to your own part. When `git-guard.sh`
+    stops you, tell Paul; don't work around it.
+  - **Raising the PR** (only when Paul asks), from the worktree:
+    1. `gh pr list --head <branch> --state all`. A merged PR → this branch is done; make a new
+       worktree for what's left. An open one → re-check it's still open right before pushing.
+    2. One commit with this worktree's changes (on an open PR, a new commit on top). Commit
+       first: `git merge` refuses while uncommitted changes touch files `main` changed.
+    3. `git fetch origin && git merge origin/main` (merge, never rebase: no force-pushes).
+       Resolve conflicts with Edit, keeping both sides' intent; ask Paul when unsure. Conflicts
+       in `drizzle/` (two branches with new migrations) → stop and ask Paul; never hand-merge the
+       journal.
+    4. Pre-PR checks (above) on the merged result; fixes go in another commit.
+    5. `git push -u origin HEAD`, then `gh pr create` (summary + test plan) if there's no PR.
+    6. `gh pr view --json mergeable,mergeStateStatus` (`UNKNOWN` → GitHub is still checking; ask
+       again) and `gh pr checks`. `CONFLICTING` → back to step 3 and push the fix. Tell Paul the
+       PR link, its merge state and the checks.
+  - **Cleaning up:** when the startup check says "Finished worktrees" or "Merged branches still
+    here", run `npm run worktrees:clean` / `npm run branches:clean` yourself (they remove only
+    work already merged into `main`, and keep anything in use) and tell Paul what went.
+  - One database for everyone: only one schema-changing task at a time. Before
+    `npm run db:generate`, merge `origin/main` and look for migrations other worktrees haven't
+    merged yet (`ls ../home-finance-tracker-*/drizzle/*.sql`); if there are any, ask Paul.
+  - Backups (`db:backup`, `storage:backup`) run from the main folder: they write to `backups/`
+    in the folder they run from, and a worktree's goes when it's cleaned up.
 
 ## Known pitfalls (hit during development — check here first)
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| Local site stops responding (`curl localhost:3000` hangs, process still alive) | `npm run build` / `next start` was run while `npm run dev` was up — they share `.next/` | Don't build while dev is running; smoke-test through the dev server instead. Restart: kill the `next dev` PID, `rm .next/dev/lock`, `npm run dev` |
+| Local site stops responding (`curl localhost:<port>` hangs, process still alive) | `npm run build` / `next start` was run in the same folder while its `npm run dev` was up — they share that folder's `.next/` | Don't build while dev is running; smoke-test through the dev server instead. Restart (that folder's server only): kill the `next dev` PID, `rm .next/dev/lock`, `npm run dev` |
 | Every page 500s with `Cannot read properties of undefined (reading 'referencedTable')` after a schema change | A Drizzle instance cached across hot reloads still had the old schema | Fixed in `db/index.ts` (only the postgres connection is cached; Drizzle is rebuilt per reload). If it recurs, restart `npm run dev` |
 | `npm run db:migrate` spins then exits 1 with no message | Another session holds a lock on the table (a stale dev/studio connection sat in an open transaction for 38 min) | Stop `npm run dev` and `db:studio`, then retry. Inspect with `pg_stat_activity` / `pg_locks` (script via `DIRECT_URL`). Idle connections now close after 20 s (`db/client.ts`) |
 | `drizzle-kit generate` fails: "Interactive prompts require a TTY" | It asks whether a new table/column is a rename of a dropped one | Run it in your own terminal (choose "create"), or pipe Enter through a pty (`script -q /dev/null …`). Always read the SQL before migrating |
@@ -181,6 +202,7 @@ Part of every change, in the same PR — not a separate chore.
 | Pages hang 20–100 s, then "Something went wrong"; the dev log shows a query that never returns | `DATABASE_URL` points at the transaction pooler (port 6543), which stops answering when two queries are sent back to back | Use the session pooler (port 5432) for `DATABASE_URL`, locally and in Vercel (`docs/decisions.md`, 2026-10-11) |
 | One existing tab shows "Page not found" (others fine; a made-up path 404s the same way) | A long-running `next dev` lost the route after files changed under it (branch switch, merge); the code is fine (2026-10-12, Helper tab) | Restart the dev server (kill the `next dev` PID, `rm .next/dev/lock`, `npm run dev`). Telling it apart from a real `notFound()` needs a signed-in request, so ask Paul or compare with a tab that works |
 | The app stops offering to install; DevTools → Application → Manifest shows an error or the login page | `/manifest.webmanifest` (or `/sw.js`) got caught by `proxy.ts` — browsers fetch the manifest without cookies, so it gets the `/login` redirect | Keep both in the proxy matcher's skip list (`docs/features/install-app.md`); check with a cookie-less `curl -I localhost:3000/manifest.webmanifest` → 200 |
+| Signing in on a worktree's site (`localhost:3001`…) ends on the live site | That port isn't in Supabase's Redirect URLs, so Supabase falls back to the Site URL | Add `http://localhost:<port>/**` (`docs/setup.md` step 5). Usually not needed: a sign-in on any localhost port carries to the others |
 | `CLAUDE.md` shows as modified after `npm run dev` | `next dev` appends the Next.js agent-rules block below | Expected — commit it |
 
 **Fast dev loop:** make the change → `npm run typecheck && npx eslint && npm test` once per chunk (tests run in a few seconds) →
