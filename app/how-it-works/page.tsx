@@ -379,7 +379,8 @@ export default async function HowItWorksPage() {
             can change it.
           </p>
           <p>
-            <strong>Receipts</strong> shows everyone the proof of each bill. A payment&apos;s screenshot, which can show
+            <strong>Receipts</strong> shows everyone the proof of each bill (the Helper&apos;s record is Helper Visits
+            instead). A payment&apos;s screenshot, which can show
             your bank, only you and the admin see. <strong>Billers &amp; Accounts</strong> shows the lines shared with
             housemates; passwords stay hidden until you tap to reveal one.
           </p>
