@@ -689,3 +689,9 @@ own is a small, safe permission. `0018` dropped the photo table (nothing shipped
 up first).
 **Instead of:** sticker photos in the database behind the login (tried; busier, and faces to
 look after), or a fixed emoji picker (typing any emoji is simpler and gives every choice).
+
+## 2026-10-13 — No proof card for the Helper
+**Decision:** the Receipts tab leaves out the Helper bill's card, unless it already has a proof.
+**Why:** her bill isn't one payment with one screenshot. It's every visit and early pay, handed
+over by whoever was home, and the Helper Visits tab already records each one with its payer. Her card
+could only ever say "No proof attached yet".
