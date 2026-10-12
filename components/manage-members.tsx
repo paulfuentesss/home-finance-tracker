@@ -1,10 +1,11 @@
 "use client";
 
-import { removeMember, updateMemberEmail } from "@/app/periods/[year]/[month]/actions";
+import { removeMember, updateMemberEmail, updateMemberEmoji } from "@/app/periods/[year]/[month]/actions";
 import { ConfirmDeleteButton } from "@/components/confirm-button";
 import { AddMemberDialog } from "@/components/entry-dialogs";
 import { InlineInput } from "@/components/inline-input";
-import { cn } from "@/lib/utils";
+import { MemberMark } from "@/components/member-mark";
+import { MAX_EMOJI_LENGTH } from "@/lib/members";
 
 interface Member {
   id: number;
@@ -13,6 +14,8 @@ interface Member {
   /** A view-only login: joins no month, shares in nothing. */
   viewOnly: boolean;
   dotClass: string;
+  /** Their emoji (shown in place of the dot), or null. */
+  emoji: string | null;
   /** The invited login email, or null. */
   email: string | null;
   /** Whether a Supabase login exists for them (set when invited). */
@@ -56,7 +59,7 @@ export function ManageMembers({ members, viewerId }: { members: Member[]; viewer
           <li key={m.id} className="rounded-lg border bg-zinc-50/60 px-4 py-3">
             <div className="flex items-center justify-between gap-3">
               <span className="flex items-center gap-2.5 font-medium">
-                <span className={cn("size-2.5 rounded-full", m.dotClass)} aria-hidden />
+                <MemberMark dotClass={m.dotClass} emoji={m.emoji} className="size-8 text-2xl" />
                 {m.name}
                 {m.isCollector && (
                   <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-normal text-zinc-600">collector</span>
@@ -122,6 +125,19 @@ export function ManageMembers({ members, viewerId }: { members: Member[]; viewer
                   />
                 </div>
               )}
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-muted-foreground">
+                Emoji
+                <InlineInput
+                  action={updateMemberEmoji}
+                  hidden={{ memberId: m.id }}
+                  name="emoji"
+                  value={m.emoji ?? ""}
+                  label={`${m.name}'s emoji`}
+                  maxLength={MAX_EMOJI_LENGTH}
+                  inputClassName="w-14 px-2 py-1 text-center text-base"
+                />
+                <span className="text-xs">One emoji; empty for the colour dot.</span>
+              </div>
               {m.linked && (
                 <p className="mt-1 text-muted-foreground">
                   {m.activity ? (

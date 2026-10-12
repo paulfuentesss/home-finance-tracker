@@ -20,7 +20,9 @@ import { HOUSE_BUDGET_LABEL } from "@/lib/household-config";
 import { formatPHP, fromCentavos, sumCentavos } from "@/lib/money";
 import type { PeriodView, ViewBill, ViewColumn, ViewRow } from "@/lib/periods";
 import { cn } from "@/lib/utils";
-import { useCanEdit } from "@/components/viewer-context";
+import { useCanEdit, useViewer } from "@/components/viewer-context";
+import { MemberMark } from "@/components/member-mark";
+import { YouTag } from "@/components/you-tag";
 
 const cellBase = "px-3 py-2.5 whitespace-nowrap";
 // Extra room under the Total row: macOS draws the horizontal scrollbar over the content.
@@ -32,6 +34,7 @@ const finalCol = "border-l border-amber-200 bg-amber-50/60";
 export function SplitTable({ view }: { view: PeriodView }) {
   // PA in an open month; everyone else sees plain values.
   const editable = useCanEdit(view.period.status);
+  const viewer = useViewer();
   const { bills, columns, members } = view;
   const rowOf = new Map(view.rows.map((r) => [r.memberId, r]));
   const sum = (pick: (r: ViewRow) => number) => sumCentavos(view.rows.map(pick));
@@ -140,15 +143,25 @@ export function SplitTable({ view }: { view: PeriodView }) {
 
               {members.map((member) => {
                 const row = rowOf.get(member.id);
+                // The row of whoever the page is drawn for gets a light tint, so it's easy to find.
+                const mine = member.id === viewer.memberId;
                 return (
-                  <tr key={member.id} className="group hover:bg-zinc-50">
-                    <th scope="row" className={cn(cellBase, "sticky left-0 z-10 bg-white group-hover:bg-zinc-50 text-left font-sans font-medium")}>
+                  <tr key={member.id} className={cn("group", mine ? "bg-sky-50" : "hover:bg-zinc-50")}>
+                    <th
+                      scope="row"
+                      className={cn(
+                        cellBase,
+                        "sticky left-0 z-10 text-left font-sans font-medium",
+                        mine ? "bg-sky-50" : "bg-white group-hover:bg-zinc-50",
+                      )}
+                    >
                       <span className="flex items-center gap-2">
-                        <span className={cn("size-2.5 rounded-full", member.dotClass)} aria-hidden />
+                        <MemberMark dotClass={member.dotClass} emoji={member.emoji} />
                         {member.name}
                         {member.isCollector && (
                           <span className="rounded-full bg-zinc-100 px-1.5 text-[10px] font-normal text-zinc-600">collector</span>
                         )}
+                        <YouTag memberId={member.id} />
                       </span>
                     </th>
                     {bills.map((bill) => (

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { AppShell } from "@/components/app-sidebar";
 import { FaqAccordion } from "@/components/faq-accordion";
+import { MemberMark } from "@/components/member-mark";
 import { sidebarProps } from "@/components/period-header";
 import { getPreview, getPreviewChoices, requireViewer } from "@/lib/auth";
 import { monthLabel } from "@/lib/format";
@@ -535,7 +536,7 @@ export default async function HowItWorksPage() {
                           <tr key={m.id}>
                             <td className="py-2">
                               <span className="flex items-center gap-2">
-                                <span className={cn("size-2 rounded-full", m.dotClass)} aria-hidden />
+                                <MemberMark dotClass={m.dotClass} emoji={m.emoji} />
                                 {m.name}
                               </span>
                             </td>

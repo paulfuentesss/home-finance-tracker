@@ -48,7 +48,7 @@ import {
   toCentavos,
   type Centavos,
 } from "@/lib/money";
-import { sharesCosts } from "@/lib/members";
+import { parseEmoji, sharesCosts } from "@/lib/members";
 import {
   closeCheck,
   monthAfter,
@@ -60,6 +60,7 @@ import {
   canCancelPayment,
   canManageAdvance,
   canManageHelperEntry,
+  canSetEmoji,
   canSubmitPayment,
   isAdmin,
   isViewOnly,
@@ -1280,6 +1281,26 @@ export async function updateMemberEmail(_prev: ActionState, formData: FormData):
       }
       await inviteMember(db, authAdmin(), memberId, email);
     }
+  });
+}
+
+/**
+ * Sets someone's emoji, shown in place of their colour dot (docs/features/manage.md → Emoji):
+ * the admin anyone's (Manage), a housemate their own (the account menu). Empty clears it. Who
+ * may is checked here against the real login (canSetEmoji), never trusted from the page.
+ */
+export async function updateMemberEmoji(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const schema = z.object({ memberId: id, emoji: z.string().max(64) });
+  return run("member", schema, formData, async ({ memberId, emoji }, viewer) => {
+    if (!canSetEmoji(viewer, memberId)) throw new ActionError("You can only change your own emoji.");
+    const parsed = parseEmoji(emoji);
+    if (!parsed.ok) throw new ActionError("Type a single emoji, or leave it empty for the dot.");
+    const [updated] = await db
+      .update(members)
+      .set({ emoji: parsed.emoji })
+      .where(eq(members.id, memberId))
+      .returning({ id: members.id });
+    if (!updated) throw new ActionError("That person isn't in the household.");
   });
 }
 

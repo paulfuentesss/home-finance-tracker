@@ -120,6 +120,20 @@
       "when": 1791798386044,
       "tag": "0016_member-devices",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1791821342832,
+      "tag": "0017_member-photos",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791824977787,
+      "tag": "0018_member-emoji",
+      "breakpoints": true
     }
   ]
 }

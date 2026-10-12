@@ -49,6 +49,8 @@ export interface PeriodSummary {
 
 export interface ViewMember extends SettlementMember {
   dotClass: string;
+  /** Their emoji, shown in place of the dot, or null. */
+  emoji: string | null;
 }
 
 export interface ViewBill {
@@ -196,6 +198,14 @@ export interface PeriodView {
   canReopen: LockCheck;
   /** Set when the numbers can't be computed (e.g. shares that don't add up). */
   issue: string | null;
+  /**
+   * What each member still has to pay or get back for this month, by member id (payablesIn: the
+   * Final, less their waiting "I paid"s and what was paid in later months), the same as the bill
+   * banner and email say. Missing for someone the numbers can't be worked out for. The greeting.
+   */
+  payables: Record<string, Payables>;
+  /** Settle Up on the latest month, where "I paid" goes (components/settle-up.tsx). */
+  latestSettleHref: string;
 }
 
 /** The app's `db` or a transaction (Server Actions pass `tx` for a consistent snapshot). */
@@ -326,6 +336,7 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
     sortOrder: m.sortOrder,
     isCollector: m.isCollector,
     dotClass: dotClassOf(m),
+    emoji: m.emoji,
   }));
   const summaries = all.map(({ id, year, month }) => ({ id, year, month }));
 
@@ -443,6 +454,13 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
     canClose: closeCheck(period, all[index - 1] ?? null, issue, pendingBillNames(period), waitingPaymentLabels(period)),
     canReopen: reopenCheck(period, all[index + 1] ?? null),
     issue,
+    payables: Object.fromEntries(
+      members.flatMap((m) => {
+        const owed = payablesIn(computed, m.id);
+        return owed ? [[String(m.id), owed.payables]] : [];
+      }),
+    ),
+    latestSettleHref: `/periods/${all[all.length - 1].year}/${all[all.length - 1].month}/settle`,
   };
 });
 

@@ -41,6 +41,20 @@ export function momentLabel(moment: Date): string {
   return `${dateLabel(dateInManila(moment))}, ${time}`;
 }
 
+export type PartOfDay = "morning" | "afternoon" | "evening";
+
+/**
+ * The part of the day in Manila, for the greeting ("Good morning"): morning until noon,
+ * afternoon until 6 PM, evening after (night included). Worked out on the server, so the page
+ * and the browser can't disagree.
+ */
+export function partOfDayInManila(moment: Date): PartOfDay {
+  const hour = Number(moment.toLocaleString("en-US", { timeZone: "Asia/Manila", hour: "numeric", hourCycle: "h23" }));
+  if (hour >= 4 && hour < 12) return "morning";
+  if (hour >= 12 && hour < 18) return "afternoon";
+  return "evening";
+}
+
 /** Today's date in Manila as "YYYY-MM-DD" (for date inputs). */
 export function todayInManila(): string {
   return dateInManila(new Date());

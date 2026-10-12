@@ -28,7 +28,13 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
 /** The active member linked to a Supabase login, or null (not invited, or removed). */
 export async function memberForLogin(authUserId: string): Promise<Viewer | null> {
   const [member] = await db
-    .select({ memberId: members.id, name: members.name, role: members.role, email: members.email })
+    .select({
+      memberId: members.id,
+      name: members.name,
+      role: members.role,
+      email: members.email,
+      emoji: members.emoji,
+    })
     .from(members)
     .where(and(eq(members.authUserId, authUserId), eq(members.active, true)))
     .limit(1);
@@ -55,6 +61,7 @@ const activeMembers = cache(async () =>
       email: members.email,
       active: members.active,
       sortOrder: members.sortOrder,
+      emoji: members.emoji,
     })
     .from(members)
     .where(eq(members.active, true))
@@ -89,5 +96,5 @@ export const getPreviewChoices = cache(async (): Promise<PreviewChoice[]> => {
   if (!viewer || !isAdmin(viewer)) return [];
   return (await activeMembers())
     .filter((m) => previewViewer(viewer, m) !== null)
-    .map((m) => ({ id: m.memberId, name: m.name, dotClass: householdDotClassOf(m) }));
+    .map((m) => ({ id: m.memberId, name: m.name, dotClass: householdDotClassOf(m), emoji: m.emoji }));
 });

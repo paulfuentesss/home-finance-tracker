@@ -14,6 +14,8 @@ export interface Viewer {
   role: Role;
   /** Their own login email, shown in the account menu (never anyone else's). */
   email: string | null;
+  /** Their emoji, for the account menu (null = their colour dot). */
+  emoji?: string | null;
 }
 
 export function isAdmin(viewer: Viewer): boolean {
@@ -110,6 +112,14 @@ export function canSeeBillerField(viewer: Viewer, field: { housematesCanSee: boo
 }
 
 /**
+ * Whether the viewer may set someone's emoji (docs/features/manage.md → Emoji): the admin
+ * anyone's, a housemate their own. A view-only login changes nothing, not even this.
+ */
+export function canSetEmoji(viewer: Viewer, memberId: number): boolean {
+  return isAdmin(viewer) || (viewer.memberId === memberId && !isViewOnly(viewer));
+}
+
+/**
  * Who the admin is previewing as ("Preview as…" in the account menu), shaped like that
  * housemate's own login, or null for no preview. Only the admin may preview, and only an active
  * member who isn't an admin (a housemate or a view-only login, keeping their role). The preview
@@ -118,11 +128,24 @@ export function canSeeBillerField(viewer: Viewer, field: { housematesCanSee: boo
  */
 export function previewViewer(
   real: Viewer,
-  target: { memberId: number; name: string; role: Role; email: string | null; active: boolean } | null,
+  target: {
+    memberId: number;
+    name: string;
+    role: Role;
+    email: string | null;
+    active: boolean;
+    emoji?: string | null;
+  } | null,
 ): Viewer | null {
   if (!isAdmin(real) || !target || !target.active || target.role === "admin") return null;
   if (target.memberId === real.memberId) return null;
-  return { memberId: target.memberId, name: target.name, role: target.role, email: target.email };
+  return {
+    memberId: target.memberId,
+    name: target.name,
+    role: target.role,
+    email: target.email,
+    emoji: target.emoji,
+  };
 }
 
 /**

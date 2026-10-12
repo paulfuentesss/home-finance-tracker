@@ -100,11 +100,15 @@ export const members = pgTable(
     email: text("email").unique(),
     authUserId: uuid("auth_user_id").unique(),
     role: memberRole("role").notNull().default("member"),
+    // Their emoji, shown in place of the colour dot (docs/features/manage.md → Emoji), or null
+    // for the dot. One emoji, checked by parseEmoji (lib/members.ts); the check below is a backstop.
+    emoji: text("emoji"),
     createdAt: createdAt(),
   },
   (t) => [
     uniqueIndex("members_single_collector").on(t.isCollector).where(sql`${t.isCollector}`),
     check("members_email_lowercase", sql`${t.email} = lower(${t.email})`),
+    check("members_emoji_length", sql`char_length(${t.emoji}) <= 32`),
   ],
 ).enableRLS();
 

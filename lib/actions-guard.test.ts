@@ -12,8 +12,8 @@ const ROOT = join(__dirname, "..");
 const PUBLIC_ACTIONS = new Set(["signInWithGoogle", "sendEmailCode", "verifyEmailCode", "signOut"]);
 /**
  * The only actions a non-admin may call; each checks ownership itself (lib/permissions.ts):
- * their own advances, the Helper visits and early pay they paid, and their own "I paid" (sent to
- * the collector; cancelled while waiting).
+ * their own advances, the Helper visits and early pay they paid, their own "I paid" (sent to
+ * the collector; cancelled while waiting), and their own emoji.
  */
 const MEMBER_ACTIONS = [
   "addAdvance",
@@ -24,6 +24,7 @@ const MEMBER_ACTIONS = [
   "submitPayment",
   "updateAdvance",
   "updateHelperEntry",
+  "updateMemberEmoji",
 ];
 /** Route Handlers, each doing its own auth. */
 const ROUTE_HANDLERS = [

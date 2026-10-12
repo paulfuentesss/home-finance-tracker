@@ -25,6 +25,7 @@
   | Log, edit, delete a Helper visit or early pay ([helper.md](helper.md)) | Any, for anyone; and her starting debt | Only ones they paid | — |
   | Send a payment into the House Budget ("I paid", with the transfer's screenshot) | — (PA records payments directly) | Their own, in the latest open month; it waits for PA | — |
   | Cancel a payment | Any (delete) | Their own, while it's waiting or rejected | — |
+  | Set an emoji (shown in place of the colour dot) | Anyone's (Manage) | Their own (account menu) | — |
   | Bills, points, shared columns, recording / confirming / rejecting payments, housemates, starting / closing / reopening months | ✅ | — | — |
   | See a payment's screenshot | Any | Only payments they're in (bill proofs: all) | Bill proofs only |
   | Billers & Accounts lines | All | Those shared with housemates | Those shared with housemates |
@@ -37,8 +38,9 @@
   month (no `period_balances` row), so they share in nothing, have no row on the Split Table, and
   never owe or are owed ([settlement-rules.md → Members](../settlement-rules.md)).
 - The **account menu** at the bottom of the sidebar (`components/account-menu.tsx`) shows who's
-  signed in — their colour dot and name. It opens to a greeting, their login
-  email, what they can do, and **Sign out** (this device only; two clicks, so never by accident).
+  signed in — their emoji (or colour dot) and name. It opens to a greeting, their login
+  email, what they can do, **Your emoji** (to change their own; not for view-only logins, and
+  hidden while previewing), and **Sign out** (this device only; two clicks, so never by accident).
 - **Preview as a housemate** (PA only): the account menu lists every housemate and view-only
   login in the household now (admins aside). Picking one shows every month tab as they see it — no Manage tab, no
   PA-only controls, "Log new advance" only for themselves — under a "Previewing as …" strip with
@@ -60,16 +62,19 @@
   and by `run()`.
 - `run("admin" | "member", …)` in `app/periods/[year]/[month]/actions.ts` checks the caller
   before anything else. Only `addAdvance`, `updateAdvance`, `deleteAdvance`, `addHelperEntry`,
-  `updateHelperEntry`, `deleteHelperEntry`, `submitPayment` and `cancelPayment` are `"member"`:
+  `updateHelperEntry`, `deleteHelperEntry`, `submitPayment`, `cancelPayment` and
+  `updateMemberEmoji` are `"member"`:
   for a member the advance actions force the payer to themselves and the column to the default
   one, and check `canManageAdvance` against the stored advance; the Helper actions force the
   payer to themselves, refuse her starting debt, and check `canManageHelperEntry`; all six
   pass the viewer to `loadOpenPeriod`, which refuses a non-admin in an ended month;
   `submitPayment` sets the payer to themselves and the receiver to the House Budget
-  (`canSubmitPayment`), and `cancelPayment` checks `canCancelPayment`. A view-only login
+  (`canSubmitPayment`), `cancelPayment` checks `canCancelPayment`, and `updateMemberEmoji`
+  checks `canSetEmoji` (the admin anyone's, a housemate only their own). A view-only login
   passes neither level: `run()` refuses it outright, before parsing anything.
 - `lib/permissions.ts` (pure, tested) — `Viewer`, `isAdmin`, `isViewOnly`, `canLogIn` (an open
-  month that, for a housemate, hasn't ended), `canManageAdvance`, `canManageHelperEntry`, and
+  month that, for a housemate, hasn't ended), `canManageAdvance`, `canManageHelperEntry`,
+  `canSetEmoji`, and
   `safeNext` (where to go after signing in, blocking open redirects).
 - **Invites:** `lib/invites.ts` creates a confirmed Supabase user for the email (with the
   secret key, `lib/supabase/admin-server.ts`) and stores its id on the member. Used by
