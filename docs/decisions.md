@@ -657,6 +657,37 @@ housemates: the admin has the feature docs. The questions the Split Table links 
 **Instead of:** tabs or a separate admin section — tabs hide the rest of the page from a quick
 scroll, and the admin's detail already has a home in `docs/features/`.
 
+## 2026-10-13 — The Split Table's header is pale amber, and Final is its highlight
+**Decision:** the header row went from a solid amber-300 bar to amber-100 with dark amber text,
+and the Final column's tint went up a step (`headCell`, `finalCol` in
+`components/split-table.tsx`).
+**Why:** the bright bar was the loudest thing on the page, louder than the greeting and the stat
+cards, where amber is otherwise a light accent (pale tiles, thin borders, amber text). It
+pulled the eye to column labels read once, and drowned out the Final column, the answer most
+people look for. The pale head still reads as the sheet's yellow header.
+**Instead of:** keeping the sheet's bright yellow, or a plain grey head (loses the link to the sheet).
+
+## 2026-10-13 — Swipe in from the edge for the phone menu, detected rather than a swipe strip
+**Decision:** on phones a swipe right that starts near the left edge (`EDGE_PX` in
+`lib/edge-swipe.ts`) opens the menu, picked up by passive touch listeners on the page; the menu
+then slides in. Dragging it back left closes it, following the finger (Base UI's `Drawer`, in
+`components/ui/sheet.tsx`).
+**Why:** Android's own Back gesture owns about the first 30 px of the edge, so the swipe has to
+be able to start further in. Base UI's `Drawer.SwipeArea` is a strip that catches every touch on
+it: one wide enough to reach would stop taps on the first column of the page. Passive listeners
+block nothing; swipes that scroll a wide table back, select text in a box, or start in a dialog
+are left alone.
+**Instead of:** Base UI's swipe strip (the menu would follow the finger while opening too, at the
+cost of those taps).
+
+## 2026-10-13 — No pull-to-refresh inside the installed app
+**Decision:** `overscroll-behavior-y: none` on the page inside the installed app only
+(`app/globals.css`); a browser tab keeps pull-to-refresh.
+**Why:** a stray pull while scrolling up reloads the page and wipes what was typed. It isn't
+needed for fresh data or new versions: saves redraw the page, tab switches load fresh, coming
+back after a while redraws the month, and after a deploy the next navigation reloads the whole
+page ([install-app](features/install-app.md)).
+
 ## 2026-10-13 — One worktree, dev server and PR per session
 **Decision:** every Claude session works on one task in its own worktree, branched fresh from
 `origin/main` (`npm run worktree:new`), and raises its own PR. Raising it includes merging

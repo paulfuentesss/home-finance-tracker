@@ -412,6 +412,10 @@ export default async function HowItWorksPage() {
             Closed the card? <strong>Install app</strong> in the menu under your name, at the bottom of the sidebar,
             brings it back. My House still needs an internet connection.
           </p>
+          <p>
+            On a phone, tap ☰ or swipe right from near the left edge for the menu (start a finger-width in from the
+            edge), and swipe it back left to close it.
+          </p>
         </>
       ),
     },

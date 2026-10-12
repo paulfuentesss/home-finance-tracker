@@ -34,6 +34,7 @@
   everything adds up). When it isn't, a short "should be ₱0.00 ⓘ" note opens a popover naming
   the columns that are over or short (kept short so it doesn't widen the column).
 - On a phone the table scrolls sideways; a "›" on its right edge shows there's more, until the end.
+  The name column stays put, with an edge once scrolled so the columns under it don't peek out.
 - Pending (emailed) bills are shown greyed out with Confirm / Discard ([email-bills.md](email-bills.md)).
 
 ## How it's built
@@ -48,7 +49,7 @@
   the part of day is worked out on the server, `partOfDayInManila` in `lib/format.ts`, so the
   page and the browser agree), `components/you-tag.tsx`, `components/balance.tsx`,
   `hooks/use-drag-scroll.ts` (drag to scroll the wide table; sets `data-more-right` for the
-  "›" hint).
+  "›" hint and `data-scrolled-left` for the name column's edge).
 - The collector's "overall" number comes from `collectorNetOf` (`lib/who-owes.ts`, pure, tested),
   used by both Who owes what and the greeting so they can't disagree.
 - Edits: `updateBillTotal`, `updateBillShare`, `updateBillDates`, `updateSharedColumnAmount` in

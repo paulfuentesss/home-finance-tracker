@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
 // Drag the element sideways with the mouse to scroll it. Touch already scrolls natively,
 // and drags that start on an input, button or link are left alone so editing still works.
 // Sets data-scrollable (content is wider than the box), data-more-right (not scrolled to the
-// end yet) and data-dragging for styling.
+// end yet), data-scrolled-left (scrolled away from the start) and data-dragging for styling.
 const INTERACTIVE = "input, textarea, select, button, a, label, [role='combobox'], [contenteditable='true']";
 const THRESHOLD = 4; // px of movement before a press counts as a drag rather than a click
 
@@ -22,6 +22,8 @@ export function useDragScroll<T extends HTMLElement>() {
       // 1px slack: scrollLeft can land a fraction short of the end on zoomed/retina screens.
       if (el.scrollLeft + el.clientWidth < el.scrollWidth - 1) el.dataset.moreRight = "true";
       else delete el.dataset.moreRight;
+      if (el.scrollLeft > 0) el.dataset.scrolledLeft = "true";
+      else delete el.dataset.scrolledLeft;
     };
     update();
     const observer = new ResizeObserver(update);
