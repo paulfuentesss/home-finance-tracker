@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Lock, LockOpen, Mail, Pencil, X } from "lucide-react";
+import { Check, ListChevronsDownUp, ListChevronsUpDown, Lock, LockOpen, Mail, Pencil, X } from "lucide-react";
 import { useState, useTransition } from "react";
 import {
   cancelPayment,
@@ -37,6 +37,7 @@ import type { PeriodView, ViewPayment, ViewReceipt } from "@/lib/periods";
 import type { EmailStatus } from "@/lib/reminder-status";
 import { REMINDER_DAYS, type MonthEndReminder } from "@/lib/reminders";
 import { HOUSE_BUDGET, suggestedPayments } from "@/lib/settlement";
+import { COMPACT_COOKIE } from "@/lib/settle-up-view";
 import { cn } from "@/lib/utils";
 
 // Tab: Settle Up. Who still owes whom (one tap records the payment, or a housemate's "I paid"),
@@ -46,17 +47,20 @@ export function SettleUp({
   view,
   receipts,
   emailStatus,
+  compact,
 }: {
   view: PeriodView;
   receipts: ViewReceipt[];
   /** The admin's bill-email box (null for anyone else). */
   emailStatus: EmailStatus | null;
+  /** This phone picked Compact for Who still owes (its cookie, lib/settle-up-view.ts). */
+  compact: boolean;
 }) {
   return (
     <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
       <div className="space-y-6">
         <WaitingForYou view={view} receipts={receipts} />
-        <WhoStillOwes view={view} />
+        <WhoStillOwes view={view} compact={compact} />
         <PaymentsList view={view} receipts={receipts} />
       </div>
       <div className="space-y-6">
@@ -217,9 +221,22 @@ function WaitingForYou({ view, receipts }: { view: PeriodView; receipts: ViewRec
   );
 }
 
-function WhoStillOwes({ view }: { view: PeriodView }) {
+/** The latest Compact / Normal tap this visit: a page Next serves from its cache still has the old cookie value. */
+let compactNow: boolean | undefined;
+const ONE_YEAR = 365 * 24 * 60 * 60;
+
+/** Remembers the choice on this phone; the page reads the cookie on its next load. */
+function saveCompact(on: boolean) {
+  compactNow = on;
+  const secure = location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${COMPACT_COOKIE}=${on ? "1" : ""}; path=/; SameSite=Lax; max-age=${on ? ONE_YEAR : 0}${secure}`;
+}
+
+function WhoStillOwes({ view, compact }: { view: PeriodView; compact: boolean }) {
   // PA records payments; a housemate sends their own with "I paid" (in the latest, open month).
   const editable = useCanEdit(view.period.status);
+  // Compact (phones only): "🐷 → 🏠", the amount and the button on one line. Wider screens ignore it.
+  const [isCompact, setIsCompact] = useState(() => compactNow ?? compact);
   const viewer = useViewer();
   const canSend = useCanSendPayment(view);
   const memberOf = new Map(view.members.map((m) => [m.id, m]));
@@ -236,9 +253,27 @@ function WhoStillOwes({ view }: { view: PeriodView }) {
 
   return (
     <section aria-labelledby="who-still-owes" className="rounded-xl border bg-white p-4 shadow-xs sm:p-5">
-      <h2 id="who-still-owes" className="text-lg font-semibold">
-        Who still owes
-      </h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 id="who-still-owes" className="text-lg font-semibold">
+          Who still owes
+        </h2>
+        {/* One icon that switches: lines folding together → Compact, spreading apart → Normal. */}
+        {!view.issue && suggestions.length > 0 && (
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            aria-label={isCompact ? "Normal view" : "Compact view"}
+            title={isCompact ? "Normal view" : "Compact view"}
+            className="text-muted-foreground sm:hidden"
+            onClick={() => {
+              setIsCompact(!isCompact);
+              saveCompact(!isCompact);
+            }}
+          >
+            {isCompact ? <ListChevronsUpDown /> : <ListChevronsDownUp />}
+          </Button>
+        )}
+      </div>
       <p className="mt-1 text-sm text-muted-foreground">
         Everyone pays into the {HOUSE_BUDGET_LABEL}, and {collectorName} pays out of it.{" "}
         {editable
@@ -250,18 +285,20 @@ function WhoStillOwes({ view }: { view: PeriodView }) {
               : `${collectorName} records each payment when money changes hands; it comes off the Final.`}
       </p>
       {!view.issue && (
-        <p className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-zinc-50 px-2.5 py-1 text-sm">
-          {held >= 0 ? (
-            <>
-              The {HOUSE_BUDGET_LABEL} holds <span className="font-mono font-semibold tabular-nums">{formatPHP(held)}</span>
-            </>
-          ) : (
-            <>
-              The {HOUSE_BUDGET_LABEL} has paid out{" "}
-              <span className="font-mono font-semibold tabular-nums">{formatPHP(-held)}</span> more than came in
-            </>
-          )}
-        </p>
+        <div className="mt-3 flex justify-center">
+          <p className="max-w-full rounded-lg border border-amber-200 bg-amber-50 px-3 py-1 text-center text-sm text-amber-950">
+            {held >= 0 ? (
+              <>
+                The {HOUSE_BUDGET_LABEL} holds <span className="font-mono font-semibold tabular-nums">{formatPHP(held)}</span>
+              </>
+            ) : (
+              <>
+                The {HOUSE_BUDGET_LABEL} has paid out{" "}
+                <span className="font-mono font-semibold tabular-nums">{formatPHP(-held)}</span> more than came in
+              </>
+            )}
+          </p>
+        </div>
       )}
 
       {view.issue ? (
@@ -287,16 +324,24 @@ function WhoStillOwes({ view }: { view: PeriodView }) {
             const waiting =
               s.toMemberId === HOUSE_BUDGET && s.fromMemberId !== HOUSE_BUDGET ? waitingFrom(view, s.fromMemberId) : 0;
             const own = canSend && s.fromMemberId === viewer.memberId;
-            // Paid out of the House Budget: say so when it doesn't hold that much yet.
-            const short = s.fromMemberId === HOUSE_BUDGET && s.amount > held;
             return (
-              // Phone: who over the amount, a small button on the right. Wider: one line. Notes go
-              // underneath, so the button stays level with the amount however many there are.
+              // Phone: who over the amount (Compact: beside it), a small button on the right. Wider:
+              // one line. Notes go underneath, so the button stays level with the amount however
+              // many there are.
               <li key={`${s.fromMemberId}-${s.toMemberId}`} className="space-y-0.5 py-3">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0 flex-1 space-y-0.5 sm:flex sm:items-center sm:justify-between sm:gap-3 sm:space-y-0">
-                    <Pair from={from} to={to} />
-                    <span className="block font-mono font-semibold tabular-nums text-rose-600">{formatPHP(s.amount)}</span>
+                  <div
+                    className={cn(
+                      "min-w-0 flex-1",
+                      isCompact
+                        ? "flex flex-wrap items-center gap-x-3 gap-y-0.5 sm:flex-nowrap sm:justify-between"
+                        : "space-y-0.5 sm:flex sm:items-center sm:justify-between sm:gap-3 sm:space-y-0",
+                    )}
+                  >
+                    <Pair from={from} to={to} compact={isCompact} />
+                    <span className="block font-mono font-semibold whitespace-nowrap tabular-nums text-rose-600">
+                      {formatPHP(s.amount)}
+                    </span>
                   </div>
                   {editable && (
                     <RecordPaymentDialog
@@ -314,13 +359,9 @@ function WhoStillOwes({ view }: { view: PeriodView }) {
                   {own && <SubmitPaymentDialog view={view} owed={s.amount} waiting={waiting} className="shrink-0" />}
                 </div>
                 {s.fromMemberId === HOUSE_BUDGET && s.toMemberId === collector?.id && (
-                  <p className="text-xs text-muted-foreground">
+                  // Compact on a phone leaves out this explanation; the amount and the button stay.
+                  <p className={cn("text-xs text-muted-foreground", isCompact && "hidden sm:block")}>
                     What&apos;s left once everyone is settled — {editable ? "yours to move to your account" : `${collectorName}'s`}
-                  </p>
-                )}
-                {short && (
-                  <p className="text-xs text-amber-700">
-                    The {HOUSE_BUDGET_LABEL} holds {formatPHP(Math.max(held, 0))} so far
                   </p>
                 )}
                 {waiting > 0 && (

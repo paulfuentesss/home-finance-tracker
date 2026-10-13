@@ -95,7 +95,8 @@ export default async function HowItWorksPage() {
             Send what you owe to the {HOUSE_BUDGET_LABEL}. Then open <strong>Settle Up</strong>, tap{" "}
             <strong>I paid</strong> on your row and attach the screenshot of the transfer. The amount is filled in with
             what you owe; change it if you only paid part. The &ldquo;Your bill is ready&rdquo; email and banner link
-            straight there.
+            straight there. On a phone, the icon beside <strong>Who still owes</strong> switches to a compact list,
+            each row on one line (emojis and the amount), and your phone remembers it.
           </p>
           <p>
             I paid always goes in the <strong>latest</strong> month. Once a new month has started, what you still owe
