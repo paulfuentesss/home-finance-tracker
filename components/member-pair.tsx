@@ -29,30 +29,38 @@ export function partyName(party: Party, memberOf: ReadonlyMap<number, ViewMember
 /**
  * "● Ana → 🏛 House Budget": who pays whom, with each member's emoji or colour dot and the House
  * Budget's emoji or icon (Settle Up and Receipts).
+ *
+ * `compact` (Settle Up's Compact view): on a phone, just "🐷 → 🏠" — the names stay for screen
+ * readers, and a member with no emoji keeps theirs, since a colour dot alone doesn't say who it is.
  */
-export function Pair({ from, to }: { from: PartyView; to: PartyView }) {
+export function Pair({ from, to, compact = false }: { from: PartyView; to: PartyView; compact?: boolean }) {
   return (
     <span className="flex items-center gap-1.5 text-sm font-medium">
-      <Side party={from} />
+      <Side party={from} compact={compact} />
       <ArrowRight className="size-3.5 text-muted-foreground" aria-label="pays" />
-      <Side party={to} />
+      <Side party={to} compact={compact} />
     </span>
   );
 }
 
-function Side({ party }: { party: PartyView }) {
+function Side({ party, compact }: { party: PartyView; compact: boolean }) {
   if (party.kind === "house-budget") {
     return (
       <>
         <HouseBudgetMark emoji={party.emoji} className="size-5 text-sm" />
-        {HOUSE_BUDGET_LABEL}
+        <Name hidden={compact}>{HOUSE_BUDGET_LABEL}</Name>
       </>
     );
   }
   return (
     <>
       <MemberMark dotClass={party.member.dotClass} emoji={party.member.emoji} className="size-5 text-sm" />
-      {party.member.name}
+      <Name hidden={compact && !!party.member.emoji}>{party.member.name}</Name>
     </>
   );
+}
+
+/** A side's name; `hidden` keeps it for screen readers only, and only on a phone. */
+function Name({ hidden, children }: { hidden: boolean; children: React.ReactNode }) {
+  return <span className={hidden ? "sr-only sm:not-sr-only" : undefined}>{children}</span>;
 }

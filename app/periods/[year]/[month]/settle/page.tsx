@@ -1,7 +1,9 @@
+import { cookies } from "next/headers";
 import { SettleUp } from "@/components/settle-up";
 import { requireViewer } from "@/lib/auth";
 import { getPeriodReceipts, getPeriodView } from "@/lib/periods";
 import { getEmailStatus } from "@/lib/reminder-status";
+import { COMPACT_COOKIE } from "@/lib/settle-up-view";
 import { parsePeriodParams, tabMetadata } from "../params";
 
 export const generateMetadata = ({ params }: PageProps<"/periods/[year]/[month]/settle">) =>
@@ -16,5 +18,7 @@ export default async function SettlePage({ params }: PageProps<"/periods/[year]/
   // Payment proofs, only the ones this viewer may open (PA and the two people in each payment).
   // The bill-email box is the admin's (checked on the real viewer; hidden while previewing).
   const [receipts, emailStatus] = await Promise.all([getPeriodReceipts(view.period.id), getEmailStatus(real, year, month)]);
-  return <SettleUp view={view} receipts={receipts} emailStatus={emailStatus} />;
+  // The phone's Compact / Normal choice for Who still owes (lib/settle-up-view.ts).
+  const compact = (await cookies()).get(COMPACT_COOKIE)?.value === "1";
+  return <SettleUp view={view} receipts={receipts} emailStatus={emailStatus} compact={compact} />;
 }

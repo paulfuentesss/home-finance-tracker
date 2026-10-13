@@ -749,3 +749,15 @@ separate button (one more thing to remember), or reusing the `payables` kind.
 **Why:** her bill isn't one payment with one screenshot. It's every visit and early pay, handed
 over by whoever was home, and the Helper Visits tab already records each one with its payer. Her card
 could only ever say "No proof attached yet".
+
+## 2026-10-13 — Settle Up's Compact view is a cookie on the phone
+**Decision:** Who still owes gets a Compact / Normal toggle on phones, remembered by a cookie
+(`COMPACT_COOKIE`) that the browser writes and the Settle Up page reads. Each phone keeps its own
+choice; wider screens ignore it. The amber "holds ₱… so far" note under House Budget payouts went
+too: the box above the list already says what the House Budget holds.
+**Why:** it's a display choice for a small screen, so per device is the right scope. The server
+reading it means a compact phone is compact from the first paint, with no jump. It holds only
+"1", no household data, so it fits "nothing stored on the phone" (Installable app, above).
+**Instead of:** `localStorage` like the Install card (the page would draw Normal first, then jump,
+on every load), or a member setting in the database (a migration and backup coverage for a layout
+preference, and one choice for both phone and laptop).
