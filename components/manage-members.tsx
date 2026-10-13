@@ -12,7 +12,9 @@ import { InlineInput } from "@/components/inline-input";
 import { HouseBudgetMark, MemberMark } from "@/components/member-mark";
 import { HOUSE_BUDGET_LABEL } from "@/lib/household-config";
 import { MAX_EMOJI_LENGTH } from "@/lib/members";
-import { ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { useId, useState, type ReactNode } from "react";
 
 interface Member {
   id: number;
@@ -95,9 +97,10 @@ export function ManageMembers({
       </details>
       <ul className="mt-4 space-y-2">
         {members.map((m) => (
-          <li key={m.id} className="rounded-lg border bg-zinc-50/60 px-4 py-3">
-            <div className="flex items-center justify-between gap-3">
-              <span className="flex items-center gap-2.5 font-medium">
+          <FoldRow
+            key={m.id}
+            title={
+              <span className="flex flex-wrap items-center gap-2.5 font-medium">
                 <MemberMark dotClass={m.dotClass} emoji={m.emoji} className="size-8 text-2xl" />
                 {m.name}
                 {m.isCollector && (
@@ -117,7 +120,9 @@ export function ManageMembers({
                   </span>
                 )}
               </span>
-              {!m.isCollector && (
+            }
+            actions={
+              !m.isCollector && (
                 <ConfirmDeleteButton
                   label={`Remove ${m.name}`}
                   title={`Remove ${m.name} from the household?`}
@@ -140,8 +145,9 @@ export function ManageMembers({
                   confirmLabel="Remove"
                   onConfirm={() => removeMember(m.id)}
                 />
-              )}
-            </div>
+              )
+            }
+          >
             <div className="mt-2 text-sm">
               {m.id === viewerId ? (
                 // Your own login is changed with `npm run auth:invite`, so a typo can't lock you out.
@@ -190,14 +196,17 @@ export function ManageMembers({
                 </p>
               )}
             </div>
-          </li>
+          </FoldRow>
         ))}
         {/* Not a housemate, but it shows beside the names the same way (updateHouseBudgetEmoji). */}
-        <li className="rounded-lg border bg-zinc-50/60 px-4 py-3">
-          <span className="flex items-center gap-2.5 font-medium">
-            <HouseBudgetMark emoji={houseBudgetEmoji} className="size-8 text-2xl" />
-            {HOUSE_BUDGET_LABEL}
-          </span>
+        <FoldRow
+          title={
+            <span className="flex items-center gap-2.5 font-medium">
+              <HouseBudgetMark emoji={houseBudgetEmoji} className="size-8 text-2xl" />
+              {HOUSE_BUDGET_LABEL}
+            </span>
+          }
+        >
           <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             Emoji
             <InlineInput
@@ -211,8 +220,38 @@ export function ManageMembers({
             />
             <span className="text-xs">One emoji; empty for the bank icon.</span>
           </div>
-        </li>
+        </FoldRow>
       </ul>
     </section>
+  );
+}
+
+/**
+ * One row of the list. On a phone it starts closed, showing only `title` (and `actions`);
+ * tapping the title opens the rest. From lg up it's always open — the same fold as the
+ * Billers cards (components/billers.tsx).
+ */
+function FoldRow({ title, actions, children }: { title: ReactNode; actions?: ReactNode; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const bodyId = useId();
+  return (
+    <li className="rounded-lg border bg-zinc-50/60 px-4 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <button
+          type="button"
+          className="flex flex-1 items-center justify-between gap-2 text-left lg:pointer-events-none"
+          aria-expanded={open}
+          aria-controls={bodyId}
+          onClick={() => setOpen(!open)}
+        >
+          {title}
+          <ChevronDown className={cn("size-5 shrink-0 text-muted-foreground transition-transform lg:hidden", open && "rotate-180")} />
+        </button>
+        {actions}
+      </div>
+      <div id={bodyId} className={cn(!open && "hidden", "lg:block")}>
+        {children}
+      </div>
+    </li>
   );
 }

@@ -13,6 +13,8 @@ the site, never into the repo.
   - **Link**: opens in a new tab. Only `http(s)://` links are accepted.
   - **Password**: shown as `••••••••`. Reveal shows it for 30 seconds; Copy appears once it's revealed.
   - **Heading**: a sub-title that groups the lines below it (e.g. "FAQs").
+- **On a phone** each card starts closed, showing only the biller's name; tapping it opens the
+  card. On a wide screen (two columns) and while editing, every card is open.
 - **The admin** sees the tab read-only too (with an **Admin only** badge on lines housemates
   don't see) and taps **Edit** to change it; **Done** goes back. While editing, the admin
   adds, renames, reorders and deletes billers and lines, edits values in place,

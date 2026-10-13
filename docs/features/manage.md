@@ -7,7 +7,8 @@
 - **Bill columns:** add (Auto equal or Manual, fixed once added), rename, delete. Meralco is
   always split by points.
 - **Shared columns:** add, rename, delete (only when empty), switch Auto equal ↔ Manual, choose
-  who shares an Auto equal column.
+  who shares an Auto equal column. Its **Shared by** ticks sit on one line when they fit and
+  one per line when they don't (no half-wrapped row).
 - **Meralco points:** each member's points for the month.
 - **Housemates:** add (joins every open month) and remove (deactivated, never deleted; stays in
   months where they have records or an unsettled balance). Removing someone also takes their
@@ -17,6 +18,9 @@
   They're listed with a grey dot and a "view only" badge. Their role is set when they're added
   (remove and re-add to change it). A former housemate can't be re-added as view only
   ([settlement-rules.md → Adding](../settlement-rules.md)).
+- **On a phone** each row of the housemates list (the House Budget's too) starts closed, showing
+  the name, its badges and Remove; tapping the name opens the login email, emoji and last seen.
+  On a wide screen every row is open. The other cards on the tab don't fold.
 - **Emoji:** each person can have an emoji, shown in place of their colour dot everywhere a name
   appears (Split Table, Who owes what, Advances, Settle Up, Receipts, the account menu, How it
   works). Type or paste one into the **Emoji** field under their name (Enter or click away
