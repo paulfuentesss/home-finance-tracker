@@ -70,6 +70,26 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
   ([email-bills](features/email-bills.md)). Wouldn't catch every payment fee, since some
   providers only report what they received.
 
+- More secure ([auth](features/auth.md), [billers](features/billers.md),
+  [operations → Privacy & security](operations.md#privacy--security)). Nothing is unhackable;
+  these close the gaps that are left, roughly most useful first:
+  - **Housemates turn on 2-Step Verification** on the email they sign in with: whoever gets into
+    that inbox gets into My House. A line in the invite and a question on How it works.
+  - **A second step for the admin login** (Supabase MFA, an authenticator app): the admin can
+    change everything and reveal every biller password.
+  - **Log biller password reveals** (who, which, when), shown to the admin; maybe ask to sign in
+    again before a reveal if the login is old. `/biller-secrets/<id>` keeps no record today.
+  - **Sign out everywhere**, for a lost phone: sign-out is `scope: "local"` (this device only).
+  - **Security headers** in `next.config.ts` (only `Cache-Control` now): a Content-Security-Policy,
+    `frame-ancestors 'none'` (no embedding the site in another page), Referrer-Policy.
+  - **GitHub's free checks for a public repo:** Dependabot security updates, secret scanning with
+    push protection (check they're on).
+  - **Backups:** password-protect the zips and keep a copy off the laptop (skipped by choice so
+    far: Going online below).
+  - **Rotate the shared secrets** now and then (`BILL_EMAIL_SECRET`, `CRON_SECRET`; Vercel, plus
+    the Gmail script for the first). `BILLER_SECRET_KEY` needs a script that re-encrypts every
+    password first.
+
 ## Going online
 
 Live on Vercel since 2026-10-10 ([operations.md → Hosting](operations.md#hosting-vercel)).
