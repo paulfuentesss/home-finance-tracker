@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { monthEndEmail, payablesEmail, readyEmail, startBlockedEmail } from "@/lib/reminder-emails";
+import { billsInEmail, monthEndEmail, payablesEmail, readyEmail, startBlockedEmail } from "@/lib/reminder-emails";
 
 const link = "https://example.test/periods/2026/10/advances";
 
@@ -80,6 +80,27 @@ describe("payablesEmail", () => {
   it("sends nothing to someone settled or with everything sent", () => {
     expect(payablesEmail({ ...base, payables: { kind: "settled" } })).toBeNull();
     expect(payablesEmail({ ...base, payables: { kind: "owes", due: 1_000, waiting: 1_000, left: 0 } })).toBeNull();
+  });
+});
+
+describe("billsInEmail", () => {
+  const monthLink = "https://example.test/periods/2026/10";
+
+  it("tells a view-only login the bills are in, with a link and no amounts", () => {
+    const email = billsInEmail({ name: "Lola Rosa", year: 2026, month: 10, link: monthLink });
+    expect(email.subject).toBe("October's bills are in! 🏠");
+    expect(email.text).toContain("Hi Lola Rosa! 👋");
+    expect(email.text).toContain("October's bills are all in and everyone's share is worked out.");
+    expect(email.text).toContain(`Nothing for you to do. Just here to let you know! If you're curious, come take a look:\n${monthLink}`);
+    expect(email.text).toContain("Please always take care where you are ❤️");
+    expect(email.text).toContain("Questions? Message the admin.");
+    expect(email.text).not.toContain("₱");
+  });
+
+  it("names the month alone, even in January", () => {
+    expect(billsInEmail({ name: "Lola Rosa", year: 2027, month: 1, link: monthLink }).subject).toBe(
+      "January's bills are in! 🏠",
+    );
   });
 });
 

@@ -29,6 +29,7 @@
   | Bills, points, shared columns, recording / confirming / rejecting payments, housemates, starting / closing / reopening months | ✅ | — | — |
   | See a payment's screenshot | Any | Only payments they're in (bill proofs: all) | Bill proofs only |
   | Billers & Accounts lines | All | Those shared with housemates | Those shared with housemates |
+  | Emails ([reminders.md](reminders.md)) | Nudges and "couldn't start" | Month-end reminders and their own bill | One "the bills are in" note a month, no amounts |
 
   Everything still follows the month rules: nothing changes in a closed month, and once a month
   has **ended** (its last day passed) housemates can't log, edit or delete in it — only PA can,
@@ -36,7 +37,9 @@
 - **View only** is for someone who should see the house's numbers without being part of them
   (say, family abroad). PA ticks **View only** when adding them in Manage. They are in no
   month (no `period_balances` row), so they share in nothing, have no row on the Split Table, and
-  never owe or are owed ([settlement-rules.md → Members](../settlement-rules.md)).
+  never owe or are owed ([settlement-rules.md → Members](../settlement-rules.md)). Their only
+  email is a short "the bills are in" note once a month, with no amounts
+  ([reminders.md](reminders.md)).
 - The **account menu** at the bottom of the sidebar (`components/account-menu.tsx`) shows who's
   signed in — their emoji (or colour dot) and name. It opens to a greeting, their login
   email, what they can do, **Your emoji** (to change their own; not for view-only logins, and

@@ -332,6 +332,10 @@ export default async function HowItWorksPage() {
             Amount looks wrong, or a question about an email? Message the admin before paying — they can fix the month
             and send the bill again.
           </p>
+          <p>
+            A <strong>view only</strong> login gets just one email a month: a short note when the month&apos;s bills are
+            in, with a link to have a look. No amounts.
+          </p>
         </>
       ),
     },

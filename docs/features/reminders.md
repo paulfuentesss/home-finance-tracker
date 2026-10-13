@@ -34,6 +34,10 @@ banner at the top of the month pages.
   sent again ("Last sent …"). The box lists each housemate with what they owe or get back and
   whether they were sent it ("✓ sent Oct. 31", or "not sent" when a send to them failed), and
   who has no email address.
+- **View-only logins** (family who only look) get a short, warm "October's bills are in!" note with
+  the first bill email, with a link to the month's Split Table and no amounts. A resend doesn't
+  repeat it. The bill-email box lists them under "View only" ("✓ told Oct. 31"). It's the only
+  email they get.
 - **Housemates' banner** (one at a time): "Your October bill is ready: ₱X to pay" with a
   **Pay in Settle Up** button, until it's paid or sent ("waiting for PA to confirm"). Otherwise,
   in the month's last week, "N days left to log your October expenses". On an ended month that
@@ -68,7 +72,10 @@ and nothing is recorded. A test can't stop a real reminder.
   (`ready_bill` / `ready_close`).
 - Sending: `lib/email.ts` (nodemailer over the household Gmail's SMTP, the safety switch,
   `appLink` from `VERCEL_PROJECT_PRODUCTION_URL`). `lib/reminder-send.ts` has
-  `runDailyReminders` and `sendPayables`.
+  `runDailyReminders` and `sendPayables`. `sendPayables` sends the view-only note (`billsInEmail`)
+  through the same `sendOnce` claim as the daily job (kind `bills_in`), which is what makes it
+  once per month. `sendOnce` returns the error from a failed send, so a missing email setting
+  says so instead of "try again".
 - Daily job: `vercel.json` → `crons` calls `GET /api/reminders` once a day, in the morning
   Manila time (Hobby runs it any time within the scheduled hour). The route
   (`app/api/reminders/route.ts`) checks `CRON_SECRET` first and is public in `proxy.ts`. Off
@@ -83,8 +90,8 @@ and nothing is recorded. A test can't stop a real reminder.
   in `components/settle-up.tsx`; reads in `lib/reminder-status.ts` (`getBillNotice`,
   `getEmailStatus`, admin only); `components/advances-log.tsx` and `components/helper-log.tsx`
   hide housemates' controls through `canLogIn`.
-- Table: `reminder_sends` (month, kind, member, sent at) — migrations `0014` and `0015` (the
-  two nudge kinds).
+- Table: `reminder_sends` (month, kind, member, sent at) — migrations `0014`, `0015` (the
+  two nudge kinds) and `0020` (`bills_in`).
 - Setup: [operations.md → Emails & reminders](../operations.md#emails--reminders).
 
 ## Rules

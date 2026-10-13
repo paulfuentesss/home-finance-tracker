@@ -85,6 +85,9 @@ function EmailBill({ view, status }: { view: PeriodView; status: EmailStatus }) 
   const toEmail = status.recipients.filter(
     (r) => r.hasEmail && (r.payables?.kind === "owed" || (r.payables?.kind === "owes" && r.payables.left > 0)),
   );
+  // View-only logins still to be told the bills are in (they're told once).
+  const toTell = status.viewOnly.filter((v) => v.hasEmail && !v.sentOn);
+  const count = toEmail.length + toTell.length;
   return (
     <section className="rounded-xl border bg-white p-4 shadow-xs sm:p-5">
       <h2 className="flex items-center gap-2 text-lg font-semibold">
@@ -94,6 +97,7 @@ function EmailBill({ view, status }: { view: PeriodView; status: EmailStatus }) 
       <p className="mt-1 text-sm text-muted-foreground">
         Once {label}&apos;s bills are in and checked: each housemate gets an email with their own amount and a link to
         Settle Up. Nobody sees anyone else&apos;s.
+        {status.viewOnly.length > 0 && " View-only logins get a short “the bills are in” note, no amounts, the first time only."}
       </p>
       {status.payablesSentAt && <p className="mt-2 text-xs text-muted-foreground">Last sent {status.payablesSentAt}.</p>}
       <ul className="mt-3 space-y-1.5 text-sm">
@@ -107,6 +111,7 @@ function EmailBill({ view, status }: { view: PeriodView; status: EmailStatus }) 
           </li>
         ))}
       </ul>
+      <ViewOnlyList viewOnly={status.viewOnly} />
       {!status.live && (
         <p className="mt-3 rounded-lg bg-zinc-50 p-3 text-xs text-muted-foreground">
           Not the live site: the emails go to your test address (<code className="font-mono">EMAIL_TEST_TO</code>), not
@@ -125,10 +130,10 @@ function EmailBill({ view, status }: { view: PeriodView; status: EmailStatus }) 
           title={status.payablesSentAt ? `Email ${label}'s bill again?` : `Email ${label}'s bill?`}
           description={
             status.payablesSentAt
-              ? `It was already sent ${status.payablesSentAt}. Everyone below gets it again, with today's amounts.`
+              ? `It was already sent ${status.payablesSentAt}. Everyone below gets it again, with today's amounts. View-only logins already told don't get the note again.`
               : "Each person below gets their own amount. Anyone settled gets nothing."
           }
-          confirmLabel={toEmail.length ? `Send ${toEmail.length} email${toEmail.length === 1 ? "" : "s"}` : "Send"}
+          confirmLabel={count ? `Send ${count} email${count === 1 ? "" : "s"}` : "Send"}
           action={() => emailPayables(view.period.id)}
         >
           <ul className="space-y-1 text-sm">
@@ -139,6 +144,7 @@ function EmailBill({ view, status }: { view: PeriodView; status: EmailStatus }) 
               </li>
             ))}
           </ul>
+          <ViewOnlyList viewOnly={status.viewOnly} />
         </ConfirmAction>
       </div>
       {status.lastReminder && (
@@ -147,6 +153,30 @@ function EmailBill({ view, status }: { view: PeriodView; status: EmailStatus }) 
         </p>
       )}
     </section>
+  );
+}
+
+/** View-only logins and their "the bills are in" note: told, to be told, or no email address. */
+function ViewOnlyList({ viewOnly }: { viewOnly: EmailStatus["viewOnly"] }) {
+  if (viewOnly.length === 0) return null;
+  return (
+    <div className="mt-3 border-t pt-3">
+      <p className="text-xs font-medium text-muted-foreground">View only</p>
+      <ul className="mt-1.5 space-y-1.5 text-sm">
+        {viewOnly.map((v) => (
+          <li key={v.memberId} className="flex justify-between gap-3">
+            <span>{v.name}</span>
+            {!v.hasEmail ? (
+              <span className="text-amber-700">no email address — won&apos;t get it</span>
+            ) : v.sentOn ? (
+              <span className="text-xs text-emerald-700">✓ told {v.sentOn}</span>
+            ) : (
+              <span className="text-muted-foreground">gets a short &ldquo;bills are in&rdquo; note</span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
