@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, ChevronDown } from "lucide-react";
-import { useOptimistic, useState, useTransition } from "react";
+import { useLayoutEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import {
   deleteSharedColumn,
   renameSharedColumn,
@@ -123,21 +123,42 @@ function SharedBy({ column, members }: { column: ViewColumn; members: PeriodView
     });
   };
 
+  // One line while every name fits; otherwise one name per line rather than a ragged wrap.
+  const listRef = useRef<HTMLDivElement>(null);
+  const [stacked, setStacked] = useState(false);
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+    // The labels keep their own width in both layouts, so the answer doesn't flip back and forth.
+    const measure = () => {
+      const labels = [...list.children] as HTMLElement[];
+      const gap = parseFloat(getComputedStyle(list).columnGap) || 0;
+      const needed = labels.reduce((sum, el) => sum + el.offsetWidth, 0) + gap * (labels.length - 1);
+      setStacked(needed > list.clientWidth);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(list);
+    return () => observer.disconnect();
+  }, [members]);
+
   return (
-    <fieldset className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 px-1 text-sm" aria-busy={pending}>
+    <fieldset className="mt-3 px-1 text-sm" aria-busy={pending}>
       <legend className="float-left mr-4 text-muted-foreground">Shared by:</legend>
-      {members.map((m) => (
-        <label key={m.id} className="flex items-center gap-1.5">
-          <input
-            type="checkbox"
-            checked={included.includes(m.id)}
-            onChange={(e) => toggle(m.id, e.currentTarget.checked)}
-            className="accent-amber-600"
-          />
-          {m.name}
-        </label>
-      ))}
-      {error && <span className="text-xs text-destructive">{error}</span>}
+      <div ref={listRef} className={cn("flex gap-x-4 gap-y-2", stacked ? "flex-col items-start" : "items-center")}>
+        {members.map((m) => (
+          <label key={m.id} className="flex shrink-0 items-center gap-1.5">
+            <input
+              type="checkbox"
+              checked={included.includes(m.id)}
+              onChange={(e) => toggle(m.id, e.currentTarget.checked)}
+              className="accent-amber-600"
+            />
+            {m.name}
+          </label>
+        ))}
+      </div>
+      {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
     </fieldset>
   );
 }
