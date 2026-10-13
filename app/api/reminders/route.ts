@@ -1,7 +1,8 @@
-// Called each morning by Vercel's cron (vercel.json → crons) to send the month-end
-// reminders and the "still unpaid" follow-ups (docs/features/reminders.md). There's no login — Vercel can't sign in — so it checks
-// the shared secret before anything else: Vercel sends CRON_SECRET as a Bearer token. Running it
-// twice is safe: each reminder is claimed before it's sent (lib/reminder-send.ts).
+// Called each morning by Vercel's cron (vercel.json → crons) to send the month-end reminders
+// and the "still unpaid" follow-ups (docs/features/reminders.md). There's no login — Vercel
+// can't sign in — so it checks the shared secret before anything else: Vercel sends CRON_SECRET
+// as a Bearer token. Running it twice is safe: each reminder is claimed before it's sent
+// (lib/reminder-send.ts).
 
 import { checkBearerSecret } from "@/lib/bearer-secret";
 import { emailIsLive } from "@/lib/email";

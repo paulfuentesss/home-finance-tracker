@@ -32,7 +32,7 @@ const YOUR_PART = [
   },
   {
     title: "Pay when your bill is ready",
-    body: `Once the bills are in, the admin emails you your share, and it shows at the top of the month's pages until it's paid. Send it to the ${HOUSE_BUDGET_LABEL}, then tap I paid in Settle Up with the screenshot of your transfer. Still unpaid after ${UNPAID_REMINDER_DAYS.first} days? A reminder email comes, then one a week until it's paid. Amount looks wrong? Message the admin before paying.`,
+    body: `Once the bills are in, the admin emails you your share, and it shows at the top of the month's pages until it's paid. Send it to the ${HOUSE_BUDGET_LABEL}, then tap I paid in Settle Up with the screenshot of your transfer. Still unpaid after ${UNPAID_REMINDER_DAYS.first} days? A reminder email comes, then one every ${UNPAID_REMINDER_DAYS.then} days until you've paid or tapped I paid. Amount looks wrong? Message the admin before paying.`,
   },
 ];
 
@@ -43,7 +43,7 @@ const TIMELINE = [
   { when: "Month locks", what: "Only the admin can change it", icon: Lock },
   { when: "The 1st", what: "New month starts: log new things there", icon: CalendarPlus },
   { when: "Bill ready", what: "Pay in Settle Up", icon: ReceiptText, highlight: true },
-  { when: `${UNPAID_REMINDER_DAYS.first} days later`, what: "Still unpaid? A reminder, then weekly", icon: BellRing },
+  { when: `${UNPAID_REMINDER_DAYS.first} days later`, what: `Still unpaid? A reminder, then every ${UNPAID_REMINDER_DAYS.then} days`, icon: BellRing },
 ];
 
 // The jump links under "Your part each month": the question groups, and the points table.
@@ -181,7 +181,7 @@ export default async function HowItWorksPage() {
           <p>
             Later, usually once everyone has paid, the admin <strong>closes</strong> the month. After that it&apos;s
             locked for everyone (if something needs fixing, the admin reopens it), and anything still unpaid carries
-            over to the next month — the reminder emails keep coming until it&apos;s paid.
+            over to the next month — once your bill has been emailed, the reminders keep coming until it&apos;s paid.
           </p>
         </>
       ),
