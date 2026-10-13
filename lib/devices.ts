@@ -4,7 +4,7 @@
 // server can't see `display-mode`, and an iPad's request says it's a Mac.
 // Pure except isInstalledApp, which reads the browser.
 
-import { dateInManila, dateLabel, dayLabel } from "@/lib/format";
+import { dateInManila, dateLabel, dayLabel, daysBetween } from "@/lib/format";
 
 export const DEVICE_VIAS = ["app", "web"] as const;
 export const DEVICE_PLATFORMS = ["iphone", "ipad", "android", "mac", "windows", "other"] as const;
@@ -56,13 +56,6 @@ export interface DeviceRow {
 /** "App on iPhone", "Web on Mac". */
 export function deviceLabel(row: Pick<DeviceRow, "via" | "platform">): string {
   return `${row.via === "app" ? "App" : "Web"} on ${PLATFORM_LABELS[row.platform]}`;
-}
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-/** Whole Manila calendar days between two "YYYY-MM-DD" dates. */
-function daysBetween(from: string, to: string): number {
-  return Math.round((Date.parse(to) - Date.parse(from)) / DAY_MS);
 }
 
 /**

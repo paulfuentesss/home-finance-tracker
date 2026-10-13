@@ -8,7 +8,7 @@ import { monthLabel } from "@/lib/format";
 import { HOUSE_BUDGET_LABEL } from "@/lib/household-config";
 import { formatPHP, type Centavos } from "@/lib/money";
 import { monthAfter } from "@/lib/month-lock";
-import { lastDayName, type MonthEndReminder, type Payables } from "@/lib/reminders";
+import { lastDayName, UNPAID_REMINDER_DAYS, type MonthEndReminder, type Payables } from "@/lib/reminders";
 
 export interface Email {
   subject: string;
@@ -116,6 +116,45 @@ export function payablesEmail({
       intro,
       amounts.join("\n"),
       `To do: send ${formatPHP(payables.left)} to the ${HOUSE_BUDGET_LABEL}, then open Settle Up, tap "I paid" on your row and attach the screenshot of your transfer.`,
+      `Settle Up: ${link}`,
+      SIGN_OFF,
+    ),
+  };
+}
+
+/**
+ * The follow-up to a housemate whose emailed bill still isn't paid (lib/reminders.ts →
+ * unpaidReminderDue): what's left, with the same To do as the bill email.
+ */
+export function unpaidEmail({
+  name,
+  year,
+  month,
+  left,
+  waiting,
+  collectorName,
+  link,
+}: {
+  name: string;
+  year: number;
+  month: number;
+  /** Still to pay (payablesOf → owes → left), more than ₱0. */
+  left: Centavos;
+  /** Sent with "I paid", waiting for the admin. */
+  waiting: Centavos;
+  collectorName: string;
+  link: string;
+}): Email {
+  const label = monthName(year, month);
+  const waitingLine = waiting > 0 ? `\n(${formatPHP(waiting)} more is sent, waiting for ${collectorName} to confirm)` : "";
+  return {
+    subject: `Reminder: ${formatPHP(left)} left to pay for ${label}`,
+    text: paragraphs(
+      `Hi ${name},`,
+      `A reminder: your ${label} bill isn't fully paid yet.`,
+      `Left to pay: ${formatPHP(left)}${waitingLine}`,
+      `To do: send ${formatPHP(left)} to the ${HOUSE_BUDGET_LABEL}, then open Settle Up, tap "I paid" on your row and attach the screenshot of your transfer.`,
+      `Already paid? Tap "I paid" with the screenshot, and these reminders stop. Until then, one comes every ${UNPAID_REMINDER_DAYS.then} days.`,
       `Settle Up: ${link}`,
       SIGN_OFF,
     ),

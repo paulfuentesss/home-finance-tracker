@@ -150,9 +150,19 @@ function EmailBill({ view, status }: { view: PeriodView; status: EmailStatus }) 
   );
 }
 
-/** Whether this person was sent the bill: "✓ sent Oct. 31", or "not sent" once others have been. */
+/**
+ * Whether this person was sent the bill: "✓ sent Oct. 31" (with "· reminded Nov. 3" after a
+ * "still unpaid" follow-up), or "not sent" once others have been.
+ */
 function SentMark({ recipient: r, anySent }: { recipient: EmailStatus["recipients"][number]; anySent: boolean }) {
-  if (r.sentOn) return <span className="block text-xs text-emerald-700">✓ sent {r.sentOn}</span>;
+  if (r.sentOn) {
+    return (
+      <span className="block text-xs text-emerald-700">
+        ✓ sent {r.sentOn}
+        {r.remindedOn && <> · reminded {r.remindedOn}</>}
+      </span>
+    );
+  }
   // Only worth saying for someone who would get one (has an email, and something to pay or get back).
   const wouldGet =
     r.hasEmail && (r.payables?.kind === "owed" || (r.payables?.kind === "owes" && r.payables.left > 0));

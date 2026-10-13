@@ -1,10 +1,10 @@
 // Sends My House's emails and records them (docs/features/reminders.md): the daily month-end
-// reminders (app/api/reminders/route.ts, run by Vercel's cron) and Settle Up's "Email everyone
-// their bill" (the emailPayables action). The rules and words are pure: lib/reminders.ts,
+// reminders and "still unpaid" follow-ups (app/api/reminders/route.ts, run by Vercel's cron) and
+// Settle Up's "Email everyone their bill" (the emailPayables action). The rules and words are pure: lib/reminders.ts,
 // lib/reminder-emails.ts.
 
 import "server-only";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { billingPeriods, db, reminderSends, type Member } from "@/db";
 import { appLink, EmailNotSetUpError, emailIsLive, sendEmail } from "@/lib/email";
 import { ActionError } from "@/lib/errors";
@@ -13,9 +13,9 @@ import { sharesCosts } from "@/lib/members";
 import { monthHasEnded, payablesCheck } from "@/lib/month-lock";
 import { startNextMonthIn } from "@/lib/month-start";
 import { computeForPayables, payablesIn, pendingBillNames } from "@/lib/periods";
-import { monthEndEmail, payablesEmail, readyEmail, startBlockedEmail, type Email } from "@/lib/reminder-emails";
-import { findAdminNudge } from "@/lib/reminder-status";
-import { daysLeftIn, reminderDue } from "@/lib/reminders";
+import { monthEndEmail, payablesEmail, readyEmail, startBlockedEmail, unpaidEmail, type Email } from "@/lib/reminder-emails";
+import { findAdminNudge, latestBillSends } from "@/lib/reminder-status";
+import { daysLeftIn, reminderDue, unpaidReminderDue } from "@/lib/reminders";
 
 type ReminderKind = (typeof reminderSends.$inferInsert)["kind"];
 type Recipient = Pick<Member, "id" | "name"> & { email: string };
@@ -39,8 +39,9 @@ function recipientsOf(members: readonly Member[]): Recipient[] {
 /**
  * The daily job. `today` is Manila's date. Sends the month-end reminder due today to each
  * housemate (lib/reminders.ts → reminderDue); starts the next month once the latest has ended
- * (telling the admin when it can't); and emails the admin's "ready to email the bill" / "ready
- * to close" nudge. Each email is sent at most once.
+ * (telling the admin when it can't); follows up on emailed bills still unpaid; and emails the
+ * admin's "ready to email the bill" / "ready to close" nudge. Each email is sent at most once
+ * (the unpaid follow-up at most once each time it's due).
  */
 export async function runDailyReminders(today: string): Promise<ReminderOutcome> {
   const outcome: ReminderOutcome = { today, live: emailIsLive(), sent: [], failed: [] };
@@ -89,6 +90,10 @@ export async function runDailyReminders(today: string): Promise<ReminderOutcome>
     }
   }
 
+  // Housemates whose emailed bill is still unpaid: a follow-up a few days on, then weekly. After
+  // the next month has started, so the link goes where "I paid" now goes.
+  await sendUnpaidReminders(today, outcome);
+
   // The admin's nudge — ready to email the bill, or to close — once each per month.
   const nudge = await findAdminNudge(today);
   if (nudge && admin) {
@@ -131,6 +136,88 @@ async function sendOnce(periodId: number, kind: ReminderKind, to: Recipient, ema
         .where(
           and(eq(reminderSends.periodId, periodId), eq(reminderSends.kind, kind), eq(reminderSends.memberId, to.id)),
         );
+    }
+  }
+}
+
+/**
+ * The "still unpaid" follow-ups (lib/reminders.ts → unpaidReminderDue). Each housemate's is about
+ * the latest month whose bill went to them — the month their banner shows (latestBillSends) —
+ * whether or not it's closed since: closing doesn't settle anyone, and the next bill email moves
+ * it on to that month, which carries the rest over. Only while part of it is left to pay, and
+ * not while that month's numbers are being changed (what blocks the bill email blocks this too).
+ */
+async function sendUnpaidReminders(today: string, outcome: ReminderOutcome) {
+  const bills = await latestBillSends();
+  if (bills.length === 0) return;
+  const reminders = await db.select().from(reminderSends).where(eq(reminderSends.kind, "unpaid"));
+  const months = new Map<number, Awaited<ReturnType<typeof computeForPayables>>>();
+  for (const bill of bills) {
+    if (!months.has(bill.periodId)) months.set(bill.periodId, await computeForPayables(db, bill.year, bill.month));
+    const computed = months.get(bill.periodId);
+    if (!computed || !payablesCheck(computed.issue, pendingBillNames(computed.period)).ok) continue;
+    const member = recipientsOf(computed.period.balances.map((b) => b.member)).find((m) => m.id === bill.memberId);
+    const owed = member && payablesIn(computed, member.id)?.payables;
+    if (!member || owed?.kind !== "owes" || owed.left === 0) continue;
+    const last = reminders.find((r) => r.periodId === bill.periodId && r.memberId === member.id);
+    if (!unpaidReminderDue({ billSentAt: bill.sentAt, lastReminderAt: last?.sentAt ?? null, today })) continue;
+    const latest = computed.all.at(-1)!;
+    const email = unpaidEmail({
+      name: member.name,
+      year: bill.year,
+      month: bill.month,
+      left: owed.left,
+      waiting: owed.waiting,
+      collectorName: computed.period.balances.find((b) => b.member.isCollector)?.member.name ?? "the admin",
+      link: appLink(`/periods/${latest.year}/${latest.month}/settle`),
+    });
+    await sendAgain(bill.periodId, member, last ?? null, email, outcome);
+  }
+}
+
+/**
+ * Like sendOnce, for the follow-up that repeats: its one row's time moves forward each time.
+ * Only the run that moves it from the time it read sends (Vercel can call a cron twice), and a
+ * failed send puts the old time back so the next day's run retries.
+ */
+async function sendAgain(
+  periodId: number,
+  to: Recipient,
+  last: { id: number; sentAt: Date } | null,
+  email: Email,
+  outcome: ReminderOutcome,
+) {
+  const live = emailIsLive();
+  if (live) {
+    const claimed = last
+      ? await db
+          .update(reminderSends)
+          .set({ sentAt: new Date() })
+          // To the millisecond: Postgres keeps microseconds, a JS Date only milliseconds.
+          .where(
+            and(
+              eq(reminderSends.id, last.id),
+              sql`date_trunc('milliseconds', ${reminderSends.sentAt}) = ${last.sentAt.toISOString()}::timestamptz`,
+            ),
+          )
+          .returning({ id: reminderSends.id })
+      : await db
+          .insert(reminderSends)
+          .values({ periodId, kind: "unpaid", memberId: to.id })
+          .onConflictDoNothing()
+          .returning({ id: reminderSends.id });
+    if (claimed.length === 0) return;
+  }
+  try {
+    await sendEmail(to.email, to.name, email);
+    outcome.sent.push(`unpaid → ${to.name}`);
+  } catch (error) {
+    console.error(`Couldn't send the unpaid email to ${to.name}`, error);
+    outcome.failed.push(`unpaid → ${to.name}`);
+    if (live) {
+      const mine = and(eq(reminderSends.periodId, periodId), eq(reminderSends.kind, "unpaid"), eq(reminderSends.memberId, to.id));
+      if (last) await db.update(reminderSends).set({ sentAt: last.sentAt }).where(mine);
+      else await db.delete(reminderSends).where(mine);
     }
   }
 }

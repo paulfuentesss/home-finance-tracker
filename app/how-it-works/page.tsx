@@ -1,4 +1,4 @@
-import { ArrowLeft, CalendarCheck, CalendarClock, CalendarPlus, CircleHelp, Lock, ReceiptText } from "lucide-react";
+import { ArrowLeft, BellRing, CalendarCheck, CalendarClock, CalendarPlus, CircleHelp, Lock, ReceiptText } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
@@ -17,13 +17,14 @@ import {
 } from "@/lib/household-config";
 import { formatPHP } from "@/lib/money";
 import { getLatestPointsBills, getPeriodView } from "@/lib/periods";
-import { REMINDER_DAYS } from "@/lib/reminders";
+import { REMINDER_DAYS, UNPAID_REMINDER_DAYS } from "@/lib/reminders";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "How it works" };
 
 // "Your part each month": a housemate's two jobs, and the emails that remind them
-// (docs/features/reminders.md). The days come from REMINDER_DAYS, the same setting the daily job uses.
+// (docs/features/reminders.md). The days come from REMINDER_DAYS and UNPAID_REMINDER_DAYS, the same
+// settings the daily job uses.
 const YOUR_PART = [
   {
     title: "Log your expenses by the last day",
@@ -31,7 +32,7 @@ const YOUR_PART = [
   },
   {
     title: "Pay when your bill is ready",
-    body: `Once the bills are in, the admin emails you your share, and it shows at the top of the month's pages until it's paid. Send it to the ${HOUSE_BUDGET_LABEL}, then tap I paid in Settle Up with the screenshot of your transfer. Amount looks wrong? Message the admin before paying.`,
+    body: `Once the bills are in, the admin emails you your share, and it shows at the top of the month's pages until it's paid. Send it to the ${HOUSE_BUDGET_LABEL}, then tap I paid in Settle Up with the screenshot of your transfer. Still unpaid after ${UNPAID_REMINDER_DAYS.first} days? A reminder email comes, then one a week until it's paid. Amount looks wrong? Message the admin before paying.`,
   },
 ];
 
@@ -42,6 +43,7 @@ const TIMELINE = [
   { when: "Month locks", what: "Only the admin can change it", icon: Lock },
   { when: "The 1st", what: "New month starts: log new things there", icon: CalendarPlus },
   { when: "Bill ready", what: "Pay in Settle Up", icon: ReceiptText, highlight: true },
+  { when: `${UNPAID_REMINDER_DAYS.first} days later`, what: "Still unpaid? A reminder, then weekly", icon: BellRing },
 ];
 
 // The jump links under "Your part each month": the question groups, and the points table.
@@ -178,7 +180,7 @@ export default async function HowItWorksPage() {
           <p>
             Later, usually once everyone has paid, the admin <strong>closes</strong> the month. After that it&apos;s
             locked for everyone (if something needs fixing, the admin reopens it), and anything still unpaid carries
-            over to the next month.
+            over to the next month — the reminder emails keep coming until it&apos;s paid.
           </p>
         </>
       ),
@@ -322,6 +324,12 @@ export default async function HowItWorksPage() {
               their own share: what you owe, any of last month&apos;s still unpaid, any I paid still waiting, and a link
               to Settle Up. Nobody sees anyone else&apos;s amount. If you paid more than your share, it says what you get
               back instead (nothing to do — the admin sends it). Already settled? You get no email.
+            </li>
+            <li>
+              <strong>If your bill is still unpaid</strong> — a reminder {UNPAID_REMINDER_DAYS.first} days after it, then
+              every {UNPAID_REMINDER_DAYS.then} days, until you&apos;ve paid or tapped I paid for all of it. The month
+              closing doesn&apos;t stop it (what&apos;s unpaid carries over); once next month&apos;s bill goes out, the
+              reminders follow that one, which already includes what&apos;s left.
             </li>
           </ul>
           <p>
