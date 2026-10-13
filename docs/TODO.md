@@ -20,7 +20,7 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
 
 - [ ] **Tell the housemates about the reminder emails** ([reminders](features/reminders.md)) —
       live since 2026-10-13. They come from the household Gmail; mark the first one "Not spam"
-      if it lands there.
+      if it lands there. A bill left unpaid now brings a reminder a few days later, then weekly.
 
 - [ ] **Bills to the My House Gmail** ([email-bills](features/email-bills.md)) — *waiting on the
       billers.* Changed in their apps, and each biller was emailed (2026-10-11) after a PLDT bill
@@ -64,8 +64,7 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
   verification (shows "My House"; needs a privacy policy page). Supabase's custom domain
   does it too, but is paid.
 
-- More reminders ([reminders](features/reminders.md)): a nudge to someone whose bill is still
-  unpaid a few days after it went out, or a biller's due date coming up.
+- More reminders ([reminders](features/reminders.md)): a biller's due date coming up.
 
 - Read payment-confirmation emails to fill "Date paid" automatically
   ([email-bills](features/email-bills.md)). Wouldn't catch every payment fee, since some

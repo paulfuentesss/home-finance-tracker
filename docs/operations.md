@@ -241,8 +241,8 @@ secrets or a password manager.
 
 ## Emails & reminders
 
-The app sends its own emails — month-end reminders and each housemate's bill
-([features/reminders.md](features/reminders.md)) — from the My House Gmail, over Gmail's SMTP.
+The app sends its own emails — month-end reminders, each housemate's bill and the follow-ups
+while a bill stays unpaid ([features/reminders.md](features/reminders.md)) — from the My House Gmail, over Gmail's SMTP.
 
 **Switching it on** (once):
 1. In the My House Gmail: Google Account → Security → **App passwords** → create one named
@@ -267,7 +267,9 @@ curl -H "Authorization: Bearer $CRON_SECRET" "http://localhost:3000/api/reminder
 ```
 
 `?today=` picks the day (`-24`, `-28`, `-31` for the three October reminders; `2026-11-01`
-for the admin's "start November"). The live site ignores it.
+for the admin's "start November"; a few days after a bill email for its still-unpaid
+follow-up — localhost records nothing, so that needs a bill email the live site sent). The live
+site ignores it.
 
 **If reminders stop:** the Settle Up box's "Month-end reminder … sent" line stops moving. Check
 Vercel's logs for `/api/reminders` (a 503 means `CRON_SECRET` is missing; "Couldn't send"

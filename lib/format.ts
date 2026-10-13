@@ -40,6 +40,13 @@ export function dateInManila(moment: Date): string {
   return moment.toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Whole calendar days between two "YYYY-MM-DD" dates: ("2026-10-31", "2026-11-03") → 3. */
+export function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(to) - Date.parse(from)) / DAY_MS);
+}
+
 /** A moment in Manila as "Oct. 11, 2026, 3:00 PM" (e.g. when the last backup was taken). */
 export function momentLabel(moment: Date): string {
   const time = moment.toLocaleTimeString("en-US", { timeZone: "Asia/Manila", hour: "numeric", minute: "2-digit" });

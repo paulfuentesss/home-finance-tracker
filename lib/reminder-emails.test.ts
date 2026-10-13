@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { billsInEmail, monthEndEmail, payablesEmail, readyEmail, startBlockedEmail } from "@/lib/reminder-emails";
+import { billsInEmail, monthEndEmail, payablesEmail, readyEmail, startBlockedEmail, unpaidEmail } from "@/lib/reminder-emails";
 
 const link = "https://example.test/periods/2026/10/advances";
 
@@ -80,6 +80,28 @@ describe("payablesEmail", () => {
   it("sends nothing to someone settled or with everything sent", () => {
     expect(payablesEmail({ ...base, payables: { kind: "settled" } })).toBeNull();
     expect(payablesEmail({ ...base, payables: { kind: "owes", due: 1_000, waiting: 1_000, left: 0 } })).toBeNull();
+  });
+});
+
+describe("unpaidEmail", () => {
+  const base = { name: "Dan", year: 2026, month: 10, collectorName: "PA", link };
+
+  it("says what's left and how to pay it", () => {
+    const email = unpaidEmail({ ...base, left: 234_550, waiting: 0 });
+    expect(email.subject).toBe("Reminder: ₱2,345.50 left to pay for October");
+    expect(email.text).toContain("Hi Dan,");
+    expect(email.text).toContain("your October bill isn't fully paid yet.");
+    expect(email.text).toContain("Left to pay: ₱2,345.50\n\nTo do:");
+    expect(email.text).toContain('To do: send ₱2,345.50 to the House Budget, then open Settle Up, tap "I paid"');
+    expect(email.text).toContain("one comes every 7 days");
+    expect(email.text).toContain(`Settle Up: ${link}`);
+    expect(email.text).not.toContain("waiting");
+  });
+
+  it("mentions an I paid still waiting", () => {
+    const email = unpaidEmail({ ...base, left: 134_550, waiting: 100_000 });
+    expect(email.subject).toBe("Reminder: ₱1,345.50 left to pay for October");
+    expect(email.text).toContain("Left to pay: ₱1,345.50\n(₱1,000.00 more is sent, waiting for PA to confirm)");
   });
 });
 
