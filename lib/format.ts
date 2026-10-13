@@ -11,9 +11,14 @@ export function monthLabel(year: number, month: number): string {
 
 const SHORT_MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 
-/** (2026, 9) → "SEP 2026": the month picker on phones, where the full name doesn't fit. */
+/** 10 → "OCT": the split table's corner on phones, once it's scrolled sideways. */
+export function shortMonthName(month: number): string {
+  return SHORT_MONTHS[month - 1];
+}
+
+/** (2026, 9) → "SEP 2026": the month picker on phones and the split table's corner. */
 export function shortMonthLabel(year: number, month: number): string {
-  return `${SHORT_MONTHS[month - 1]} ${year}`;
+  return `${shortMonthName(month)} ${year}`;
 }
 
 /**

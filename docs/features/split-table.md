@@ -35,6 +35,9 @@
   the columns that are over or short (kept short so it doesn't widen the column).
 - On a phone the table scrolls sideways; a "›" on its right edge shows there's more, until the end.
   The name column stays put, with an edge once scrolled so the columns under it don't peek out.
+  Once scrolled, it also slides narrower to make room: names and their tags fold away to just
+  the emojis, the month in the corner ("OCT 2026") becomes "OCT", "Due date" / "Date paid" become "Due" / "Paid". Back
+  at the start, they slide back. Phones only (narrower than 640px); wider screens have the room.
 - Pending (emailed) bills are shown greyed out with Confirm / Discard ([email-bills.md](email-bills.md)).
 
 ## How it's built
@@ -49,7 +52,13 @@
   the part of day is worked out on the server, `partOfDayInManila` in `lib/format.ts`, so the
   page and the browser agree), `components/you-tag.tsx`, `components/balance.tsx`,
   `hooks/use-drag-scroll.ts` (drag to scroll the wide table; sets `data-more-right` for the
-  "›" hint and `data-scrolled-left` for the name column's edge).
+  "›" hint and `data-scrolled-left` for the name column's edge and narrowing).
+- The narrowing is `Squeeze` / `ScrollLabel` in `split-table.tsx` (`shortMonthLabel` /
+  `shortMonthName` in `lib/format.ts`). CSS only, no re-render on scroll: it animates `max-width` to 0 under
+  `max-sm:group-data-scrolled-left/scroller:`. The width it animates from is measured
+  (`--squeeze-w`, a `ResizeObserver`), not a fixed cap, because names can be up to 40
+  characters. The scroller has `overflow-anchor: none`, so the browser can't pull the scroll
+  back to the start as the column narrows (which would widen it again, back and forth).
 - The collector's "overall" number comes from `collectorNetOf` (`lib/who-owes.ts`, pure, tested),
   used by both Who owes what and the greeting so they can't disagree.
 - Edits: `updateBillTotal`, `updateBillShare`, `updateBillDates`, `updateSharedColumnAmount` in
