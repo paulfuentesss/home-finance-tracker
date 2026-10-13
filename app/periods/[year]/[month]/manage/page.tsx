@@ -6,6 +6,7 @@ import { ManageBills } from "@/components/manage-bills";
 import { ManageMembers, type MemberActivityView } from "@/components/manage-members";
 import { ManageSharedColumns } from "@/components/manage-shared-columns";
 import { MeralcoPoints } from "@/components/meralco-points";
+import { PageEnter } from "@/components/page-enter";
 import { billEmails, db, memberDevices, members } from "@/db";
 import { getPreview, requireViewer } from "@/lib/auth";
 import { getLastBackupAt } from "@/lib/backup-status";
@@ -59,7 +60,7 @@ export default async function ManagePage({ params }: PageProps<"/periods/[year]/
   const now = new Date();
 
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-2">
+    <PageEnter className="grid items-start gap-6 lg:grid-cols-2">
       <div className="space-y-6">
         <ManageBills view={view} />
         <ManageSharedColumns view={view} />
@@ -98,7 +99,7 @@ export default async function ManagePage({ params }: PageProps<"/periods/[year]/
         />
         <BackupCard lastBackupAt={lastBackupAt} />
       </div>
-    </div>
+    </PageEnter>
   );
 }
 

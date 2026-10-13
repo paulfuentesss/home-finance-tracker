@@ -91,8 +91,10 @@ export function InlineInput({
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
           readOnly={pending || previewing}
+          // max-md:text-base: iPhone zooms into any input under 16px when tapped, so phones get
+          // 16px whatever size the caller sets (a caller bigger than that sets its own max-md: size).
           className={cn(
-            "rounded-md border border-input bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none read-only:opacity-50 aria-invalid:border-rose-500",
+            "rounded-md border border-input bg-white max-md:text-base focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none read-only:opacity-50 aria-invalid:border-rose-500",
             prefix && "pl-5",
             inputClassName,
           )}

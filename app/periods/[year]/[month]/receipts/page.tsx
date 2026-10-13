@@ -1,5 +1,6 @@
 import { ShieldCheck } from "lucide-react";
 import { Pair, partyName, partyView } from "@/components/member-pair";
+import { PageEnter } from "@/components/page-enter";
 import { ReceiptsCard, ReceiptsNote, ReceiptsRow } from "@/components/receipts";
 import { dateLabel } from "@/lib/format";
 import { formatPHP } from "@/lib/money";
@@ -24,7 +25,7 @@ export default async function ReceiptsPage({ params }: PageProps<"/periods/[year
   const bills = view.bills.filter((bill) => bill.kind !== "helper" || forBill.has(bill.id));
 
   return (
-    <div className="space-y-6">
+    <PageEnter className="space-y-6">
       <section className="rounded-xl border bg-white p-5 shadow-xs">
         {/* The page title above (components/period-header.tsx) names the page. */}
         <p className="text-sm text-muted-foreground">
@@ -127,7 +128,7 @@ export default async function ReceiptsPage({ params }: PageProps<"/periods/[year
           </ul>
         )}
       </section>
-    </div>
+    </PageEnter>
   );
 }
 

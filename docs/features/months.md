@@ -34,11 +34,20 @@
 - **Backup reminder** (the admin only, not while previewing): a banner on the month pages
   after a month is started or closed, until a Download backup finishes, on any device. Without
   any backup yet, it asks for a first one.
-- Loading placeholders while a month or tab loads.
+- **Loading and switching:** a tab shows a grey placeholder shaped like that tab while it
+  loads, then its cards fade up one after another (opacity only with reduced motion). Switching
+  months keeps the current month on screen, with a spinner on the arrow or month tapped, until
+  the new month is ready; the month list stays open until then.
+- **Phones:** inputs use 16px text on phones, so iPhone doesn't zoom in when one is tapped, and
+  buttons are bigger on touch screens (`pointer-coarse:` sizes in `components/ui/button.tsx`).
 
 ## How it's built
-- Routes: `app/page.tsx` (redirects to the latest month), `app/periods/loading.tsx` (month
-  switches), `app/periods/[year]/[month]/loading.tsx` (tab switches).
+- Routes: `app/page.tsx` (redirects to the latest month). Each tab has its own `loading.tsx`
+  next to its `page.tsx`; the Split Table's sits in the `(split)` route group (not in the URL)
+  for that. There's no `loading.tsx` above the month layout on purpose, so a month switch keeps
+  the page instead of greying out the sidebar ([decisions](../decisions.md)).
+- Fade-in: `components/page-enter.tsx` around each page's content, `.page-enter` in
+  `app/globals.css`. The month spinner: `PendingIcon` (`useLinkStatus`) in `components/period-nav.tsx`.
 - UI: `components/period-nav.tsx` (sections, month picker, Start next month),
   `components/app-sidebar.tsx` (the sidebar and the phone menu, on `components/ui/sheet.tsx`,
   Base UI's `Drawer`; the swipe to open is `useEdgeSwipe` there, decided by `lib/edge-swipe.ts`),

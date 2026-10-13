@@ -476,7 +476,7 @@ function MoneyInput({
       label={label}
       prefix="₱"
       inputMode="decimal"
-      inputClassName="h-8 w-28 pr-2 text-right font-mono text-sm"
+      inputClassName="h-8 w-28 pr-2 text-right font-mono text-sm max-md:w-32"
     />
   );
 }
@@ -499,7 +499,7 @@ function DateCell({ bill, field, editable }: { bill: ViewBill; field: "dueDate" 
     <form action={formAction}>
       <input type="hidden" name="billId" value={bill.id} />
       <input type="hidden" name="field" value={field} />
-      <label className="relative inline-flex h-7 w-24 items-center justify-center rounded-md border border-transparent text-xs text-zinc-600 focus-within:border-amber-500 hover:border-input">
+      <label className="relative inline-flex h-7 w-24 items-center justify-center rounded-md border border-transparent text-xs text-zinc-600 focus-within:border-amber-500 hover:border-input pointer-coarse:h-9">
         <span className={cn(!value && "text-muted-foreground")}>{label}</span>
         <input
           key={value}
@@ -508,7 +508,8 @@ function DateCell({ bill, field, editable }: { bill: ViewBill; field: "dueDate" 
           defaultValue={value}
           aria-label={`${bill.name} ${field === "dueDate" ? "due date" : "date paid"}`}
           disabled={pending}
-          className="absolute inset-0 cursor-pointer opacity-0"
+          // Invisible, but 16px on phones anyway: iPhone zooms into a smaller input when tapped.
+          className="absolute inset-0 cursor-pointer opacity-0 max-md:text-base"
           onClick={(e) => {
             try {
               e.currentTarget.showPicker();

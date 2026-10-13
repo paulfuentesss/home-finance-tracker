@@ -515,7 +515,8 @@ export default async function HowItWorksPage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-3xl space-y-6 px-4 py-8">
+      {/* page-enter: the sections fade up in turn (app/globals.css, components/page-enter.tsx). */}
+      <main className="page-enter mx-auto w-full max-w-3xl space-y-6 px-4 py-8">
         <section id="your-part" className="rounded-xl border bg-white p-5 shadow-xs">
           <h2 className="font-semibold">Your part each month</h2>
           <p className="mt-1 text-sm text-muted-foreground">
