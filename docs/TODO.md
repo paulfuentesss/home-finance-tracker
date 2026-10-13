@@ -55,12 +55,10 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
       Android with gesture navigation and on iPhone, stays open when the finger lifts (if not,
       open on `touchend` in `useEdgeSwipe`), drag back to close. Pull-to-refresh gone inside the
       app, still there in a Chrome tab.
-- [ ] **Backups off the laptop** ([operations → Backups](operations.md#backups)) — the free
-      Supabase plan has no backups of its own, and ours are only on the laptop (skipped by choice
-      when going online, below), so losing the laptop and the database together loses everything.
-      After closing each month: Manage → Download backup, then put the zip in a cloud drive. Once,
-      too: `.private/NOTES.md` there, and `BILLER_SECRET_KEY` in a password manager (a backup's
-      biller passwords can't be read without it). Maybe password-protect the zips.
+- [ ] **Backups off the laptop** ([operations → Backups](operations.md#backups) says how and
+      why) — not copied anywhere safe yet (skipped by choice when going online, below). Each
+      Download backup zip into a cloud drive, `.private/NOTES.md` there too, and
+      `BILLER_SECRET_KEY` in a password manager. Maybe password-protect the zips.
 
 - [ ] **UI polish left from the 2026-10-13 audit** (all tabs; the fade-in, month switching,
       per-tab placeholders, 16px inputs and touch-size buttons are done):
