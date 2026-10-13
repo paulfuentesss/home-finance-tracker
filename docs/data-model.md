@@ -59,6 +59,7 @@ Add a line here with every new one.
 | `0018_member-emoji` | Drops `member_photos` and `members.photo_updated_at` (never used by shipped code; backed up first), adds `members.emoji` with the `members_emoji_length` check ([manage.md](features/manage.md), emoji) |
 | `0019_house-budget-emoji` | The one-row `household_settings` table, with `house_budget_emoji` and its length check ([manage.md](features/manage.md), emoji). Additive; applied before the code that uses it shipped |
 | `0020_view-only-bills-in` | Adds `bills_in` to the `reminder_kind` enum: a view-only login's "the bills are in" note ([reminders.md](features/reminders.md)). Additive; applied before the code that uses it shipped |
+| `0021_unpaid-reminders` | Adds `unpaid` to the `reminder_kind` enum: the follow-up while an emailed bill stays unpaid ([reminders.md](features/reminders.md)). Additive; applied before the code that uses it shipped |
 
 The receipt files themselves live in Supabase Storage (the private `receipts` bucket), not in
 the database; `receipts.storage_path` names one.
