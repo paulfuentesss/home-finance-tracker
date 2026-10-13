@@ -1,10 +1,11 @@
 // What the month pages show about My House's emails (docs/features/reminders.md): a housemate's
-// "your bill is ready" banner, and the admin's "Email everyone their bill" box on Settle Up.
+// "your bill is ready" banner, and the admin's "Email everyone their bill" box on Settle Up
+// (with the view-only logins' "the bills are in" note).
 // Nothing here goes to the browser except names, amounts and dates — never an email address.
 
 import "server-only";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
-import { billingPeriods, db, reminderSends } from "@/db";
+import { billingPeriods, db, members, reminderSends } from "@/db";
 import { emailIsLive } from "@/lib/email";
 import { dateInManila, dayLabel, momentLabel, todayInManila } from "@/lib/format";
 import { sharesCosts } from "@/lib/members";
@@ -12,7 +13,7 @@ import { toCentavos, type Centavos } from "@/lib/money";
 import { closeCheck, monthHasEnded, payablesCheck, type LockCheck } from "@/lib/month-lock";
 import { isAdmin, type Viewer } from "@/lib/permissions";
 import { computeForPayables, payablesIn, pendingBillNames, waitingPaymentLabels } from "@/lib/periods";
-import { adminNudge, type AdminNudge, type MonthEndReminder, type Payables } from "@/lib/reminders";
+import { adminNudge, REMINDER_DAYS, type AdminNudge, type MonthEndReminder, type Payables } from "@/lib/reminders";
 
 export interface BillNotice {
   year: number;
@@ -104,6 +105,14 @@ export interface EmailStatus {
     /** When they were last sent this month's bill ("Oct. 31"), or null if never. */
     sentOn: string | null;
   }[];
+  /** View-only logins, who get a "the bills are in" note with the first bill email. */
+  viewOnly: {
+    memberId: number;
+    name: string;
+    hasEmail: boolean;
+    /** When they were sent this month's note ("Oct. 31"), or null if never. */
+    sentOn: string | null;
+  }[];
   /** When the bill was last emailed for this month ("Oct. 31, 2026, 9:14 AM"). */
   payablesSentAt: string | null;
   /** The latest month-end reminder sent for this month. */
@@ -126,25 +135,35 @@ export async function getEmailStatus(viewer: Viewer, year: number, month: number
     .where(
       and(
         eq(reminderSends.periodId, computed.period.id),
-        inArray(reminderSends.kind, ["week", "three_days", "last_day", "payables"]),
+        inArray(reminderSends.kind, ["week", "three_days", "last_day", "payables", "bills_in"]),
       ),
     )
     .orderBy(desc(reminderSends.sentAt));
   const payables = sends.find((s) => s.kind === "payables");
-  const reminder = sends.find((s) => s.kind !== "payables");
-  const members = computed.period.balances
+  const reminder = sends.find((s) => s.kind in REMINDER_DAYS);
+  const housemates = computed.period.balances
     .map((b) => b.member)
     .filter((m) => !m.isCollector && sharesCosts(m))
     .sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
+  const viewOnly = await db.query.members.findMany({
+    where: and(eq(members.role, "view_only"), eq(members.active, true)),
+    orderBy: [asc(members.sortOrder), asc(members.id)],
+  });
   return {
     live: emailIsLive(),
     canSend: payablesCheck(computed.issue, pendingBillNames(computed.period)),
-    recipients: members.map((m) => ({
+    recipients: housemates.map((m) => ({
       memberId: m.id,
       name: m.name,
       hasEmail: Boolean(m.email),
       payables: payablesIn(computed, m.id)?.payables ?? null,
       sentOn: billSentOn(sends.find((s) => s.kind === "payables" && s.memberId === m.id)?.sentAt),
+    })),
+    viewOnly: viewOnly.map((m) => ({
+      memberId: m.id,
+      name: m.name,
+      hasEmail: Boolean(m.email),
+      sentOn: billSentOn(sends.find((s) => s.kind === "bills_in" && s.memberId === m.id)?.sentAt),
     })),
     payablesSentAt: payables ? momentLabel(payables.sentAt) : null,
     lastReminder: reminder ? { kind: reminder.kind as MonthEndReminder, sentAt: momentLabel(reminder.sentAt) } : null,

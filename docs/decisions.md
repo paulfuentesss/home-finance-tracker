@@ -730,6 +730,20 @@ table, and gives later household-wide settings a home. Admin only: it's PA's acc
 **Instead of:** a constant in `lib/household-config.ts` (a code change and a deploy each time), or
 a fake member row for the House Budget (it would join months and the money math).
 
+## 2026-10-13 — View-only logins hear once when the bills are in
+**Decision:** with Settle Up's "Email everyone their bill", each active view-only login with an
+email gets a short, warm "October's bills are in!" note and a link to the month's Split Table.
+It goes once per month (a resend doesn't repeat it), has no amounts, and is recorded as its own
+`reminder_sends` kind, `bills_in` (migration `0020`).
+**Why:** view-only logins are family who like to keep an eye on the house, with nothing to do.
+The bill email is when a month's numbers are checked and final, so that's the moment worth
+telling them, and once is enough. There are no amounts because they can see everything in the
+app, and an email can be forwarded. A separate kind keeps the `payables` rows meaning only "a
+housemate was sent their bill", which drives "Last sent", the housemates' "✓ sent", the admin's
+nudge and their banner.
+**Instead of:** a note each time a bill lands (many emails, with numbers still pending), a
+separate button (one more thing to remember), or reusing the `payables` kind.
+
 ## 2026-10-13 — No proof card for the Helper
 **Decision:** the Receipts tab leaves out the Helper bill's card, unless it already has a proof.
 **Why:** her bill isn't one payment with one screenshot. It's every visit and early pay, handed

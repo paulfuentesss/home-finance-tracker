@@ -333,6 +333,10 @@ export default async function HowItWorksPage() {
             Amount looks wrong, or a question about an email? Message the admin before paying — they can fix the month
             and send the bill again.
           </p>
+          <p>
+            A <strong>view only</strong> login gets just one email a month: a short note when the month&apos;s bills are
+            in, with a link to have a look. No amounts.
+          </p>
         </>
       ),
     },
@@ -367,7 +371,7 @@ export default async function HowItWorksPage() {
             Everyone in the household signs in with their own login — Google, or a code sent to their email — and can
             see every month. Only emails the admin has added can sign in. A <strong>view only</strong> login (say,
             family abroad) sees the months too but changes nothing, and isn&apos;t part of any month, so they share in
-            no bill and never owe or are owed.
+            no bill and never owe or are owed. Their only email is a short note each month when the bills are in.
           </p>
           <p>
             You can log your own advances into <strong>Advances Shared</strong> and the Helper visits you paid, and edit
