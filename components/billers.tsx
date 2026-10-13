@@ -6,7 +6,7 @@
 // arrive masked — Reveal fetches one at a time from /biller-secrets/<id>, which checks again.
 
 import { Check, ChevronDown, ChevronUp, ExternalLink, Eye, EyeOff, Lock, Pencil, Users } from "lucide-react";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useId, useState, useTransition } from "react";
 import {
   deleteBiller,
   deleteBillerField,
@@ -42,12 +42,12 @@ export function Billers({ billers }: { billers: ViewBiller[] }) {
     <div className="space-y-6">
       <section className="flex flex-wrap items-start justify-between gap-3 rounded-xl border bg-white p-5 shadow-xs">
         {/* The page title above (components/period-header.tsx) names the page. */}
-        <div>
-          <p className="text-sm text-muted-foreground">
+        <div className="space-y-3 text-sm text-muted-foreground">
+          <p>
             Account numbers, how each bill is paid, and the logins that go with them. Passwords stay hidden until you
             tap <Eye className="inline size-3.5 align-[-2px]" aria-label="Reveal" />.
-            {admin && " Lines marked Admin only aren't shown to housemates."}
           </p>
+          {admin && <p>Lines marked Admin only aren&apos;t shown to housemates.</p>}
         </div>
         {admin && (
           <div className="flex flex-wrap gap-2">
@@ -136,10 +136,25 @@ function BillerCard({
   last: boolean;
 }) {
   const { disabled, error, run } = useRowAction();
+  // On a phone a card shows only its name until tapped open, so the list stays short;
+  // from lg up (two columns) and while editing, every card is open.
+  const [open, setOpen] = useState(false);
+  const bodyId = useId();
   return (
     <section className="rounded-xl border bg-white p-5 shadow-xs">
       <div className="flex items-center justify-between gap-2">
-        {edit ? (
+        {!edit ? (
+          <button
+            type="button"
+            className="flex flex-1 items-center justify-between gap-2 text-left lg:pointer-events-none"
+            aria-expanded={open}
+            aria-controls={bodyId}
+            onClick={() => setOpen(!open)}
+          >
+            <h2 className="text-lg font-semibold">{biller.name}</h2>
+            <ChevronDown className={cn("size-5 shrink-0 text-muted-foreground transition-transform lg:hidden", open && "rotate-180")} />
+          </button>
+        ) : (
           <InlineInput
             action={renameBiller}
             hidden={{ billerId: biller.id }}
@@ -151,8 +166,6 @@ function BillerCard({
             className="min-w-0 flex-1"
             inputClassName="w-full border-transparent bg-transparent px-1 text-lg font-semibold hover:border-input focus:bg-white"
           />
-        ) : (
-          <h2 className="text-lg font-semibold">{biller.name}</h2>
         )}
         {edit && (
           <div className="flex shrink-0 items-center">
@@ -167,24 +180,26 @@ function BillerCard({
         )}
       </div>
       {error && <p className="mt-1 text-sm text-destructive">{error}</p>}
-      <ul className="mt-3 divide-y">
-        {biller.fields.map((field, i) => (
-          <FieldRow
-            key={field.id}
-            field={field}
-            admin={admin}
-            edit={edit}
-            first={i === 0}
-            last={i === biller.fields.length - 1}
-          />
-        ))}
-        {biller.fields.length === 0 && <li className="py-3 text-sm text-muted-foreground">No lines yet.</li>}
-      </ul>
-      {edit && (
-        <div className="mt-2">
-          <AddBillerFieldDialog billerId={biller.id} billerName={biller.name} />
-        </div>
-      )}
+      <div id={bodyId} className={cn(!open && !edit && "hidden", "lg:block")}>
+        <ul className="mt-3 divide-y">
+          {biller.fields.map((field, i) => (
+            <FieldRow
+              key={field.id}
+              field={field}
+              admin={admin}
+              edit={edit}
+              first={i === 0}
+              last={i === biller.fields.length - 1}
+            />
+          ))}
+          {biller.fields.length === 0 && <li className="py-3 text-sm text-muted-foreground">No lines yet.</li>}
+        </ul>
+        {edit && (
+          <div className="mt-2">
+            <AddBillerFieldDialog billerId={biller.id} billerName={biller.name} />
+          </div>
+        )}
+      </div>
     </section>
   );
 }

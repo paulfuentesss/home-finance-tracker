@@ -384,7 +384,8 @@ export default async function HowItWorksPage() {
             <strong>Receipts</strong> shows everyone the proof of each bill (the Helper&apos;s record is Helper Visits
             instead). A payment&apos;s screenshot, which can show
             your bank, only you and the admin see. <strong>Billers &amp; Accounts</strong> shows the lines shared with
-            housemates; passwords stay hidden until you tap to reveal one.
+            housemates; passwords stay hidden until you tap to reveal one. On a phone, tap a biller&apos;s name to
+            open its card.
           </p>
         </>
       ),
