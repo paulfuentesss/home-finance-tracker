@@ -41,7 +41,8 @@
 - Pending (emailed) bills are shown greyed out with Confirm / Discard ([email-bills.md](email-bills.md)).
 
 ## How it's built
-- Route: `app/periods/[year]/[month]/page.tsx` (tab 1). The layout (`layout.tsx`) loads the
+- Route: `app/periods/[year]/[month]/(split)/page.tsx` (tab 1; the `(split)` route group isn't
+  part of the URL and only gives it its own `loading.tsx`). The layout (`layout.tsx`) loads the
   month once per request and renders the sidebar (`components/app-sidebar.tsx`) and the header
   (`components/period-header.tsx`).
 - Data: `getPeriodView` in `lib/periods.ts` loads the month plus every earlier one (for

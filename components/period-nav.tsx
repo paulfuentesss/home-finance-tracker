@@ -9,14 +9,15 @@ import {
   HandCoins,
   KeyRound,
   Layers,
+  Loader2,
   PhilippinePeso,
   ReceiptText,
   Settings,
   Sparkles,
 } from "lucide-react";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { startNextMonth } from "@/app/periods/[year]/[month]/actions";
 import { Button } from "@/components/ui/button";
 import {
@@ -170,7 +171,13 @@ export function MonthPicker({
 }) {
   const dark = variant === "sidebar";
   const suffix = useTabSuffix();
-  const [open, setOpen] = useState(false);
+  // The list stays open after tapping a month, its spinner showing while the month loads (the
+  // current month stays on screen until then: there's no loading.tsx above the month layout). It
+  // counts as open only for the month it was opened on, so it closes once the new month arrives.
+  const here = `${current.year}-${current.month}`;
+  const [openFor, setOpenFor] = useState<string | null>(null);
+  const open = openFor === here;
+  const setOpen = (next: boolean) => setOpenFor(next ? here : null);
   const [starting, setStarting] = useState(false);
   const upcoming =
     current.month === 12 ? { year: current.year + 1, month: 1 } : { year: current.year, month: current.month + 1 };
@@ -182,7 +189,8 @@ export function MonthPicker({
   // On the dark sidebar the ghost buttons' light hover would flash; these keep it dark.
   const arrow = dark ? "text-zinc-300 hover:bg-white/10 hover:text-white aria-expanded:bg-white/10" : undefined;
   // Keeps the month name in place (centred on the phone bar) when there's no month on one side.
-  const gap = <span className="size-7 shrink-0" aria-hidden />;
+  // Same size as an arrow (`icon-sm`, larger on touch screens: components/ui/button.tsx).
+  const gap = <span className="size-7 shrink-0 pointer-coarse:size-9" aria-hidden />;
 
   return (
     <div
@@ -200,7 +208,9 @@ export function MonthPicker({
           className={arrow}
           render={<Link href={href(prev)} />}
         >
-          <ChevronLeft />
+          <PendingIcon>
+            <ChevronLeft />
+          </PendingIcon>
         </Button>
       ) : (
         gap
@@ -234,7 +244,8 @@ export function MonthPicker({
                   <Link
                     href={href(p)}
                     aria-current={active ? "page" : undefined}
-                    onClick={() => setOpen(false)}
+                    // Another month closes the list when it arrives (see `openFor`).
+                    onClick={active ? () => setOpen(false) : undefined}
                     className={cn(
                       "flex items-center justify-between rounded-md px-2.5 py-1.5 text-sm transition-colors",
                       dark ? SIDEBAR_POPUP_ITEM : "hover:bg-zinc-100",
@@ -242,7 +253,7 @@ export function MonthPicker({
                     )}
                   >
                     {monthLabel(p.year, p.month)}
-                    {active && <Check className="size-4" />}
+                    {active ? <Check className="size-4" /> : <PendingIcon />}
                   </Link>
                 </li>
               );
@@ -284,13 +295,25 @@ export function MonthPicker({
           className={arrow}
           render={<Link href={href(next)} />}
         >
-          <ChevronRight />
+          <PendingIcon>
+            <ChevronRight />
+          </PendingIcon>
         </Button>
       ) : (
         gap
       )}
     </div>
   );
+}
+
+/**
+ * Inside a month link: a spinner while that month loads, otherwise `children` (an arrow, or
+ * nothing in the month list). A month switch keeps the current month on screen until the new one
+ * is ready, so this is what shows the tap was taken.
+ */
+function PendingIcon({ children = null }: { children?: ReactNode }) {
+  const { pending } = useLinkStatus();
+  return pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : children;
 }
 
 function StartNextMonthDialog({
@@ -331,8 +354,10 @@ function StartNextMonthDialog({
               startTransition(async () => {
                 const result = await startNextMonth();
                 if (result?.ok) {
-                  onOpenChange(false);
+                  // Stays open on "Starting…" until the new month is on screen (its page replaces
+                  // this one, dialog included).
                   if (result.redirectTo) router.push(result.redirectTo);
+                  else onOpenChange(false);
                 } else if (result) setError(result.error);
               })
             }

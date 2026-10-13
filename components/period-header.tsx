@@ -92,7 +92,8 @@ function Stat({
           <PopoverTrigger
             openOnHover
             aria-label={`What's in ${label.toLowerCase()}`}
-            className="rounded-full opacity-70 transition-opacity outline-none hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring"
+            // The after: box is an invisible, larger tap area on touch screens; the icon looks the same.
+            className="relative rounded-full opacity-70 transition-opacity outline-none hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:after:absolute pointer-coarse:after:-inset-3 pointer-coarse:after:content-['']"
           >
             <Info className="size-3.5" />
           </PopoverTrigger>

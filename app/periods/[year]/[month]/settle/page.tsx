@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { PageEnter } from "@/components/page-enter";
 import { SettleUp } from "@/components/settle-up";
 import { requireViewer } from "@/lib/auth";
 import { getPeriodReceipts, getPeriodView } from "@/lib/periods";
@@ -20,5 +21,9 @@ export default async function SettlePage({ params }: PageProps<"/periods/[year]/
   const [receipts, emailStatus] = await Promise.all([getPeriodReceipts(view.period.id), getEmailStatus(real, year, month)]);
   // The phone's Compact / Normal choice for Who still owes (lib/settle-up-view.ts).
   const compact = (await cookies()).get(COMPACT_COOKIE)?.value === "1";
-  return <SettleUp view={view} receipts={receipts} emailStatus={emailStatus} compact={compact} />;
+  return (
+    <PageEnter>
+      <SettleUp view={view} receipts={receipts} emailStatus={emailStatus} compact={compact} />
+    </PageEnter>
+  );
 }

@@ -164,7 +164,7 @@ function BillerCard({
             maxLength={60}
             allowEmpty={false}
             className="min-w-0 flex-1"
-            inputClassName="w-full border-transparent bg-transparent px-1 text-lg font-semibold hover:border-input focus:bg-white"
+            inputClassName="w-full border-transparent bg-transparent px-1 text-lg font-semibold hover:border-input focus:bg-white max-md:text-lg"
           />
         )}
         {edit && (
