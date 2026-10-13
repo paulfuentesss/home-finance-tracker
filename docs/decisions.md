@@ -775,3 +775,17 @@ bill already includes what's carried over, so following it means one amount in o
 admin can already see who's paid on Settle Up, so a copy would only fill his inbox.
 **Instead of:** a single follow-up (easy to miss, then nothing), or every few days (too naggy over
 a long wait).
+
+## 2026-10-13 — The split table's name column narrows once scrolled, on phones
+**Decision:** on phones, scrolling the split table sideways folds the first column down to the
+emojis and short labels ("OCT", "Due", "Paid"), and scrolling back to the start brings them back.
+It's pure CSS on the scroller's existing `data-scrolled-left`, animating a `max-width` measured
+from each label (`Squeeze` in `components/split-table.tsx`), and the scroller turns off scroll
+anchoring.
+**Why:** the names only matter until you start reading across; folded, the column takes about
+a third of the room, so more bill columns fit on a phone. The width is measured because names can
+be up to 40 characters: a fixed cap would cut long ones or make the animation lag. Without scroll
+anchoring off, the browser could pull the scroll back to the start as the column narrows, which
+widens it again, back and forth. Wider screens have the room, so they keep the full column.
+**Instead of:** the `grid-template-columns: 0fr → 1fr` trick (the table could squeeze names even
+when not scrolled) or a narrower column all the time (names are what you look for first).
