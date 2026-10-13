@@ -95,8 +95,8 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
     `frame-ancestors 'none'` (no embedding the site in another page), Referrer-Policy.
   - **GitHub's free checks for a public repo:** Dependabot security updates, secret scanning with
     push protection (check they're on).
-  - **Backups:** password-protect the zips and keep a copy off the laptop (skipped by choice so
-    far: Going online below).
+  - **Backups:** keep a copy off the laptop (skipped by choice so far: Going online below), and
+    password-protect the zips.
   - **Rotate the shared secrets** now and then (`BILL_EMAIL_SECRET`, `CRON_SECRET`; Vercel, plus
     the Gmail script for the first). `BILLER_SECRET_KEY` needs a script that re-encrypts every
     password first.
