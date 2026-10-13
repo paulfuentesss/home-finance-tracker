@@ -775,3 +775,15 @@ bill already includes what's carried over, so following it means one amount in o
 admin can already see who's paid on Settle Up, so a copy would only fill his inbox.
 **Instead of:** a single follow-up (easy to miss, then nothing), or every few days (too naggy over
 a long wait).
+
+## 2026-10-13 — Housemates' emails sound happy too
+**Decision:** the month-end reminders, the bill email and the still-unpaid reminder use the same
+warm tone as the view-only note: an emoji in the subject, "Hi Ben! 👋", an upbeat line and
+"Thanks for keeping the house running! 🏠" before the sign-off. The still-unpaid one is a
+"friendly reminder". The amounts, the To do and the link are word-for-word what they were. The
+admin's emails stay plain.
+**Why:** it's a household, not a billing office. A cheerful email reads as a nudge from home
+rather than a demand, and makes paying feel like chipping in. Keeping the money lines exact
+means the tone never blurs what to pay or how. The admin's emails are to-do notes to himself.
+**Instead of:** keeping only the view-only note warm (family got a nicer email than the people
+who actually pay), or HTML emails with colours (plain text reads the same in every mail app).

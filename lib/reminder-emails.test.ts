@@ -6,30 +6,32 @@ const link = "https://example.test/periods/2026/10/advances";
 describe("monthEndEmail", () => {
   it("counts the days left, names the last day, and says what to do", () => {
     const email = monthEndEmail("week", { name: "Ben", year: 2026, month: 10, daysLeft: 7, link });
-    expect(email.subject).toBe("7 days left to log your October expenses");
-    expect(email.text).toContain("Hi Ben,");
-    expect(email.text).toContain("7 days left in October.");
+    expect(email.subject).toBe("7 days left to log your October expenses 🗓️");
+    expect(email.text).toContain("Hi Ben! 👋");
+    expect(email.text).toContain("7 days left in October!");
     expect(email.text).toContain("so it's counted when October's bills are split.");
     expect(email.text).toContain("October locks after the 31st. After that you can't add to it anymore.");
     expect(email.text).not.toContain("Oct. 31");
     expect(email.text).toContain("To do: log anything you paid for the house this month");
-    expect(email.text).toContain(`Log it here: ${link}`);
+    expect(email.text).toContain(`Log it here 👉 ${link}`);
+    expect(email.text).toContain("Thanks for keeping the house running! 🏠");
     expect(email.text).toContain("Questions? Message the admin.");
   });
 
   it("says the real count when a missed reminder is caught up", () => {
     expect(monthEndEmail("week", { name: "Ben", year: 2026, month: 10, daysLeft: 5, link }).subject).toBe(
-      "5 days left to log your October expenses",
+      "5 days left to log your October expenses 🗓️",
     );
   });
 
   it("warns about the lock 3 days before, and on the last day", () => {
     expect(monthEndEmail("three_days", { name: "Cara", year: 2026, month: 10, daysLeft: 3, link }).subject).toBe(
-      "October locks in 3 days: log your expenses",
+      "October locks in 3 days: log your expenses ⏳",
     );
     const last = monthEndEmail("last_day", { name: "Cara", year: 2026, month: 10, daysLeft: 0, link });
-    expect(last.subject).toBe("Today is the last day to log your October expenses");
-    expect(last.text).toContain("Today is the last day of October.");
+    expect(last.subject).toBe("Today's the last day to log your October expenses! ⏰");
+    expect(last.text).toContain("Today is the last day of October!");
+    expect(last.text).toContain("To do: log anything you paid for the house this month (groceries, the helper, a service) today.");
     expect(last.text).toContain("From tomorrow October is locked");
   });
 });
@@ -39,10 +41,14 @@ describe("payablesEmail", () => {
 
   it("tells them what to pay and how, one amount per line", () => {
     const email = payablesEmail({ ...base, payables: { kind: "owes", due: 234_550, waiting: 0, left: 234_550 } })!;
-    expect(email.subject).toBe("Your October bill is ready: ₱2,345.50");
-    expect(email.text).toContain("October's bills are in and everyone's share is worked out.");
+    expect(email.subject).toBe("Your October bill is ready: ₱2,345.50 🧾");
+    expect(email.text).toContain("Hi Dan! 👋");
+    expect(email.text).toContain("October's bills are in and everyone's share is worked out! 🎉");
     expect(email.text).toContain("Your share: ₱2,345.50");
-    expect(email.text).toContain('To do: send ₱2,345.50 to the House Budget, then open Settle Up, tap "I paid"');
+    expect(email.text).toContain(
+      'To do: send ₱2,345.50 to the House Budget, then open Settle Up, tap "I paid" on your row and attach the screenshot of your transfer.',
+    );
+    expect(email.text).toContain(`Settle Up: ${link}\n\nThanks for keeping the house running! 🏠`);
     expect(email.text).not.toContain("waiting");
     expect(email.text).not.toContain("last month");
   });
@@ -53,7 +59,7 @@ describe("payablesEmail", () => {
       carriedOver: 50_000,
       payables: { kind: "owes", due: 234_550, waiting: 100_000, left: 134_550 },
     })!;
-    expect(email.subject).toBe("Your October bill is ready: ₱1,345.50");
+    expect(email.subject).toBe("Your October bill is ready: ₱1,345.50 🧾");
     expect(email.text).toContain(
       "Your share: ₱2,345.50\n(includes ₱500.00 still unpaid from last month)\n" +
         "Already sent, waiting for PA to confirm: ₱1,000.00\nLeft to pay: ₱1,345.50",
@@ -72,9 +78,11 @@ describe("payablesEmail", () => {
 
   it("tells someone owed that they get money back", () => {
     const email = payablesEmail({ ...base, payables: { kind: "owed", amount: 12_000 } })!;
-    expect(email.subject).toBe("October is worked out: you get ₱120.00 back");
+    expect(email.subject).toBe("Good news! You get ₱120.00 back for October 🎉");
+    expect(email.text).toContain("Hi Dan! 👋");
     expect(email.text).toContain("You get back: ₱120.00");
-    expect(email.text).toContain("PA sends it from the House Budget");
+    expect(email.text).toContain("Nothing to do: PA sends it from the House Budget");
+    expect(email.text).toContain(`See the details: ${link}`);
   });
 
   it("sends nothing to someone settled or with everything sent", () => {
@@ -88,9 +96,9 @@ describe("unpaidEmail", () => {
 
   it("says what's left and how to pay it", () => {
     const email = unpaidEmail({ ...base, left: 234_550, waiting: 0 });
-    expect(email.subject).toBe("Reminder: ₱2,345.50 left to pay for October");
-    expect(email.text).toContain("Hi Dan,");
-    expect(email.text).toContain("your October bill isn't fully paid yet.");
+    expect(email.subject).toBe("Friendly reminder: ₱2,345.50 left to pay for October 💛");
+    expect(email.text).toContain("Hi Dan! 👋");
+    expect(email.text).toContain("Just a friendly nudge: your October bill isn't fully paid yet.");
     expect(email.text).toContain("Left to pay: ₱2,345.50\n\nTo do:");
     expect(email.text).toContain('To do: send ₱2,345.50 to the House Budget, then open Settle Up, tap "I paid"');
     expect(email.text).toContain("one comes every 7 days");
@@ -100,7 +108,7 @@ describe("unpaidEmail", () => {
 
   it("mentions an I paid still waiting", () => {
     const email = unpaidEmail({ ...base, left: 134_550, waiting: 100_000 });
-    expect(email.subject).toBe("Reminder: ₱1,345.50 left to pay for October");
+    expect(email.subject).toBe("Friendly reminder: ₱1,345.50 left to pay for October 💛");
     expect(email.text).toContain("Left to pay: ₱1,345.50\n(₱1,000.00 more is sent, waiting for PA to confirm)");
   });
 });
@@ -117,6 +125,8 @@ describe("billsInEmail", () => {
     expect(email.text).toContain("Please always take care where you are ❤️");
     expect(email.text).toContain("Questions? Message the admin.");
     expect(email.text).not.toContain("₱");
+    // Its own closing, not the housemates' thank-you.
+    expect(email.text).not.toContain("Thanks for keeping the house running");
   });
 
   it("names the month alone, even in January", () => {
@@ -151,6 +161,10 @@ describe("readyEmail", () => {
     const email = readyEmail({ name: "PA", kind: "email_bill", year: 2026, month: 10, link });
     expect(email.subject).toBe("October's bills are all in: ready to email everyone");
     expect(email.text).toContain(`press "Email October's bill"`);
+    // The admin's own nudges stay plain.
+    expect(email.text).toContain("Hi PA,");
+    expect(email.text).not.toContain("👋");
+    expect(email.text).not.toContain("Thanks for keeping the house running");
   });
 
   it("nudges to close", () => {

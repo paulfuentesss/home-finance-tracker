@@ -48,6 +48,10 @@ banner at the top of the month pages.
   to the month's Split Table and no amounts. A resend doesn't
   repeat it. The bill-email box lists them under "View only" ("✓ told Oct. 31"). It's the only
   email they get.
+- **The tone:** housemates' and view-only emails sound happy, with an emoji in the subject,
+  "Hi Ben! 👋" and a thank-you before the sign-off (a "take care" line for view-only). The
+  amounts, To do and link lines stay exact. The admin's own emails (the nudges, "couldn't
+  start") stay plain.
 - **Housemates' banner** (one at a time): "Your October bill is ready: ₱X to pay" with a
   **Pay in Settle Up** button, until it's paid or sent ("waiting for PA to confirm"). Otherwise,
   in the month's last week, "N days left to log your October expenses". On an ended month that
