@@ -34,6 +34,15 @@ banner at the top of the month pages.
   sent again ("Last sent …"). The box lists each housemate with what they owe or get back and
   whether they were sent it ("✓ sent Oct. 31", or "not sent" when a send to them failed), and
   who has no email address.
+- **Still unpaid** (the daily job): a housemate with part of their emailed bill still to pay
+  gets a reminder a few days after the bill email, then one a week (the days are
+  `UNPAID_REMINDER_DAYS`): what's left, any "I paid" waiting, the same To do and a link to
+  Settle Up. It's about the month their banner shows (the latest bill emailed to them), and
+  stops once that's paid or all sent with "I paid". Sending the bill again starts the count
+  again; emailing the next month's bill moves it on to that month (which carries the rest
+  over). Closing the month doesn't stop it: closing doesn't settle anyone. Paused while that
+  month's bill email would be blocked (a bill pending, numbers that don't work out). The admin
+  gets no copy: the bill-email box shows "· reminded Nov. 3" after the "✓ sent" date.
 - **View-only logins** (family who only look) get a short, warm "October's bills are in!" note the
   first time the bill email is sent for a month (even if every housemate is settled), with a link
   to the month's Split Table and no amounts. A resend doesn't
@@ -45,8 +54,9 @@ banner at the top of the month pages.
   isn't closed, a note says it's locked and links to the next month.
 - The admin sees which month-end reminder went out last, under the bill-email box, so a job
   that stopped working shows.
-- **How it works** has a "Your part each month" card (the two jobs and the email timeline) and
-  two questions: "What happens when the month ends?" and "What emails will I get?".
+- **How it works** has a "Your part each month" card (the two jobs and the email timeline, with
+  the still-unpaid reminder) and two questions: "What happens when the month ends?" and "What
+  emails will I get?".
 
 **Safety switch:** localhost and the live site share one database, so only the live site
 (Vercel production) emails housemates and records what it sent. Anywhere else, every email goes
@@ -55,7 +65,7 @@ and nothing is recorded. A test can't stop a real reminder.
 
 ## How it's built
 - Rules (pure, tested): `reminderDue`, `daysLeftIn`, `payablesOf`, `housemateNotice`,
-  `adminNudge`, `REMINDER_DAYS` in `lib/reminders.ts`; `monthHasEnded`, `monthAfter`, `payablesCheck` in
+  `adminNudge`, `REMINDER_DAYS`, `unpaidReminderDue`, `UNPAID_REMINDER_DAYS` in `lib/reminders.ts`; `monthHasEnded`, `monthAfter`, `payablesCheck` in
   `lib/month-lock.ts`; `canLogIn` in `lib/permissions.ts`. Email wording (pure, tested):
   `lib/reminder-emails.ts`.
 - What's still owed: the rule is in [settlement-rules.md → What's still owed after a bill
@@ -77,13 +87,20 @@ and nothing is recorded. A test can't stop a real reminder.
   through the same `sendOnce` claim as the daily job (kind `bills_in`), which is what makes it
   once per month. `sendOnce` returns the error from a failed send, so a missing email setting
   says so instead of "try again".
+- Still unpaid: `sendUnpaidReminders` in `lib/reminder-send.ts` starts from `latestBillSends`
+  (`lib/reminder-status.ts`, which the banner's `getBillNotice` uses too, so both talk about
+  the same month), checks `payablesCheck` and `payablesIn`, then `unpaidReminderDue`; the words
+  are `unpaidEmail`.
 - Daily job: `vercel.json` → `crons` calls `GET /api/reminders` once a day, in the morning
   Manila time (Hobby runs it any time within the scheduled hour). The route
   (`app/api/reminders/route.ts`) checks `CRON_SECRET` first and is public in `proxy.ts`. Off
   the live site, `?today=YYYY-MM-DD` tries a given day.
 - No double sends: each reminder is claimed in `reminder_sends` (unique month + kind + member)
   before it's sent, so a second call of the same cron sends nothing. A failed send removes its
-  claim, so the next day retries just that person. A bill email rewrites its row's time.
+  claim, so the next day retries just that person. A bill email rewrites its row's time. The
+  still-unpaid follow-up (`sendAgain`) has one row per month + member whose time moves forward
+  each time; a run claims it by moving it from the time it read (to the millisecond), and a
+  failed send puts the old time back.
 - Action: `emailPayables` (admin) in `app/periods/[year]/[month]/actions.ts`. The lock is
   `loadOpenPeriod(tx, id, viewer)` in the same file, passed the viewer by the six advance and
   Helper actions (the guard test checks it).
@@ -92,7 +109,7 @@ and nothing is recorded. A test can't stop a real reminder.
   `getEmailStatus`, admin only); `components/advances-log.tsx` and `components/helper-log.tsx`
   hide housemates' controls through `canLogIn`.
 - Table: `reminder_sends` (month, kind, member, sent at) — migrations `0014`, `0015` (the
-  two nudge kinds) and `0020` (`bills_in`).
+  two nudge kinds), `0020` (`bills_in`) and `0021` (`unpaid`).
 - Setup: [operations.md → Emails & reminders](../operations.md#emails--reminders).
 
 ## Rules
@@ -100,7 +117,7 @@ and nothing is recorded. A test can't stop a real reminder.
 [Closing and reopening a month](../settlement-rules.md#closing-and-reopening-a-month)
 
 ## Open items
-[TODO.md](../TODO.md): telling the housemates; more reminders (Ideas).
+[TODO.md](../TODO.md): telling the housemates; a biller's due date reminder (Ideas).
 
 ## Built in
 #38 (`feat/install-app`); fixes after review in `test/backup-coverage`.

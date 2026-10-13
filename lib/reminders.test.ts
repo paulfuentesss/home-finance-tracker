@@ -7,6 +7,7 @@ import {
   lastDayOf,
   payablesOf,
   reminderDue,
+  unpaidReminderDue,
 } from "@/lib/reminders";
 
 describe("lastDayOf / lastDayName", () => {
@@ -62,6 +63,49 @@ describe("reminderDue", () => {
   it("sends nothing once the month is over, or for another month", () => {
     expect(reminderDue(2026, 10, "2026-11-01")).toBeNull();
     expect(reminderDue(2026, 10, "2026-09-30")).toBeNull();
+  });
+});
+
+describe("unpaidReminderDue", () => {
+  // The bill went out Oct. 31, 9:14 PM Manila (UTC+8).
+  const billSentAt = new Date("2026-10-31T13:14:00Z");
+  // The first follow-up went out Nov. 3, 9:05 AM Manila.
+  const firstReminder = new Date("2026-11-03T01:05:00Z");
+
+  it("sends the first one 3 days after the bill email, not 2", () => {
+    expect(unpaidReminderDue({ billSentAt, lastReminderAt: null, today: "2026-11-02" })).toBe(false);
+    expect(unpaidReminderDue({ billSentAt, lastReminderAt: null, today: "2026-11-03" })).toBe(true);
+  });
+
+  it("catches up a day the job missed", () => {
+    expect(unpaidReminderDue({ billSentAt, lastReminderAt: null, today: "2026-11-05" })).toBe(true);
+  });
+
+  it("then sends one a week after the last, not 6 days", () => {
+    expect(unpaidReminderDue({ billSentAt, lastReminderAt: firstReminder, today: "2026-11-03" })).toBe(false);
+    expect(unpaidReminderDue({ billSentAt, lastReminderAt: firstReminder, today: "2026-11-09" })).toBe(false);
+    expect(unpaidReminderDue({ billSentAt, lastReminderAt: firstReminder, today: "2026-11-10" })).toBe(true);
+  });
+
+  it("starts the count again when the bill is sent again", () => {
+    // Resent Nov. 5, 10 AM Manila, after the Nov. 3 follow-up: next one Nov. 8, not Nov. 10.
+    const resent = new Date("2026-11-05T02:00:00Z");
+    expect(unpaidReminderDue({ billSentAt: resent, lastReminderAt: firstReminder, today: "2026-11-07" })).toBe(false);
+    expect(unpaidReminderDue({ billSentAt: resent, lastReminderAt: firstReminder, today: "2026-11-08" })).toBe(true);
+  });
+
+  it("starts the count again even when the bill is resent the same day as a follow-up", () => {
+    // Resent Nov. 3 at noon Manila, after that morning's follow-up: next one Nov. 6.
+    const resent = new Date("2026-11-03T04:00:00Z");
+    expect(unpaidReminderDue({ billSentAt: resent, lastReminderAt: firstReminder, today: "2026-11-05" })).toBe(false);
+    expect(unpaidReminderDue({ billSentAt: resent, lastReminderAt: firstReminder, today: "2026-11-06" })).toBe(true);
+  });
+
+  it("counts Manila days, not UTC ones", () => {
+    // Nov. 1, 7:30 AM Manila is still Oct. 31 in UTC: 3 days from Nov. 1 is Nov. 4.
+    const morning = new Date("2026-10-31T23:30:00Z");
+    expect(unpaidReminderDue({ billSentAt: morning, lastReminderAt: null, today: "2026-11-03" })).toBe(false);
+    expect(unpaidReminderDue({ billSentAt: morning, lastReminderAt: null, today: "2026-11-04" })).toBe(true);
   });
 });
 

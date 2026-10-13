@@ -25,6 +25,39 @@ export interface BillNotice {
   settleHref: string;
 }
 
+export interface BillSend {
+  memberId: number;
+  periodId: number;
+  year: number;
+  month: number;
+  sentAt: Date;
+}
+
+/**
+ * Each member's latest bill email: the latest month whose bill went to them, and when (a resend
+ * moves the time). Only `memberId`'s when given. The banner (getBillNotice) and the daily job's
+ * unpaid follow-ups both start from this, so they always talk about the same month.
+ */
+export async function latestBillSends(memberId?: number): Promise<BillSend[]> {
+  const rows = await db
+    .select({
+      memberId: reminderSends.memberId,
+      periodId: reminderSends.periodId,
+      year: billingPeriods.year,
+      month: billingPeriods.month,
+      sentAt: reminderSends.sentAt,
+    })
+    .from(reminderSends)
+    .innerJoin(billingPeriods, eq(billingPeriods.id, reminderSends.periodId))
+    .where(
+      and(eq(reminderSends.kind, "payables"), memberId === undefined ? undefined : eq(reminderSends.memberId, memberId)),
+    )
+    .orderBy(desc(billingPeriods.year), desc(billingPeriods.month));
+  const latest = new Map<number, BillSend>();
+  for (const row of rows) if (!latest.has(row.memberId)) latest.set(row.memberId, row);
+  return [...latest.values()];
+}
+
 /**
  * The bill the viewer still has to pay, from the latest month whose bill was emailed to them —
  * null once it's paid (or for the admin and view-only logins). Pass whoever the page is drawn
@@ -32,13 +65,7 @@ export interface BillNotice {
  */
 export async function getBillNotice(viewer: Viewer): Promise<BillNotice | null> {
   if (isAdmin(viewer) || !sharesCosts(viewer)) return null;
-  const [last] = await db
-    .select({ year: billingPeriods.year, month: billingPeriods.month })
-    .from(reminderSends)
-    .innerJoin(billingPeriods, eq(billingPeriods.id, reminderSends.periodId))
-    .where(and(eq(reminderSends.memberId, viewer.memberId), eq(reminderSends.kind, "payables")))
-    .orderBy(desc(billingPeriods.year), desc(billingPeriods.month))
-    .limit(1);
+  const [last] = await latestBillSends(viewer.memberId);
   if (!last) return null;
   const computed = await computeForPayables(db, last.year, last.month);
   const owed = computed && payablesIn(computed, viewer.memberId);
@@ -104,6 +131,8 @@ export interface EmailStatus {
     payables: Payables | null;
     /** When they were last sent this month's bill ("Oct. 31"), or null if never. */
     sentOn: string | null;
+    /** When they last got the "still unpaid" follow-up since that bill email ("Nov. 3"), or null. */
+    remindedOn: string | null;
   }[];
   /** View-only logins, who get a "the bills are in" note with the first bill email. */
   viewOnly: {
@@ -135,12 +164,20 @@ export async function getEmailStatus(viewer: Viewer, year: number, month: number
     .where(
       and(
         eq(reminderSends.periodId, computed.period.id),
-        inArray(reminderSends.kind, ["week", "three_days", "last_day", "payables", "bills_in"]),
+        inArray(reminderSends.kind, ["week", "three_days", "last_day", "payables", "bills_in", "unpaid"]),
       ),
     )
     .orderBy(desc(reminderSends.sentAt));
   const payables = sends.find((s) => s.kind === "payables");
   const reminder = sends.find((s) => s.kind in REMINDER_DAYS);
+  const sendOf = (kind: "payables" | "unpaid", memberId: number) =>
+    sends.find((s) => s.kind === kind && s.memberId === memberId)?.sentAt;
+  // A follow-up from before the bill was sent again belongs to the old send: not shown.
+  const remindedOn = (memberId: number) => {
+    const bill = sendOf("payables", memberId);
+    const reminded = sendOf("unpaid", memberId);
+    return bill && reminded && reminded > bill ? billSentOn(reminded) : null;
+  };
   const housemates = computed.period.balances
     .map((b) => b.member)
     .filter((m) => !m.isCollector && sharesCosts(m))
@@ -157,7 +194,8 @@ export async function getEmailStatus(viewer: Viewer, year: number, month: number
       name: m.name,
       hasEmail: Boolean(m.email),
       payables: payablesIn(computed, m.id)?.payables ?? null,
-      sentOn: billSentOn(sends.find((s) => s.kind === "payables" && s.memberId === m.id)?.sentAt),
+      sentOn: billSentOn(sendOf("payables", m.id)),
+      remindedOn: remindedOn(m.id),
     })),
     viewOnly: viewOnly.map((m) => ({
       memberId: m.id,

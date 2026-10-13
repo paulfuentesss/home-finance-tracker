@@ -3,11 +3,14 @@
 // lib/reminders.test.ts. The daily job (lib/reminder-send.ts), the month pages and the "How it
 // works" page all read these, so the days are written down once.
 
-import { monthLabel } from "@/lib/format";
+import { dateInManila, daysBetween, monthLabel } from "@/lib/format";
 import { formatPHP, type Centavos } from "@/lib/money";
 
 /** Days left in the month when each reminder goes out (0 = the month's last day). */
 export const REMINDER_DAYS = { week: 7, three_days: 3, last_day: 0 } as const;
+
+/** A bill still unpaid: the first follow-up this many days after the bill email, then every `then` days. */
+export const UNPAID_REMINDER_DAYS = { first: 3, then: 7 } as const;
 
 export type MonthEndReminder = keyof typeof REMINDER_DAYS;
 
@@ -42,6 +45,29 @@ export function reminderDue(year: number, month: number, today: string): MonthEn
   if (left <= REMINDER_DAYS.three_days) return "three_days";
   if (left <= REMINDER_DAYS.week) return "week";
   return null;
+}
+
+/**
+ * Whether a housemate who still owes part of an emailed bill is due a follow-up today: the first
+ * one `UNPAID_REMINDER_DAYS.first` days after their latest bill email, then one every `then` days.
+ * A follow-up from before that bill email (it was sent again) doesn't count, so a resend starts
+ * the count again. Counted in Manila days, and "at least", so a day the job missed is caught up.
+ * The caller checks they still owe (payablesOf → owes, with something left to pay).
+ */
+export function unpaidReminderDue({
+  billSentAt,
+  lastReminderAt,
+  today,
+}: {
+  billSentAt: Date;
+  lastReminderAt: Date | null;
+  /** Manila's date, "YYYY-MM-DD". */
+  today: string;
+}): boolean {
+  if (lastReminderAt && lastReminderAt > billSentAt) {
+    return daysBetween(dateInManila(lastReminderAt), today) >= UNPAID_REMINDER_DAYS.then;
+  }
+  return daysBetween(dateInManila(billSentAt), today) >= UNPAID_REMINDER_DAYS.first;
 }
 
 /** A housemate's payment with the House Budget, in the bill's month or a later one. */

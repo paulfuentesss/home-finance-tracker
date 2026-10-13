@@ -761,3 +761,17 @@ reading it means a compact phone is compact from the first paint, with no jump. 
 **Instead of:** `localStorage` like the Install card (the page would draw Normal first, then jump,
 on every load), or a member setting in the database (a migration and backup coverage for a layout
 preference, and one choice for both phone and laptop).
+
+## 2026-10-13 — Unpaid bills get a reminder after a few days, then weekly, until paid
+**Decision:** a housemate with part of their emailed bill still unpaid is emailed a reminder a few
+days after the bill email, then weekly (`UNPAID_REMINDER_DAYS`), by the daily job
+([reminders](features/reminders.md)). It's counted from their latest bill email, so sending it again
+starts the count again. Closing the month doesn't stop it; emailing the next month's bill moves it
+on to that one. The admin gets no copy; Settle Up's bill-email box shows when each was reminded.
+**Why:** after the bill email, only the in-app banner kept reminding, and only when they opened the
+app. A first nudge soon, then a slower one, reminds without nagging daily. Closing a month doesn't
+settle anyone (unpaid amounts carry over), so stopping there would let a debt go quiet; the next
+bill already includes what's carried over, so following it means one amount in one email. The
+admin can already see who's paid on Settle Up, so a copy would only fill his inbox.
+**Instead of:** a single follow-up (easy to miss, then nothing), or every few days (too naggy over
+a long wait).

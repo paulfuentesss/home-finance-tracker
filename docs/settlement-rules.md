@@ -294,8 +294,9 @@ Rejected payments never count. The "still unpaid from last month" note in the em
 Prev Month Unsettled less their **confirmed** payments into the House Budget since (in the
 bill's month or later). Nothing here changes
 any Final; it only decides what the bill email, the housemate's "your bill is ready" banner, the
-greeting at the top of the Split Table ([split-table.md](features/split-table.md)) and the
-admin's "everyone has paid" nudge say.
+"still unpaid" follow-up email ([reminders](features/reminders.md)), the greeting at the top of
+the Split Table ([split-table.md](features/split-table.md)) and the admin's "everyone has paid"
+nudge say.
 
 ## Closing and reopening a month
 
