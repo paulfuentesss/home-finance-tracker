@@ -34,8 +34,9 @@ banner at the top of the month pages.
   sent again ("Last sent …"). The box lists each housemate with what they owe or get back and
   whether they were sent it ("✓ sent Oct. 31", or "not sent" when a send to them failed), and
   who has no email address.
-- **View-only logins** (family who only look) get a short, warm "October's bills are in!" note with
-  the first bill email, with a link to the month's Split Table and no amounts. A resend doesn't
+- **View-only logins** (family who only look) get a short, warm "October's bills are in!" note the
+  first time the bill email is sent for a month (even if every housemate is settled), with a link
+  to the month's Split Table and no amounts. A resend doesn't
   repeat it. The bill-email box lists them under "View only" ("✓ told Oct. 31"). It's the only
   email they get.
 - **Housemates' banner** (one at a time): "Your October bill is ready: ₱X to pay" with a

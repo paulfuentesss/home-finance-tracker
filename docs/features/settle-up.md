@@ -35,7 +35,8 @@
   Payments column.
 - **Email everyone their bill** (PA): once the bills are in, each housemate gets their own
   amount and a link here; a housemate whose bill is out sees "Your bill is ready" at the top of
-  the month pages until it's paid ([reminders.md](reminders.md)).
+  the month pages until it's paid. View-only logins get a one-time "the bills are in" note and
+  are listed in the box ([reminders.md](reminders.md)).
 - Also where a month is closed or reopened ([months.md](months.md)). Closing a month, and
   starting the next one, wait until no payment is waiting.
 
