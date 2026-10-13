@@ -1,5 +1,6 @@
 import { AdvancesLog } from "@/components/advances-log";
 import { AdvancesReport } from "@/components/advances-report";
+import { PageEnter } from "@/components/page-enter";
 import { getPeriodView } from "@/lib/periods";
 import { parsePeriodParams, tabMetadata } from "../params";
 
@@ -11,9 +12,9 @@ export default async function AdvancesPage({ params }: PageProps<"/periods/[year
   const { year, month } = await parsePeriodParams(params);
   const view = (await getPeriodView(year, month))!;
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+    <PageEnter className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
       <AdvancesLog view={view} />
       <AdvancesReport view={view} />
-    </div>
+    </PageEnter>
   );
 }

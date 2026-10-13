@@ -168,7 +168,7 @@ export function AdvancesLog({ view }: { view: PeriodView }) {
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search expenses…"
               aria-label="Search expenses"
-              className="h-8 w-full rounded-lg border border-input bg-white pr-3 pl-8 text-sm focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none sm:w-52"
+              className="h-8 w-full rounded-lg border border-input bg-white pr-3 pl-8 text-base focus:border-amber-500 md:text-sm focus:ring-2 focus:ring-amber-500/20 focus:outline-none sm:w-52"
             />
           </div>
           <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">

@@ -801,3 +801,36 @@ rather than a demand, and makes paying feel like chipping in. Keeping the money 
 means the tone never blurs what to pay or how. The admin's emails are to-do notes to himself.
 **Instead of:** keeping only the view-only note warm (family got a nicer email than the people
 who actually pay), or HTML emails with colours (plain text reads the same in every mail app).
+
+## 2026-10-13 — Cards fade in with plain CSS, not view transitions
+**Decision:** when a tab's cards replace its loading placeholder, they fade up 6px one after
+another (~350 ms each, 60 ms apart): a CSS animation on the children of `PageEnter`
+(`components/page-enter.tsx`, `.page-enter` in `app/globals.css`). Reduced motion keeps the fade
+and drops the movement.
+**Why:** a CSS animation runs when an element first appears, which is exactly when the cards
+arrive, and not after a save (React updates the same elements). It behaves the same in every
+browser. Over ~400 ms starts to feel like waiting on screens used many times a day.
+**Instead of:** React's `<ViewTransition>` (snapshots the whole page, blocks taps while it runs
+unless turned off, behaves differently in Safari), or a `template.tsx` (it wraps the loading
+placeholder too, so it would animate the placeholder and the cards would still pop in).
+
+## 2026-10-13 — Switching months keeps the page; each tab has its own placeholder
+**Decision:** no `loading.tsx` above the month layout. A month switch keeps the current month on
+screen until the new one is ready, with a spinner on the arrow or month tapped (`useLinkStatus`).
+Each tab has its own `loading.tsx` shaped like it; the Split Table moved into a `(split)` route
+group to get one.
+**Why:** the old `app/periods/loading.tsx` sat above the layout, so it replaced the sidebar
+(the menu just tapped) with grey bars. A single placeholder under the layout covered every tab,
+so it couldn't know which one was coming, and two-column tabs jumped when they loaded.
+**Instead of:** loading the sidebar's data outside the month layout (a big rework). Cost: opening
+the app cold shows the browser's own loading until the month is ready, rather than a grey frame.
+
+## 2026-10-13 — Phones: 16px inputs and bigger buttons on touch screens
+**Decision:** inputs use 16px text below the `md` breakpoint (`max-md:text-base` in
+`InlineInput`), and buttons get bigger sizes under `pointer-coarse:` (touch screens) in
+`components/ui/button.tsx`.
+**Why:** iPhone zooms the page into any input under 16px when it's tapped. The compact buttons
+(24–36px) are fine with a mouse but small for a finger; `pointer-coarse` makes them bigger on
+phones and iPads only, so desktop keeps its density.
+**Instead of:** `maximum-scale=1` in the viewport (stops the zoom, but also blocks pinch-zoom on
+Android), or bigger buttons everywhere (wastes room on desktop).

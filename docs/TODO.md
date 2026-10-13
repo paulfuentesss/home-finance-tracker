@@ -56,6 +56,17 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
       open on `touchend` in `useEdgeSwipe`), drag back to close. Pull-to-refresh gone inside the
       app, still there in a Chrome tab.
 
+- [ ] **UI polish left from the 2026-10-13 audit** (all tabs; the fade-in, month switching,
+      per-tab placeholders, 16px inputs and touch-size buttons are done):
+      - Confirm a save after a dialog closes (a toast or similar); today it just closes.
+      - Error text with `role="alert"`, and InlineInput's "Saved" in a live region, so screen
+        readers announce them.
+      - `prefers-reduced-motion` for the phone menu's slide and the dialogs' zoom.
+      - Inline inputs: `focus-visible` instead of `focus`, and a stronger focus ring on white.
+      - One style each for empty states, card headings and card padding (they differ by tab).
+      - Small or faint text: sidebar group labels, the 10–11px text in the Split Table, the
+        scroll chevron.
+
 ## Ideas (not decided)
 
 - Google's consent screen says "Sign in to `<project-ref>.supabase.co`" ([auth](features/auth.md)).
