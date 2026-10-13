@@ -55,6 +55,10 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
       Android with gesture navigation and on iPhone, stays open when the finger lifts (if not,
       open on `touchend` in `useEdgeSwipe`), drag back to close. Pull-to-refresh gone inside the
       app, still there in a Chrome tab.
+- [ ] **Backups off the laptop** ([operations → Backups](operations.md#backups) says how and
+      why) — not copied anywhere safe yet (skipped by choice when going online, below). Each
+      Download backup zip into a cloud drive, `.private/NOTES.md` there too, and
+      `BILLER_SECRET_KEY` in a password manager. Maybe password-protect the zips.
 
 - [ ] **UI polish left from the 2026-10-13 audit** (all tabs; the fade-in, month switching,
       per-tab placeholders, 16px inputs and touch-size buttons are done):
@@ -95,8 +99,7 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
     `frame-ancestors 'none'` (no embedding the site in another page), Referrer-Policy.
   - **GitHub's free checks for a public repo:** Dependabot security updates, secret scanning with
     push protection (check they're on).
-  - **Backups:** keep a copy off the laptop (skipped by choice so far: Going online below), and
-    password-protect the zips.
+  - **Backups** off the laptop and password-protected: Later, above.
   - **Rotate the shared secrets** now and then (`BILL_EMAIL_SECRET`, `CRON_SECRET`; Vercel, plus
     the Gmail script for the first). `BILLER_SECRET_KEY` needs a script that re-encrypts every
     password first.
