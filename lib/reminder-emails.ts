@@ -3,6 +3,8 @@
 // short, and plain text reads the same in every mail app.
 //
 // Every email has the same shape: what's happening (one line), "To do:", the link, the sign-off.
+// The ones to housemates and view-only logins sound happy (an emoji in the subject, "Hi Ben! 👋",
+// a thank-you); the amounts and "To do:" stay exact. The admin's own nudges stay plain.
 
 import { monthLabel } from "@/lib/format";
 import { HOUSE_BUDGET_LABEL } from "@/lib/household-config";
@@ -19,6 +21,12 @@ export interface Email {
 const SIGN_OFF = "— My House\n(Sent automatically. Questions? Message the admin.)";
 /** To the admin, who the housemates' sign-off sends them to. */
 const ADMIN_SIGN_OFF = "— My House\n(Sent automatically.)";
+/** The housemates' last line before the sign-off. */
+const THANKS = "Thanks for keeping the house running! 🏠";
+
+function hello(name: string): string {
+  return `Hi ${name}! 👋`;
+}
 
 /** "October" — with the year only when it differs from `relativeTo` ("January 2027"). */
 function monthName(year: number, month: number, relativeTo = year): string {
@@ -42,20 +50,21 @@ export function monthEndEmail(
   const todo = `To do: log anything you paid for the house this month (groceries, the helper, a service)`;
   const subject =
     kind === "last_day"
-      ? `Today is the last day to log your ${label} expenses`
+      ? `Today's the last day to log your ${label} expenses! ⏰`
       : kind === "three_days"
-        ? `${label} locks in ${days}: log your expenses`
-        : `${days} left to log your ${label} expenses`;
+        ? `${label} locks in ${days}: log your expenses ⏳`
+        : `${days} left to log your ${label} expenses 🗓️`;
   return {
     subject,
     text: paragraphs(
-      `Hi ${name},`,
-      kind === "last_day" ? `Today is the last day of ${label}.` : `${days} left in ${label}.`,
+      hello(name),
+      kind === "last_day" ? `Today is the last day of ${label}!` : `${days} left in ${label}!`,
       kind === "last_day" ? `${todo} today.` : `${todo}, so it's counted when ${label}'s bills are split.`,
       kind === "last_day"
         ? `From tomorrow ${label} is locked: you can't add to it or change it anymore. Anything new goes in next month.`
         : `${label} locks after ${last}. After that you can't add to it anymore.`,
-      `Log it here: ${link}`,
+      `Log it here 👉 ${link}`,
+      THANKS,
       SIGN_OFF,
     ),
   };
@@ -81,16 +90,17 @@ export function payablesEmail({
   link: string;
 }): Email | null {
   const label = monthName(year, month);
-  const intro = `${label}'s bills are in and everyone's share is worked out.`;
+  const intro = `${label}'s bills are in and everyone's share is worked out! 🎉`;
   if (payables.kind === "owed") {
     return {
-      subject: `${label} is worked out: you get ${formatPHP(payables.amount)} back`,
+      subject: `Good news! You get ${formatPHP(payables.amount)} back for ${label} 🎉`,
       text: paragraphs(
-        `Hi ${name},`,
+        hello(name),
         intro,
         `You get back: ${formatPHP(payables.amount)}\n(you paid more than your share)`,
-        `Nothing to do: ${collectorName} sends it from the ${HOUSE_BUDGET_LABEL}, and it shows in Settle Up once it's sent.`,
+        `Nothing to do: ${collectorName} sends it from the ${HOUSE_BUDGET_LABEL}, and it shows in Settle Up once it's sent. 💸`,
         `See the details: ${link}`,
+        THANKS,
         SIGN_OFF,
       ),
     };
@@ -110,13 +120,14 @@ export function payablesEmail({
     payables.waiting > 0 && `Left to pay: ${formatPHP(payables.left)}`,
   ].filter((line) => typeof line === "string");
   return {
-    subject: `Your ${label} bill is ready: ${formatPHP(payables.left)}`,
+    subject: `Your ${label} bill is ready: ${formatPHP(payables.left)} 🧾`,
     text: paragraphs(
-      `Hi ${name},`,
+      hello(name),
       intro,
       amounts.join("\n"),
       `To do: send ${formatPHP(payables.left)} to the ${HOUSE_BUDGET_LABEL}, then open Settle Up, tap "I paid" on your row and attach the screenshot of your transfer.`,
       `Settle Up: ${link}`,
+      THANKS,
       SIGN_OFF,
     ),
   };
@@ -148,14 +159,15 @@ export function unpaidEmail({
   const label = monthName(year, month);
   const waitingLine = waiting > 0 ? `\n(${formatPHP(waiting)} more is sent, waiting for ${collectorName} to confirm)` : "";
   return {
-    subject: `Reminder: ${formatPHP(left)} left to pay for ${label}`,
+    subject: `Friendly reminder: ${formatPHP(left)} left to pay for ${label} 💛`,
     text: paragraphs(
-      `Hi ${name},`,
-      `A reminder: your ${label} bill isn't fully paid yet.`,
+      hello(name),
+      `Just a friendly nudge: your ${label} bill isn't fully paid yet.`,
       `Left to pay: ${formatPHP(left)}${waitingLine}`,
       `To do: send ${formatPHP(left)} to the ${HOUSE_BUDGET_LABEL}, then open Settle Up, tap "I paid" on your row and attach the screenshot of your transfer.`,
       `Already paid? Tap "I paid" with the screenshot, and these reminders stop. Until then, one comes every ${UNPAID_REMINDER_DAYS.then} days.`,
       `Settle Up: ${link}`,
+      THANKS,
       SIGN_OFF,
     ),
   };
@@ -163,15 +175,15 @@ export function unpaidEmail({
 
 /**
  * To a view-only login, sent once with a month's first bill email: the bills are in, if they'd
- * like a look. Warmer than the housemates' emails (they're family, with nothing to do), and no
- * amounts.
+ * like a look. No amounts and nothing to do (they're family who only look), and its own
+ * "take care" instead of the housemates' thank-you.
  */
 export function billsInEmail({ name, year, month, link }: { name: string; year: number; month: number; link: string }): Email {
   const label = monthName(year, month);
   return {
     subject: `${label}'s bills are in! 🏠`,
     text: paragraphs(
-      `Hi ${name}! 👋`,
+      hello(name),
       `${label}'s bills are all in and everyone's share is worked out.`,
       `Nothing for you to do. Just here to let you know! If you're curious, come take a look:\n${link}`,
       "Please always take care where you are ❤️",
