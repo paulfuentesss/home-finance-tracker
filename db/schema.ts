@@ -57,7 +57,8 @@ export const billerFieldKind = pgEnum("biller_field_kind", ["text", "link", "sec
 // An email My House sent (docs/features/reminders.md): week / three_days / last_day = the
 // month-end reminders to housemates · start_next = the admin's "couldn't start next month" ·
 // payables = "Email everyone their bill" from Settle Up · ready_bill / ready_close = the admin's
-// "ready to email the bill" / "ready to close" nudges · unpaid = the follow-up to a housemate whose
+// "ready to email the bill" / "ready to close" nudges · bills_in = a view-only login's "the bills
+// are in" note, sent once with the first bill email · unpaid = the follow-up to a housemate whose
 // emailed bill is still unpaid (its one row's sent_at moves forward with each follow-up).
 export const reminderKind = pgEnum("reminder_kind", [
   "week",
@@ -67,6 +68,7 @@ export const reminderKind = pgEnum("reminder_kind", [
   "payables",
   "ready_bill",
   "ready_close",
+  "bills_in",
   "unpaid",
 ]);
 // Where a member used My House from (lib/devices.ts — DEVICE_VIAS / DEVICE_PLATFORMS, kept equal

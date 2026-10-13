@@ -7,8 +7,11 @@
 - Lists who still owes whom — everyone settles through the
   [House Budget](../settlement-rules.md#house-budget) — with the suggested payment for each, in
   the order they happen: into the House Budget, out to whoever is owed, then what's left to PA
-  ("yours to move to your account"). Shows what the House Budget holds, and notes a payout it
-  doesn't hold enough for yet.
+  ("yours to move to your account"). What the House Budget holds sits above the list, in an
+  amber box.
+- **Compact / Normal** (phones only, everyone; an icon beside the heading switches): Compact shows each row as "🐷 → 🏠" and the amount
+  beside its button, with no names (a member with no emoji keeps theirs). Each phone remembers
+  its choice; wider screens always show the normal layout.
 - **PA:** one tap records a payment (the amount is pre-filled; partial amounts are fine, and
   the form lets PA change who paid whom; either side can be the House Budget). It counts right
   away. When there's nothing to tap (everyone settled, or a problem stops the numbers), a plain
@@ -32,7 +35,8 @@
   Payments column.
 - **Email everyone their bill** (PA): once the bills are in, each housemate gets their own
   amount and a link here; a housemate whose bill is out sees "Your bill is ready" at the top of
-  the month pages until it's paid ([reminders.md](reminders.md)).
+  the month pages until it's paid. View-only logins get a one-time "the bills are in" note and
+  are listed in the box ([reminders.md](reminders.md)).
 - Also where a month is closed or reopened ([months.md](months.md)). Closing a month, and
   starting the next one, wait until no payment is waiting.
 
@@ -50,7 +54,10 @@
   `computePeriod` carries the House Budget across months.
 - Shown as "● Ana → 🏛 House Budget" by `Pair` / `partyView` in `components/member-pair.tsx`: each
   member's emoji or dot, and the House Budget's emoji or bank icon (`view.houseBudgetEmoji`,
-  [manage.md](manage.md)).
+  [manage.md](manage.md)). `Pair`'s `compact` hides the names on phones (still read by screen readers).
+- Compact / Normal: a cookie (`COMPACT_COOKIE` in `lib/settle-up-view.ts`) written by the toggle in
+  `WhoStillOwes` and read by the page, so a phone that picked Compact gets it from the first paint
+  ([decisions.md](../decisions.md)).
 - Permissions: `canSubmitPayment`, `canCancelPayment`, `canSeePaymentProof`, `canOpenReceipt`
   in `lib/permissions.ts` (pure, tested).
 - Actions in `app/periods/[year]/[month]/actions.ts`: `addPayment`, `updatePayment`,

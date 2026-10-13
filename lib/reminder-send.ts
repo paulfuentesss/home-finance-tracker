@@ -5,7 +5,7 @@
 
 import "server-only";
 import { and, asc, eq, sql } from "drizzle-orm";
-import { billingPeriods, db, reminderSends, type Member } from "@/db";
+import { billingPeriods, db, members, reminderSends, type Member } from "@/db";
 import { appLink, EmailNotSetUpError, emailIsLive, sendEmail } from "@/lib/email";
 import { ActionError } from "@/lib/errors";
 import { monthLabel } from "@/lib/format";
@@ -13,7 +13,15 @@ import { sharesCosts } from "@/lib/members";
 import { monthHasEnded, payablesCheck } from "@/lib/month-lock";
 import { startNextMonthIn } from "@/lib/month-start";
 import { computeForPayables, payablesIn, pendingBillNames } from "@/lib/periods";
-import { monthEndEmail, payablesEmail, readyEmail, startBlockedEmail, unpaidEmail, type Email } from "@/lib/reminder-emails";
+import {
+  billsInEmail,
+  monthEndEmail,
+  payablesEmail,
+  readyEmail,
+  startBlockedEmail,
+  unpaidEmail,
+  type Email,
+} from "@/lib/reminder-emails";
 import { findAdminNudge, latestBillSends } from "@/lib/reminder-status";
 import { daysLeftIn, reminderDue, unpaidReminderDue } from "@/lib/reminders";
 
@@ -30,8 +38,8 @@ export interface ReminderOutcome {
 }
 
 /** Who gets a month's emails: everyone in it who shares the costs and has an email, but the collector. */
-function recipientsOf(members: readonly Member[]): Recipient[] {
-  return members
+function recipientsOf(inMonth: readonly Member[]): Recipient[] {
+  return inMonth
     .filter((m) => !m.isCollector && sharesCosts(m) && m.email)
     .map((m) => ({ id: m.id, name: m.name, email: m.email! }));
 }
@@ -112,9 +120,16 @@ export async function runDailyReminders(today: string): Promise<ReminderOutcome>
 /**
  * Claims the reminder, then sends it. Only the run that wins the claim sends (Vercel can call a
  * cron twice), and a failed send gives the claim back so the next day's run retries just that
- * person. Off the live site nothing is claimed (lib/email.ts → safety switch).
+ * person. Off the live site nothing is claimed (lib/email.ts → safety switch). Returns the error
+ * when the send failed (it's also in `outcome.failed`).
  */
-async function sendOnce(periodId: number, kind: ReminderKind, to: Recipient, email: Email, outcome: ReminderOutcome) {
+async function sendOnce(
+  periodId: number,
+  kind: ReminderKind,
+  to: Recipient,
+  email: Email,
+  outcome: Pick<ReminderOutcome, "sent" | "failed">,
+): Promise<unknown> {
   const live = emailIsLive();
   if (live) {
     const claimed = await db
@@ -122,11 +137,12 @@ async function sendOnce(periodId: number, kind: ReminderKind, to: Recipient, ema
       .values({ periodId, kind, memberId: to.id })
       .onConflictDoNothing()
       .returning({ id: reminderSends.id });
-    if (claimed.length === 0) return;
+    if (claimed.length === 0) return undefined;
   }
   try {
     await sendEmail(to.email, to.name, email);
     outcome.sent.push(`${kind} → ${to.name}`);
+    return undefined;
   } catch (error) {
     console.error(`Couldn't send the ${kind} email to ${to.name}`, error);
     outcome.failed.push(`${kind} → ${to.name}`);
@@ -137,6 +153,7 @@ async function sendOnce(periodId: number, kind: ReminderKind, to: Recipient, ema
           and(eq(reminderSends.periodId, periodId), eq(reminderSends.kind, kind), eq(reminderSends.memberId, to.id)),
         );
     }
+    return error;
   }
 }
 
@@ -225,8 +242,9 @@ async function sendAgain(
 /**
  * Emails each housemate their own bill for a month (Settle Up → "Email everyone their bill"):
  * what they owe, or get back, and a link to the latest month's Settle Up, where "I paid" goes.
- * Nobody sees anyone else's amount, and nobody settled is emailed. The caller checks it's the
- * admin (run("admin", …)). Throws an ActionError saying who it couldn't reach.
+ * Nobody sees anyone else's amount, and nobody settled is emailed. View-only logins get a "the
+ * bills are in" note (billsInEmail), the first time only. The caller checks it's the admin
+ * (run("admin", …)). Throws an ActionError saying who it couldn't reach.
  */
 export async function sendPayables(periodId: number): Promise<void> {
   const target = await db.query.billingPeriods.findFirst({ where: eq(billingPeriods.id, periodId) });
@@ -236,14 +254,14 @@ export async function sendPayables(periodId: number): Promise<void> {
   const check = payablesCheck(computed.issue, pendingBillNames(computed.period));
   if (!check.ok) throw new ActionError(check.reason!);
 
-  const members = computed.period.balances.map((b) => b.member);
-  const collectorName = members.find((m) => m.isCollector)?.name ?? "the admin";
+  const inMonth = computed.period.balances.map((b) => b.member);
+  const collectorName = inMonth.find((m) => m.isCollector)?.name ?? "the admin";
   const latest = computed.all.at(-1)!;
   const link = appLink(`/periods/${latest.year}/${latest.month}/settle`);
   const live = emailIsLive();
   const sent: string[] = [];
   const failed: string[] = [];
-  for (const member of recipientsOf(members)) {
+  for (const member of recipientsOf(inMonth)) {
     const owed = payablesIn(computed, member.id);
     if (!owed) continue;
     const email = payablesEmail({
@@ -277,6 +295,23 @@ export async function sendPayables(periodId: number): Promise<void> {
         });
     }
   }
+
+  // View-only logins: a "the bills are in" note, once per month (a resend doesn't repeat it).
+  const viewOnly = await db.query.members.findMany({
+    where: and(eq(members.role, "view_only"), eq(members.active, true)),
+    orderBy: [asc(members.sortOrder), asc(members.id)],
+  });
+  const monthLink = appLink(`/periods/${target.year}/${target.month}`);
+  for (const member of viewOnly) {
+    if (!member.email) continue;
+    const notes = { sent: [] as string[], failed: [] as string[] };
+    const email = billsInEmail({ name: member.name, year: target.year, month: target.month, link: monthLink });
+    const error = await sendOnce(periodId, "bills_in", { id: member.id, name: member.name, email: member.email }, email, notes);
+    if (error instanceof EmailNotSetUpError) throw new ActionError(error.message);
+    if (notes.sent.length) sent.push(member.name);
+    if (notes.failed.length) failed.push(member.name);
+  }
+
   if (failed.length) {
     const reached = sent.length ? `Sent to ${sent.join(", ")}, but couldn't` : "Couldn't";
     throw new ActionError(`${reached} send to ${failed.join(", ")}. Try again in a moment.`);

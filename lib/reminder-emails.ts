@@ -162,6 +162,25 @@ export function unpaidEmail({
 }
 
 /**
+ * To a view-only login, sent once with a month's first bill email: the bills are in, if they'd
+ * like a look. Warmer than the housemates' emails (they're family, with nothing to do), and no
+ * amounts.
+ */
+export function billsInEmail({ name, year, month, link }: { name: string; year: number; month: number; link: string }): Email {
+  const label = monthName(year, month);
+  return {
+    subject: `${label}'s bills are in! 🏠`,
+    text: paragraphs(
+      `Hi ${name}! 👋`,
+      `${label}'s bills are all in and everyone's share is worked out.`,
+      `Nothing for you to do. Just here to let you know! If you're curious, come take a look:\n${link}`,
+      "Please always take care where you are ❤️",
+      SIGN_OFF,
+    ),
+  };
+}
+
+/**
  * To the admin, when the daily job couldn't start the next month by itself (`reason` is why, from
  * startNextMonthIn — e.g. a waiting payment). It tries again every morning.
  */

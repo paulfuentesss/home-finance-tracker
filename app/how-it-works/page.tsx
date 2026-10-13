@@ -97,7 +97,8 @@ export default async function HowItWorksPage() {
             Send what you owe to the {HOUSE_BUDGET_LABEL}. Then open <strong>Settle Up</strong>, tap{" "}
             <strong>I paid</strong> on your row and attach the screenshot of the transfer. The amount is filled in with
             what you owe; change it if you only paid part. The &ldquo;Your bill is ready&rdquo; email and banner link
-            straight there.
+            straight there. On a phone, the icon beside <strong>Who still owes</strong> switches to a compact list,
+            each row on one line (emojis and the amount), and your phone remembers it.
           </p>
           <p>
             I paid always goes in the <strong>latest</strong> month. Once a new month has started, what you still owe
@@ -340,6 +341,10 @@ export default async function HowItWorksPage() {
             Amount looks wrong, or a question about an email? Message the admin before paying — they can fix the month
             and send the bill again.
           </p>
+          <p>
+            A <strong>view only</strong> login gets just one email a month: a short note when the month&apos;s bills are
+            in, with a link to have a look. No amounts.
+          </p>
         </>
       ),
     },
@@ -374,7 +379,7 @@ export default async function HowItWorksPage() {
             Everyone in the household signs in with their own login — Google, or a code sent to their email — and can
             see every month. Only emails the admin has added can sign in. A <strong>view only</strong> login (say,
             family abroad) sees the months too but changes nothing, and isn&apos;t part of any month, so they share in
-            no bill and never owe or are owed.
+            no bill and never owe or are owed. Their only email is a short note each month when the bills are in.
           </p>
           <p>
             You can log your own advances into <strong>Advances Shared</strong> and the Helper visits you paid, and edit
@@ -391,7 +396,8 @@ export default async function HowItWorksPage() {
             <strong>Receipts</strong> shows everyone the proof of each bill (the Helper&apos;s record is Helper Visits
             instead). A payment&apos;s screenshot, which can show
             your bank, only you and the admin see. <strong>Billers &amp; Accounts</strong> shows the lines shared with
-            housemates; passwords stay hidden until you tap to reveal one.
+            housemates; passwords stay hidden until you tap to reveal one. On a phone, tap a biller&apos;s name to
+            open its card.
           </p>
         </>
       ),

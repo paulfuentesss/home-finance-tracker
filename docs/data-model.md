@@ -29,7 +29,7 @@ connects directly ([decisions.md](decisions.md)).
 | `household_settings` | One row of household-wide settings, made the first time one is set: `house_budget_emoji` (shown in place of the House Budget's icon, or null) | [manage](features/manage.md) |
 | `backups` | A Download backup that finished: when, and who took it. Turns off the backup reminder | [months](features/months.md), [operations](operations.md#backups) |
 | `member_devices` | When a member last used My House, per `via` (`app` = the installed app / `web` = a browser) and coarse `platform` (`iphone` / `ipad` / `android` / `mac` / `windows` / `other`): `first_seen_at`, `last_seen_at`. Unique per member + via + platform, so a handful of rows; written by `/api/seen` at most every 5 minutes per row; read only by the admin's Manage page. No user agents or IPs. Deleting a member deletes it | [manage](features/manage.md) |
-| `reminder_sends` | An email My House sent for a month: `kind` (`week` / `three_days` / `last_day` reminders; to the admin, `start_next` = the next month couldn't start and `ready_bill` / `ready_close` = the nudges; `payables` = the bill email; `unpaid` = the follow-up while a bill stays unpaid, one row whose `sent_at` moves forward each time), to which member, when. Unique per month + kind + member, so a reminder is never sent twice; written only by the live site. Deleting the month or member deletes it | [reminders](features/reminders.md) |
+| `reminder_sends` | An email My House sent for a month: `kind` (`week` / `three_days` / `last_day` reminders; to the admin, `start_next` = the next month couldn't start and `ready_bill` / `ready_close` = the nudges; `payables` = the bill email; `bills_in` = a view-only login's "the bills are in" note; `unpaid` = the follow-up while a bill stays unpaid, one row whose `sent_at` moves forward each time), to which member, when. Unique per month + kind + member, so a reminder is never sent twice; written only by the live site. Deleting the month or member deletes it | [reminders](features/reminders.md) |
 
 ## Migrations
 
@@ -58,6 +58,7 @@ Add a line here with every new one.
 | `0017_member-photos` | A `member_photos` table and `members.photo_updated_at`, for sticker photos that were tried and dropped before shipping; `0018` removes both |
 | `0018_member-emoji` | Drops `member_photos` and `members.photo_updated_at` (never used by shipped code; backed up first), adds `members.emoji` with the `members_emoji_length` check ([manage.md](features/manage.md), emoji) |
 | `0019_house-budget-emoji` | The one-row `household_settings` table, with `house_budget_emoji` and its length check ([manage.md](features/manage.md), emoji). Additive; applied before the code that uses it shipped |
+| `0020_view-only-bills-in` | Adds `bills_in` to the `reminder_kind` enum: a view-only login's "the bills are in" note ([reminders.md](features/reminders.md)). Additive; applied before the code that uses it shipped |
 
 The receipt files themselves live in Supabase Storage (the private `receipts` bucket), not in
 the database; `receipts.storage_path` names one.
