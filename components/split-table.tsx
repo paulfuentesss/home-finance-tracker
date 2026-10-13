@@ -2,7 +2,7 @@
 
 import { Calculator, ChevronRight, Info, Scale, SlidersHorizontal, Zap } from "lucide-react";
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import {
   updateBillDates,
   updateBillShare,
@@ -15,7 +15,7 @@ import { EmailedNote, PendingBillActions } from "@/components/emailed-bills";
 import { InlineInput, type FormAction } from "@/components/inline-input";
 import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { useDragScroll } from "@/hooks/use-drag-scroll";
-import { dayLabel, monthLabel } from "@/lib/format";
+import { dayLabel, shortMonthLabel, shortMonthName } from "@/lib/format";
 import { HOUSE_BUDGET_LABEL } from "@/lib/household-config";
 import { formatPHP, fromCentavos, sumCentavos } from "@/lib/money";
 import type { PeriodView, ViewBill, ViewColumn, ViewRow } from "@/lib/periods";
@@ -41,6 +41,8 @@ const stickyCol = cn(
   "after:bg-linear-to-r after:from-black/5 after:to-transparent after:opacity-0 after:transition-opacity",
   "group-data-scrolled-left/scroller:after:opacity-100",
 );
+// The space between a mark and the name squeezed out beside it; it goes too once scrolled.
+const squeezeGap = "ml-2 max-sm:group-data-scrolled-left/scroller:ml-0";
 
 export function SplitTable({ view }: { view: PeriodView }) {
   // PA in an open month; everyone else sees plain values.
@@ -63,17 +65,22 @@ export function SplitTable({ view }: { view: PeriodView }) {
   return (
     <div className="space-y-6">
       {/* The arrow on the right edge says there's more table to scroll to (the hook sets
-          data-more-right on the scroller, its `peer`); it goes away once you reach the end. */}
+          data-more-right on the scroller, its `peer`); it goes away once you reach the end.
+          No scroll anchoring: when the name column narrows (Squeeze), a browser keeping the
+          columns in place could pull the scroll back to the start, which widens it again. */}
       <div className="relative">
         <div
           {...dragScroll}
-          className="peer group/scroller overflow-x-auto rounded-xl border bg-white shadow-xs data-dragging:cursor-grabbing data-dragging:select-none data-scrollable:cursor-grab"
+          className="peer group/scroller overflow-x-auto rounded-xl border bg-white shadow-xs [overflow-anchor:none] data-dragging:cursor-grabbing data-dragging:select-none data-scrollable:cursor-grab"
         >
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="border-b border-amber-300">
                 <th className={cn(cellBase, headCell, stickyCol, "text-left font-bold")}>
-                  {monthLabel(view.period.year, view.period.month)}
+                  <ScrollLabel
+                    full={shortMonthLabel(view.period.year, view.period.month)}
+                    short={shortMonthName(view.period.month)}
+                  />
                 </th>
                 {bills.map((bill) => (
                   <th key={bill.id} className={cn(cellBase, headCell, "min-w-36 text-center font-bold")}>
@@ -167,13 +174,15 @@ export function SplitTable({ view }: { view: PeriodView }) {
                         mine ? "bg-sky-50" : "bg-white group-hover:bg-zinc-50",
                       )}
                     >
-                      <span className="flex items-center gap-2">
+                      <span className="flex items-center">
                         <MemberMark dotClass={member.dotClass} emoji={member.emoji} />
-                        {member.name}
-                        {member.isCollector && (
-                          <span className="rounded-full bg-zinc-100 px-1.5 text-[10px] font-normal text-zinc-600">collector</span>
-                        )}
-                        <YouTag memberId={member.id} />
+                        <Squeeze className={squeezeGap}>
+                          {member.name}
+                          {member.isCollector && (
+                            <span className="rounded-full bg-zinc-100 px-1.5 text-[10px] font-normal text-zinc-600">collector</span>
+                          )}
+                          <YouTag memberId={member.id} />
+                        </Squeeze>
                       </span>
                     </th>
                     {bills.map((bill) => (
@@ -205,9 +214,9 @@ export function SplitTable({ view }: { view: PeriodView }) {
               {showBudget && (
                 <tr className="group hover:bg-zinc-50">
                   <th scope="row" className={cn(cellBase, stickyCol, "bg-white group-hover:bg-zinc-50 text-left font-sans font-medium")}>
-                    <span className="flex items-center gap-2">
+                    <span className="flex items-center">
                       <HouseBudgetMark emoji={view.houseBudgetEmoji} />
-                      {HOUSE_BUDGET_LABEL}
+                      <Squeeze className={squeezeGap}>{HOUSE_BUDGET_LABEL}</Squeeze>
                     </span>
                   </th>
                   {/* It takes no share of anything: only money in and out. */}
@@ -227,7 +236,7 @@ export function SplitTable({ view }: { view: PeriodView }) {
               {(["dueDate", "paidOn"] as const).map((field) => (
                 <tr key={field} className="bg-zinc-50 font-sans">
                   <th scope="row" className={cn(cellBase, stickyCol, "bg-zinc-50 text-left font-medium text-zinc-600")}>
-                    {field === "dueDate" ? "Due date" : "Date paid"}
+                    {field === "dueDate" ? <ScrollLabel full="Due date" short="Due" /> : <ScrollLabel full="Date paid" short="Paid" />}
                   </th>
                   {bills.map((bill) => (
                     <td key={bill.id} className={cn(cellBase, "text-center")}>
@@ -275,6 +284,67 @@ export function SplitTable({ view }: { view: PeriodView }) {
 
       <ExplainerCards />
     </div>
+  );
+}
+
+/**
+ * Text in the name column that squeezes out of the way once the table is scrolled sideways on a
+ * phone, so the column narrows to the marks and more of the table fits; `reveal` does the
+ * opposite, for a short label taking its place. The full text stays for screen readers (only
+ * clipped and faded). It animates max-width, which needs the real width to animate to: names
+ * can be long, so it's measured into --squeeze-w rather than capped. Until then max-width falls
+ * back to none, so the first paint is the full label. A flex item, never inline: an
+ * overflow-hidden inline-block would sit on its bottom edge, above the text line.
+ */
+function Squeeze({
+  reveal = false,
+  className,
+  children,
+}: {
+  reveal?: boolean;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const outer = useRef<HTMLSpanElement>(null);
+  const inner = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const box = outer.current;
+    const content = inner.current;
+    if (!box || !content) return;
+    // Rounded up: offsetWidth rounds down and could clip the last letter.
+    const measure = () => box.style.setProperty("--squeeze-w", `${Math.ceil(content.getBoundingClientRect().width)}px`);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, []);
+  return (
+    <span
+      ref={outer}
+      aria-hidden={reveal || undefined}
+      className={cn(
+        "block shrink-0 overflow-hidden whitespace-nowrap transition-[max-width,opacity,margin-left] duration-300 ease-out motion-reduce:transition-none",
+        reveal
+          ? "max-w-0 opacity-0 max-sm:group-data-scrolled-left/scroller:max-w-(--squeeze-w) max-sm:group-data-scrolled-left/scroller:opacity-100"
+          : "max-w-(--squeeze-w) max-sm:group-data-scrolled-left/scroller:max-w-0 max-sm:group-data-scrolled-left/scroller:opacity-0",
+        className,
+      )}
+    >
+      {/* w-max: keeps its full width while the outer one is squeezed, so it can be measured. */}
+      <span ref={inner} className="flex w-max items-center gap-2">
+        {children}
+      </span>
+    </span>
+  );
+}
+
+/** A label that swaps for a shorter one once scrolled on a phone ("OCT 2026" → "OCT"). */
+function ScrollLabel({ full, short }: { full: string; short: string }) {
+  return (
+    <span className="flex items-center">
+      <Squeeze>{full}</Squeeze>
+      <Squeeze reveal>{short}</Squeeze>
+    </span>
   );
 }
 

@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { partOfDayInManila } from "./format";
+import { partOfDayInManila, shortMonthLabel, shortMonthName } from "./format";
+
+describe("shortMonthName / shortMonthLabel", () => {
+  it("is the month's three capital letters, then the year", () => {
+    expect(shortMonthName(10)).toBe("OCT");
+    expect(shortMonthName(1)).toBe("JAN");
+    expect(shortMonthName(12)).toBe("DEC");
+    expect(shortMonthLabel(2026, 10)).toBe("OCT 2026");
+  });
+});
 
 describe("partOfDayInManila", () => {
   // Manila is UTC+8 all year.
