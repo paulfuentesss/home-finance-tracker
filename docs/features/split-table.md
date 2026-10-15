@@ -14,8 +14,10 @@
   cells stay blank: her visits have their own dates on the [Helper tab](helper.md).
 - Once a month has Helper visits or early pay logged, the Helper column's total comes from the
   Helper tab: shown read-only, linked to it.
-- A shared column's total is the advances logged into it, so it links to the
-  [Advances tab](advances.md) the same way ("from the Advances tab").
+- A shared column's total is the advances logged into it, so once something is logged there it
+  links the same way ("from the Advances tab"), opening the [Advances Log](advances.md) filtered
+  to that column. A column with nothing logged shows a plain ₱0.00 — except, for PA, a Manual
+  one that's over or short (the missing advance is logged there).
 - A **greeting** at the top: "Good evening, Ana 🌙" (morning / afternoon / evening, Manila
   time) with their emoji, big, beside it (none if they haven't set one) and their own number in
   plain words. The card's background follows the time of day too: a sunrise in the morning, a
@@ -50,12 +52,15 @@
 - Data: `getPeriodView` in `lib/periods.ts` loads the month plus every earlier one (for
   carry-over), runs `computeMonth` (`lib/settlement.ts`, pure, tested) and shapes plain JSON for
   the client.
-- UI: `components/split-table.tsx` (table, `MoneyInput`, `DateCell`),
+- UI: `components/split-table.tsx` (table, `MoneyInput`, `DateCell`, `TotalLink` for the totals
+  that come from another tab — its `aria-label` names where it goes),
   `components/settle-summary.tsx` (Who owes what), `components/greeting.tsx` (the greeting;
   the part of day is worked out on the server, `partOfDayInManila` in `lib/format.ts`, so the
   page and the browser agree), `components/you-tag.tsx`, `components/balance.tsx`,
-  `hooks/use-drag-scroll.ts` (drag to scroll the wide table; sets `data-more-right` for the
-  "›" hint and `data-scrolled-left` for the name column's edge and narrowing).
+  `hooks/use-drag-scroll.ts` (drag to scroll the wide table, also from a linked total — the
+  browser's own link drag is held back, and a link needs a bit more movement, so a shaky click
+  still opens it; sets `data-more-right` for the "›" hint and
+  `data-scrolled-left` for the name column's edge and narrowing).
 - The narrowing is `Squeeze` / `ScrollLabel` in `split-table.tsx` (`shortMonthLabel` /
   `shortMonthName` in `lib/format.ts`). CSS only, no re-render on scroll: it animates `max-width` to 0 under
   `max-sm:group-data-scrolled-left/scroller:`. The width it animates from is measured

@@ -9,7 +9,7 @@ begins, then it gets a page here.
 | Feature | Status | What it does | Page |
 |---|---|---|---|
 | Monthly Split Table | ✅ | Every bill and shared column split per person, Month Final, carry-over, Final, a House Budget row; "Who owes what" cards; a greeting with your own number, and "You" on your row | [split-table.md](split-table.md) |
-| Advances | ✅ | Log household purchases into shared columns; per-person report | [advances.md](advances.md) |
+| Advances | ✅ | Log household purchases into shared columns; filter by column (linked from the Split Table); per-person report | [advances.md](advances.md) |
 | Helper | ✅ | Her visits and early pay: whoever paid her gets it back, the Helper column fills in by itself, and what she owes carries across months | [helper.md](helper.md) |
 | Settle Up | ✅ | Who owes whom, settled through the House Budget; PA records a payment in one tap, a housemate sends theirs with “I paid” and a screenshot for PA to confirm | [settle-up.md](settle-up.md) |
 | Months | ✅ | Month picker, the next month starting by itself (or by hand), live carry-over, locked for housemates once it ends, closing / reopening, the backup reminder | [months.md](months.md) |

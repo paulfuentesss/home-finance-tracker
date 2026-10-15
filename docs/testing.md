@@ -17,7 +17,7 @@ on the PR. It needs no secrets because no test touches the database — keep it 
 | `lib/money.test.ts` | Centavo conversion, parsing typed amounts, equal and weighted splits |
 | `lib/settlement.test.ts` | The made-up August 2026 worked example; bill shares; Month Final rules; shared columns; split order; suggested payments; waiting and rejected payments not counted |
 | `lib/month-lock.test.ts` | Closing / reopening rules, pending bills and waiting payments blocking a close, starting the next month waiting for them, balances that would vanish; when a month has ended (Manila date, year's end), when the bill can be emailed |
-| `lib/advances-log.test.ts` | Advances Log grouping and split labels |
+| `lib/advances-log.test.ts` | Advances Log grouping, split labels and the column filter (`?column=`) |
 | `lib/bill-email/parse.test.ts` | Reading the August sample bill emails; refusing other senders; bill month; dates |
 | `lib/bill-email/intake.test.ts` | What `/api/bill-email` accepts from the Gmail script: Gmail's DKIM verdict for the biller's domain (lookalikes, other domains, headers not from Gmail refused), the body's shape |
 | `lib/bill-email/fees.test.ts` | The payment fee setting turns the sample emails into the fixture's bills |
