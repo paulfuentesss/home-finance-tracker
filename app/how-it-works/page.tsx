@@ -369,8 +369,25 @@ export default async function HowItWorksPage() {
             Everyone shows with their emoji, or a colour dot if they haven&apos;t picked one. To change yours, open the
             menu with your name at the bottom of the sidebar and type or paste one emoji into{" "}
             <strong>Your emoji</strong>; leave it empty to go back to the dot. The {HOUSE_BUDGET_LABEL} shows with the
-            emoji the admin picks for it, or a bank icon. The house icon at the top takes you back
-            to this month&apos;s Split Table from anywhere.
+            emoji the admin picks for it, or a bank icon.
+          </p>
+        </>
+      ),
+    },
+    {
+      id: "other-months",
+      q: "How do I look at another month, and get back?",
+      a: (
+        <>
+          <p>
+            Tap the month&apos;s name at the top of the sidebar (on a phone, in the middle of the top bar) to pick any
+            month, or use the arrows beside it. You stay on the same page: Advances in August opens Advances in
+            September.
+          </p>
+          <p>
+            When you&apos;re looking at an older month, a <strong>Back to</strong> link with the newest month&apos;s
+            name shows under the month name and takes you to the newest month, on the same page. The house icon at the
+            top takes you to the newest month&apos;s Split Table from anywhere.
           </p>
         </>
       ),

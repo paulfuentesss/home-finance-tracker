@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { AccountMenu } from "@/components/account-menu";
 import { HouseBadge } from "@/components/house-badge";
-import { MonthPicker, SIDEBAR_LINK, SidebarNav } from "@/components/period-nav";
+import { BackToLatest, MonthPicker, SIDEBAR_LINK, SidebarNav } from "@/components/period-nav";
 import { PreviewBanner } from "@/components/preview-banner";
 import { SeenTracker } from "@/components/seen-tracker";
 import { Button } from "@/components/ui/button";
@@ -34,7 +34,8 @@ export type SidebarProps = {
 };
 
 /**
- * The dark sidebar on every month page: My House, the month switcher, the sections, How it
+ * The dark sidebar on every month page: My House, the month switcher (with "Back to <newest
+ * month>" under it on an older month), the sections, How it
  * works, and the account at the bottom. Desktop shows it beside the page; phones open the same
  * thing from the ☰ in the top bar.
  */
@@ -72,7 +73,12 @@ function SidebarContent({
         </p>
       </div>
 
-      <MonthPicker periods={periods} current={current} canStartNext={canStartNext} variant="sidebar" />
+      <div className="space-y-1">
+        <MonthPicker periods={periods} current={current} canStartNext={canStartNext} variant="sidebar" />
+        {/* No onNavigate: like a month in the picker, the phone menu stays open with the spinner
+            and closes once the month arrives. */}
+        <BackToLatest periods={periods} current={current} variant="sidebar" />
+      </div>
 
       <SidebarNav base={base} waiting={waiting} onNavigate={onNavigate} />
 
@@ -144,7 +150,8 @@ function DesktopSidebar(props: SidebarProps) {
 }
 
 /**
- * Phones and tablets: a slim bar with ☰, the month in the middle and the house on the right.
+ * Phones and tablets: a slim bar with ☰, the month in the middle and the house on the right
+ * (on an older month, "Back to <newest month>" under them).
  * ☰, or a swipe in from the left edge of the page, slides the sidebar in; dragging it back
  * left closes it (components/ui/sheet.tsx).
  * The menu remembers the page it was opened on and counts as open only there, so moving to
@@ -200,6 +207,10 @@ function MobileTopBar({ pageRef, ...props }: SidebarProps & { pageRef: RefObject
       >
         <HouseBadge />
       </Link>
+      {/* A second row, only on an older month: empty:hidden keeps the bar unchanged otherwise. */}
+      <div className="col-span-3 -mt-1 justify-self-center empty:hidden">
+        <BackToLatest periods={props.periods} current={props.current} />
+      </div>
     </div>
   );
 }
