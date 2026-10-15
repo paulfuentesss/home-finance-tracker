@@ -9,7 +9,10 @@
   picked in the sidebar, so browsing back shows how things looked then. Fewer months than the
   range → it shows what there is ("Only 2 months so far"). **1 month** on a month still coming
   in (usually the current one) shows the newest complete month instead, and says so: on its own
-  the current month would be nearly empty. 3 and 6 show it faded.
+  the current month would be nearly empty. 3 and 6 show it faded. Switching range is instant (no
+  reload): the highlight slides (it jumps with reduced motion) and the numbers fade over. The
+  range is kept in the address bar (`?range=1|6`, none for 3), so a refresh or link keeps it;
+  Back leaves the tab rather than stepping through ranges.
 - **Spending** = the month's confirmed bills (the Helper's included) + its shared advances: the
   same two totals as the month header, so a bar's total matches its month. Pending (emailed)
   bills, settle-up payments and Helper entries (already in the Helper bill) don't count.
@@ -43,19 +46,21 @@
   `aria-live` box stays and screen readers still read the change).
 
 ## How it's built
-- Route: `app/periods/[year]/[month]/trends/page.tsx` (`?range=1|3|6`, anything else → 3,
-  `parseRange`) with its `loading.tsx` (`TrendsSkeleton` in `components/page-skeleton.tsx`).
-- Data: `getTrends` in `lib/trends-data.ts` checks the login, then loads up to
+- Route: `app/periods/[year]/[month]/trends/page.tsx` with its `loading.tsx` (`TrendsSkeleton`
+  in `components/page-skeleton.tsx`). `?range=1|3|6` (anything else → 3, `parseRange`) is read in
+  the browser (`useSearchParams`) and written with `history.replaceState`, so it never reloads.
+- Data: `getAllTrends` in `lib/trends-data.ts` checks the login, then loads up to
   `LOOKBACK_MONTHS` months ending at the one shown (bills, advances, who's in each month) in
-  one query. Household-wide, so a preview needs nothing different.
+  one query, and works out all three ranges from it. Household-wide, so a preview needs nothing
+  different.
 - Numbers: `buildTrends` in `lib/trends.ts` (pure, integer centavos; tested in
   `lib/trends.test.ts` with made-up months). The thresholds are named constants there
   (`MAX_SERIES`, `RISING_THRESHOLD_PCT`, `RISING_LOOKBACK`, `RISING_MIN_HISTORY`, `TOP_PURCHASES`).
   Colours (`slot`) are fixed by the whole loaded history, not the range.
-- UI: `components/trends.tsx` (server: headline, range links, insights),
+- UI: `components/trends.tsx` (client: the range switch, headline, insights),
   `components/trends-chart.tsx` (client: Recharts through shadcn's `components/ui/chart.tsx`),
   `components/trends-breakdown.tsx` (client, for the phone toggle: the Where it went card),
-  `components/trends-parts.tsx` (the card frame and change arrow, used by both sides) and
+  `components/trends-parts.tsx` (the card frame and change arrow, used by both cards) and
   `components/trends-colors.ts` (the palette, shared by the chart and the table).
 - No tables of its own: it reads `billing_periods`, `bill_items`, `advances`, `period_balances`.
 

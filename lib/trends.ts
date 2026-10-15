@@ -1,6 +1,6 @@
 // The Trends tab's numbers (docs/features/trends.md): household spending month by month, what it
 // went on, and plain insights. Pure (no DB) and tested in lib/trends.test.ts; the page loads the
-// months with getTrends in lib/trends-data.ts.
+// months with getAllTrends in lib/trends-data.ts.
 //
 // Spending = confirmed bills (the Helper's included) + shared advances, the same as the month
 // header's two totals (PeriodView.stats). Payments are money moving between people, and Helper
