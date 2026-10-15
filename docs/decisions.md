@@ -846,3 +846,10 @@ a refresh and every link agree. `replaceState` updates `useSearchParams` without
 page again.
 **Instead of:** `router.replace` (fetches the whole month again on every change), or putting
 every filter in the URL (more to keep in step, for filters nothing links to).
+
+## 2026-10-15 — "This month" is the newest month that exists
+**Decision:** the "Back to <month>" link under the month picker (`BackToLatest` in
+`components/period-nav.tsx`), like the house icon and `/`, goes to the newest month in the
+database, not the calendar month.
+**Why:** the next month starts the morning after the latest one ends, so for a few hours
+around the 1st the calendar month doesn't exist yet. The newest month always does.
