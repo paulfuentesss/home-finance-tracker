@@ -14,6 +14,8 @@
   cells stay blank: her visits have their own dates on the [Helper tab](helper.md).
 - Once a month has Helper visits or early pay logged, the Helper column's total comes from the
   Helper tab: shown read-only, linked to it.
+- A shared column's total is the advances logged into it, so it links to the
+  [Advances tab](advances.md) the same way ("from the Advances tab").
 - A **greeting** at the top: "Good evening, Ana 🌙" (morning / afternoon / evening, Manila
   time) with their emoji, big, beside it (none if they haven't set one) and their own number in
   plain words. The card's background follows the time of day too: a sunrise in the morning, a
