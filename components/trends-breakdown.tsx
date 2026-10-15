@@ -27,9 +27,11 @@ export function WhereItWent({
 }) {
   const [perMonth, setPerMonth] = useState(false);
   const toggle = months > 1 && rows.length > 0;
-  // On a phone only the picked one shows; from sm up both always do.
-  const totalClass = cn("text-right", toggle && perMonth && "hidden sm:table-cell");
-  const averageClass = cn("text-right", !perMonth && "hidden sm:table-cell");
+  // On a phone only the picked one shows; from sm up both always do. A cell fades in each time
+  // it's shown again (CSS animations restart when display: none ends), so a flip is easy to see.
+  const fade = "max-sm:animate-in max-sm:fade-in max-sm:duration-200";
+  const totalClass = cn("text-right", fade, toggle && perMonth && "hidden sm:table-cell");
+  const averageClass = cn("text-right", fade, !perMonth && "hidden sm:table-cell");
 
   return (
     <Card
@@ -37,7 +39,20 @@ export function WhereItWent({
       icon={ListOrdered}
       action={
         toggle && (
-          <div role="group" aria-label="Amounts to show" className="flex rounded-lg bg-zinc-100 p-0.5 text-xs">
+          // Two equal halves, so the white pill (half the width, less the padding) slides across
+          // by its own width. Reduced motion: it jumps.
+          <div
+            role="group"
+            aria-label="Amounts to show"
+            className="relative grid grid-cols-2 rounded-lg bg-zinc-100 p-0.5 text-xs"
+          >
+            <span
+              aria-hidden
+              className={cn(
+                "absolute inset-y-0.5 left-0.5 w-[calc(50%-2px)] rounded-md bg-white shadow-xs transition-transform duration-200 ease-out motion-reduce:transition-none",
+                perMonth && "translate-x-full",
+              )}
+            />
             {[false, true].map((value) => (
               <button
                 key={String(value)}
@@ -45,8 +60,8 @@ export function WhereItWent({
                 aria-pressed={perMonth === value}
                 onClick={() => setPerMonth(value)}
                 className={cn(
-                  "rounded-md px-2.5 py-1 font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  perMonth === value ? "bg-white text-foreground shadow-xs" : "text-muted-foreground",
+                  "relative rounded-md px-2.5 py-1 font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  perMonth === value ? "text-foreground" : "text-muted-foreground",
                 )}
               >
                 {value ? "Per month" : "Total"}

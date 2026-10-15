@@ -108,8 +108,12 @@ export function TrendsChart({ months, series, label }: { months: TrendsMonth[]; 
       </div>
       {/* Outside the role="img" wrapper, so screen readers can read it too. */}
       {shown && (
-        <div aria-live="polite" className="mt-3 grid gap-1.5 rounded-lg bg-zinc-50 p-3 text-sm sm:hidden">
-          <MonthAmounts datum={shown} series={series} />
+        <div aria-live="polite" className="mt-3 rounded-lg bg-zinc-50 p-3 text-sm sm:hidden">
+          {/* A new key per month replays the fade on each tap; the live region itself stays put
+              (one that's re-created isn't read out). */}
+          <div key={shown.name} className="grid gap-1.5 animate-in fade-in duration-200">
+            <MonthAmounts datum={shown} series={series} />
+          </div>
         </div>
       )}
     </div>

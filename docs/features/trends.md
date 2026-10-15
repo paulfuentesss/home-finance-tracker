@@ -38,6 +38,9 @@
   the chart's text version for screen readers. A phone has room for one amount column, so a
   **Total | Per month** toggle in the card's corner picks which (only with more than one month);
   that keeps the table inside the card without scrolling sideways. Wider screens show both.
+  On a phone the toggle's highlight slides (it jumps with reduced motion) and the amounts shown
+  fade in, here and in the chart's panel (only the panel's contents are re-created, so its
+  `aria-live` box stays and screen readers still read the change).
 
 ## How it's built
 - Route: `app/periods/[year]/[month]/trends/page.tsx` (`?range=1|3|6`, anything else → 3,

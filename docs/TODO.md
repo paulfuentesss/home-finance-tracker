@@ -60,6 +60,13 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
       Download backup zip into a cloud drive, `.private/NOTES.md` there too, and
       `BILLER_SECRET_KEY` in a password manager. Maybe password-protect the zips.
 
+- [ ] **Instant range switch on Trends** ([trends](features/trends.md)) — picking 1/3/6 months
+      loads the page again (skeleton, then fade-in). `getTrends` already loads `LOOKBACK_MONTHS`
+      and `buildTrends` is pure, so the page could get all three ranges at once and switch in the
+      browser (the URL kept in step with `replaceState`, like the Advances Log's filter), with the
+      highlight sliding like the Where it went toggle. Most of `components/trends.tsx` would
+      become client-side. Its own PR.
+
 - [ ] **UI polish left from the 2026-10-13 audit** (all tabs; the fade-in, month switching,
       per-tab placeholders, 16px inputs and touch-size buttons are done):
       - Confirm a save after a dialog closes (a toast or similar); today it just closes.
