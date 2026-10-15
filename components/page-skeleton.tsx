@@ -85,6 +85,22 @@ export function BillersSkeleton() {
   );
 }
 
+/** Trends: the chart card, then Insights and Where it went side by side on desktop. */
+export function TrendsSkeleton() {
+  return (
+    <Loading className="space-y-6">
+      <div className="space-y-4 rounded-xl border bg-white p-5 shadow-xs">
+        <Block className="h-14 w-56" />
+        <Block className="h-72 w-full sm:h-80" />
+      </div>
+      <div className="grid items-start gap-6 lg:grid-cols-2">
+        <CardSkeleton rows={4} />
+        <CardSkeleton rows={5} />
+      </div>
+    </Loading>
+  );
+}
+
 /** Receipts: the intro card, then a tile per bill (two, then three to a row). */
 export function ReceiptsSkeleton() {
   return (

@@ -8,14 +8,15 @@
   between ☰ and the house, with the short name, "SEP 2026"); the home page opens the most recent month. Switching keeps
   the section you're on.
 - **Sidebar:** every month page and How it works (on the latest month) has a dark sidebar with the month, the sections (This month:
-  Split Table, Advances, Helper Visits, Receipts, Settle Up; Household: Billers & Accounts,
+  Split Table, Advances, Helper Visits, Receipts, Settle Up; Household: Trends, Billers & Accounts,
   Manage), How it works, and the account menu (with the person's emoji). The house icon
   (in the sidebar and the phone's top bar; the "My House" name beside it is plain text) goes home: the newest month's Split Table, from any
   month or page. Below desktop width it slides in from ☰ or a
   swipe right from near the left edge (start a finger-width in: on Android the very edge is the
   phone's Back gesture), and closes on any link, Escape, a tap outside, or dragging it back left.
   Swipes that scroll a wide table back, select text in a box, or start in a dialog don't open
-  it. The page header shows the section's name and the month's two totals.
+  it. The page header shows the section's name and the month's two totals (not on Trends, which
+  covers several months: `MonthStatsSlot`).
 - **Starting the next month** happens by itself the morning after the latest month ends
   ([reminders.md](reminders.md)); **Start <next month>** (on the latest month) does it now. Either way it creates the next month with everyone currently
   active (view-only logins aside), copies the bill columns (split, points, payer, which one is the Helper's) at ₱0.00 and an empty Advances Shared.

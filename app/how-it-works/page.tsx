@@ -406,6 +406,26 @@ export default async function HowItWorksPage() {
       ),
     },
     {
+      id: "trends",
+      q: "Where can I see how much we spend over time?",
+      a: (
+        <>
+          <p>
+            <strong>Trends</strong> (in the sidebar, under Household) charts the household&apos;s spending for the last
+            1, 3 or 6 months, up to the month you&apos;re on: a bar per month, split into each bill and each kind of
+            shared purchase (groceries, food, services, misc). Tap or hover a bar to see the amounts. While this
+            month&apos;s bills are still coming in, <strong>1 month</strong> shows the last month that&apos;s complete.
+          </p>
+          <p>
+            Below it, <strong>Where it went</strong> lists what took the most, and <strong>Insights</strong> point out
+            what&apos;s grown, a bill that&apos;s higher than usual, and the biggest single purchases, to help us spend
+            wiser. A month whose bills aren&apos;t all in yet shows faded and isn&apos;t counted until they are, so it
+            doesn&apos;t look cheaper than it was.
+          </p>
+        </>
+      ),
+    },
+    {
       id: "install",
       q: "How do I put My House on my phone?",
       a: (
