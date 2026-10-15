@@ -1,6 +1,6 @@
 import { Info } from "lucide-react";
 import type { SidebarProps } from "@/components/app-sidebar";
-import { SectionTitle } from "@/components/period-nav";
+import { MonthStatsSlot, SectionTitle } from "@/components/period-nav";
 import type { PreviewChoice } from "@/lib/preview";
 import { monthLabel } from "@/lib/format";
 import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
@@ -30,7 +30,7 @@ export function sidebarProps(view: PeriodView, viewer: Viewer, previewChoices: P
 }
 
 // The top of every month page, beside the sidebar: the section's name on the left, the month's
-// two headline totals on the right (under the name on phones).
+// two headline totals on the right (under the name on phones; not on Trends, MonthStatsSlot).
 export function PeriodHeader({ view }: { view: PeriodView }) {
   const { year, month } = view.period;
   const pendingBills = view.bills.filter((b) => b.status === "pending");
@@ -39,26 +39,30 @@ export function PeriodHeader({ view }: { view: PeriodView }) {
     <header className="border-b bg-white">
       <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-x-4 gap-y-3 px-4 py-4">
         <SectionTitle month={monthLabel(year, month)} />
-        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
-          <Stat
-            label="Total core bills"
-            value={view.stats.coreBills}
-            description="The bill columns of the split table, confirmed bills only."
-            lines={view.bills.filter((b) => b.status === "confirmed").map((b) => ({ id: b.id, label: b.name, amount: b.total }))}
-            note={
-              pendingBills.length > 0
-                ? `Not counted until confirmed: ${pendingBills.map((b) => b.name).join(", ")}.`
-                : undefined
-            }
-          />
-          <Stat
-            label="Shared advances"
-            value={view.stats.sharedAdvances}
-            description="Every advance logged this month, by the shared column it goes into."
-            lines={view.columns.map((c) => ({ id: c.id, label: c.name, amount: c.total }))}
-            accent
-          />
-        </div>
+        <MonthStatsSlot>
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+            <Stat
+              label="Total core bills"
+              value={view.stats.coreBills}
+              description="The bill columns of the split table, confirmed bills only."
+              lines={view.bills
+                .filter((b) => b.status === "confirmed")
+                .map((b) => ({ id: b.id, label: b.name, amount: b.total }))}
+              note={
+                pendingBills.length > 0
+                  ? `Not counted until confirmed: ${pendingBills.map((b) => b.name).join(", ")}.`
+                  : undefined
+              }
+            />
+            <Stat
+              label="Shared advances"
+              value={view.stats.sharedAdvances}
+              description="Every advance logged this month, by the shared column it goes into."
+              lines={view.columns.map((c) => ({ id: c.id, label: c.name, amount: c.total }))}
+              accent
+            />
+          </div>
+        </MonthStatsSlot>
       </div>
     </header>
   );

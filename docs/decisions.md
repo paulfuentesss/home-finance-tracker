@@ -866,3 +866,31 @@ wrong.
 **Instead of:** a "last paid" note under each name in Who owes what or in the table (everyone
 sees everyone's), or counting months since the debt began (someone paying part of every month
 would still look behind).
+
+## 2026-10-16 — Spending Trends: stacked bars, insights worked out by the app
+**Decision:** a Trends tab ([features/trends.md](features/trends.md)) shows the last 1, 3 or 6
+months as stacked bars (a block per bill column and per advance category), a Where it went
+table and insights, all worked out by `lib/trends.ts`. Choices made with PA:
+- **Stacked bars**, drawn with shadcn's chart component on Recharts (the first chart library in
+  the app). One picture answers both "is it going up?" and "what's driving it?".
+- **Everyone sees it**: helping the household spend wiser is everyone's business, and housemates
+  already see every amount it's made from.
+- **Insights by fixed rules**, not an AI summary: free, instant, nothing sent to another service,
+  and testable.
+- **Complete months only** feed the totals and insights: closed, or ended with every bill in (the
+  Helper's ₱0 aside). Others are drawn faded. **1 month** on a month still coming in steps back
+  to the newest complete one (and says so), since that's the view people tap first and the
+  current month alone would be nearly empty.
+- **1, 3 and 6 months** for now; 12 waits until there's about a year of months
+  ([TODO.md](TODO.md) → Ideas).
+- **Bills are matched across months by column name**; a series keeps its colour by its place over
+  the whole loaded history, not the range.
+
+**Why:** bills arrive after their month ends, so the newest month nearly always looks cheap:
+comparing it would say spending fell when it hadn't. Closing alone wasn't enough, since it's
+done by hand and can lag weeks. There's no bill template table, and new months copy columns by
+name, so the name is the one key that carries over (a rename starts a new series). Colours by
+rank would repaint the same bill when the range changes.
+**Instead of:** a line chart (tangled with many series, weak for one month), a donut (hides the
+change month to month), an AI-written summary (an API key, a cost per view, household data sent
+out), or comparing every month including the open one.

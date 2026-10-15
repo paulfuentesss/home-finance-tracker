@@ -6,6 +6,7 @@ import {
   ChevronRight,
   ChevronsUpDown,
   CalendarPlus,
+  ChartColumn,
   HandCoins,
   KeyRound,
   Layers,
@@ -45,6 +46,7 @@ const TABS = [
   { href: "/helper", label: "Helper Visits", nav: "Helper Visits", group: "month", icon: Sparkles },
   { href: "/receipts", label: "Payment Proofs / Receipts", nav: "Receipts", group: "month", icon: ReceiptText },
   { href: "/settle", label: "Settle Up", nav: "Settle Up", group: "month", icon: HandCoins },
+  { href: "/trends", label: "Spending Trends", nav: "Trends", group: "household", icon: ChartColumn },
   { href: "/billers", label: "Billers & Accounts", nav: "Billers & Accounts", group: "household", icon: KeyRound },
   { href: "/manage", label: "Manage Columns & People", nav: "Manage", group: "household", icon: Settings },
 ] as const;
@@ -93,6 +95,14 @@ export function SectionTitle({ month }: { month: string }) {
       <h1 className="text-xl font-semibold tracking-tight">{tab?.label ?? month}</h1>
     </div>
   );
+}
+
+/**
+ * The month's two totals in the page header, left out on Trends: it covers several months, so
+ * one month's totals beside it would read as its own.
+ */
+export function MonthStatsSlot({ children }: { children: ReactNode }) {
+  return useCurrentTab()?.href === "/trends" ? null : children;
 }
 
 /**

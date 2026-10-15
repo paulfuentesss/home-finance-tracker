@@ -81,6 +81,14 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
 
 - More reminders ([reminders](features/reminders.md)): a biller's due date coming up.
 
+- Keep a bill's history across column renames on Trends ([trends](features/trends.md)): bills
+  are matched by name, so a renamed column starts a new series. Would need a stable id carried
+  from month to month (copied by Start next month).
+
+- A **12 months** option on Trends ([trends](features/trends.md)) once there's about a year of
+  months: it shows the seasons (Meralco climbs in the hot months), which a 3- or 6-month view
+  reads as "spending went up". `LOOKBACK_MONTHS` would need to cover the period before it too.
+
 - Read payment-confirmation emails to fill "Date paid" automatically
   ([email-bills](features/email-bills.md)). Wouldn't catch every payment fee, since some
   providers only report what they received.

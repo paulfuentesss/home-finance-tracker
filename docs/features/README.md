@@ -19,6 +19,7 @@ begins, then it gets a page here.
 | Email-imported bills | 🚧 | Bill emails, sent hourly by a script in the My House Gmail, become Pending bills with the payment fee added; Bill Inbox. Waiting for its first real bill | [email-bills.md](email-bills.md) |
 | Receipts | ✅ | Proof (screenshots) on each bill and payment, in a private bucket; the admin attaches | [receipts.md](receipts.md) |
 | Install as an app | ✅ | Installs on phones and computers and opens full-screen from the home screen; an Install card (instructions on iPhone); a "No connection" screen; no pull-to-refresh inside the app; a "My House was updated" reload after a deploy. Not offline yet | [install-app.md](install-app.md) |
+| Spending Trends | ✅ | The household's spending over the last 1, 3 or 6 months as stacked bars (each bill and advance category), where it went, and insights: the biggest spend, what grew, a bill above its usual, the biggest purchases, per person | [trends.md](trends.md) |
 | Billers & Accounts | ✅ | Each company the household pays, with account numbers, how it's paid, links and passwords (encrypted, revealed on tap); the admin edits, housemates see what's shared | [billers.md](billers.md) |
 
 Also running, not features of the app itself:
