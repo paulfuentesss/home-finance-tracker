@@ -15,7 +15,9 @@
   bills, settle-up payments and Helper entries (already in the Helper bill) don't count.
 - **Stacked bar chart**: a bar per month, a colour block per bill (by column name) and per
   advance category (Grocery, Food, Service, Misc). Hover a bar for each block's amount and the
-  month's total. At most eight blocks; the smallest of the rest fold into **Other**.
+  month's total; on a phone (where that box would cover the chart) tap a bar and they show
+  under the chart instead, starting on the newest complete month. At most eight blocks; the
+  smallest of the rest fold into **Other**.
   A series keeps its colour whatever the range. The blocks stack biggest first (at the bottom),
   in the same order as the legend and the Where it went table, worked out from the complete
   months so a month still coming in can't reorder them.
@@ -33,7 +35,12 @@
   complete month; the biggest single purchases (no payer names); spending per person a month.
   Each one is left out when there isn't enough history for it.
 - **Where it went**: each series with its total, share, monthly average and change. It's also
-  the chart's text version for screen readers.
+  the chart's text version for screen readers. A phone has room for one amount column, so a
+  **Total | Per month** toggle in the card's corner picks which (only with more than one month);
+  that keeps the table inside the card without scrolling sideways. Wider screens show both.
+  On a phone the toggle's highlight slides (it jumps with reduced motion) and the amounts shown
+  fade in, here and in the chart's panel (only the panel's contents are re-created, so its
+  `aria-live` box stays and screen readers still read the change).
 
 ## How it's built
 - Route: `app/periods/[year]/[month]/trends/page.tsx` (`?range=1|3|6`, anything else → 3,
@@ -45,9 +52,11 @@
   `lib/trends.test.ts` with made-up months). The thresholds are named constants there
   (`MAX_SERIES`, `RISING_THRESHOLD_PCT`, `RISING_LOOKBACK`, `RISING_MIN_HISTORY`, `TOP_PURCHASES`).
   Colours (`slot`) are fixed by the whole loaded history, not the range.
-- UI: `components/trends.tsx` (server: headline, range links, insights, table),
-  `components/trends-chart.tsx` (the only client part: Recharts through shadcn's
-  `components/ui/chart.tsx`), `components/trends-colors.ts` (the palette, shared by both).
+- UI: `components/trends.tsx` (server: headline, range links, insights),
+  `components/trends-chart.tsx` (client: Recharts through shadcn's `components/ui/chart.tsx`),
+  `components/trends-breakdown.tsx` (client, for the phone toggle: the Where it went card),
+  `components/trends-parts.tsx` (the card frame and change arrow, used by both sides) and
+  `components/trends-colors.ts` (the palette, shared by the chart and the table).
 - No tables of its own: it reads `billing_periods`, `bill_items`, `advances`, `period_balances`.
 
 ## Rules

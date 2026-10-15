@@ -894,3 +894,15 @@ rank would repaint the same bill when the range changes.
 **Instead of:** a line chart (tangled with many series, weak for one month), a donut (hides the
 change month to month), an AI-written summary (an API key, a cost per view, household data sent
 out), or comparing every month including the open one.
+
+## 2026-10-16 — Trends on a phone: a panel instead of the tooltip, a toggle instead of a column
+**Decision:** below `sm`, tapping a bar shows its amounts in a panel under the chart (starting on
+the newest complete month) instead of the floating tooltip, and Where it went shows one amount
+column with a **Total | Per month** toggle in the card's corner. Desktop keeps the tooltip and
+both columns. The panel follows Recharts' own tooltip state (`useActiveTooltipLabel`).
+**Why:** on a phone the tooltip covered nearly the whole chart, the bar tapped included, and two
+amount columns pushed the table past the card. Recharts runs `onClick` before it has caught up
+with a tap, so reading the bar from it could show the one tapped before.
+**Instead of:** a smaller tooltip with just the total (still covers bars, loses the breakdown),
+nothing on a tap (no way to see one month's amounts on a phone), or a table that scrolls
+sideways.
