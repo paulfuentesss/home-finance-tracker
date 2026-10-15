@@ -8,6 +8,7 @@ import { billingPeriods, billItems, db, payments, receipts } from "@/db";
 import type { Database } from "@/db/client";
 import { getPreview, requireViewer } from "@/lib/auth";
 import { dateInManila, todayInManila } from "@/lib/format";
+import { lastPaidOf, type LastPaid } from "@/lib/last-paid";
 import { dotClassOf } from "@/lib/members";
 import { canOpenReceipt } from "@/lib/permissions";
 import { closeCheck, monthHasEnded, reopenCheck, type LockCheck } from "@/lib/month-lock";
@@ -204,6 +205,11 @@ export interface PeriodView {
    * Final), the same as the bill banner and email say. Missing for someone the numbers can't be worked out for. The greeting.
    */
   payables: Record<string, Payables>;
+  /**
+   * When each housemate (not the collector) last paid, by member id, across every month, not just
+   * this one (lastPaidOf). Missing when there's no payment on record. The greeting.
+   */
+  lastPaid: Record<string, LastPaid>;
   /** Settle Up on the latest month, where "I paid" goes (components/settle-up.tsx). */
   latestSettleHref: string;
 }
@@ -424,6 +430,9 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
     };
   });
   const columnById = new Map(columns.map((c) => [c.id, c]));
+  // Manila's date, from the server, so the browser's clock never decides it.
+  const today = todayInManila();
+  const allPayments = all.flatMap(paymentsOf);
 
   return {
     period: {
@@ -432,7 +441,7 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
       month: period.month,
       status: period.status,
       closedOn: period.closedAt ? dateInManila(period.closedAt) : null,
-      ended: monthHasEnded(period.year, period.month, todayInManila()),
+      ended: monthHasEnded(period.year, period.month, today),
     },
     members,
     bills,
@@ -489,6 +498,14 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
         const owed = payablesIn(computed, m.id);
         return owed ? [[String(m.id), owed.payables]] : [];
       }),
+    ),
+    lastPaid: Object.fromEntries(
+      members
+        .filter((m) => !m.isCollector)
+        .flatMap((m) => {
+          const last = lastPaidOf(allPayments, m.id, today);
+          return last ? [[String(m.id), last]] : [];
+        }),
     ),
     latestSettleHref: `/periods/${all[all.length - 1].year}/${all[all.length - 1].month}/settle`,
     houseBudgetEmoji: settings?.houseBudgetEmoji ?? null,

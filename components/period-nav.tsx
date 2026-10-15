@@ -15,6 +15,7 @@ import {
   ReceiptText,
   Settings,
   Sparkles,
+  Undo2,
 } from "lucide-react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -313,6 +314,41 @@ export function MonthPicker({
         gap
       )}
     </div>
+  );
+}
+
+/**
+ * "↩ Back to October 2026" under the month picker, only on an older month: the newest month, on
+ * the same tab (like the arrows). Nothing on the newest month itself. `sidebar` / `bar` as in
+ * MonthPicker.
+ */
+export function BackToLatest({
+  periods,
+  current,
+  variant = "bar",
+}: {
+  periods: PeriodSummary[];
+  current: { year: number; month: number };
+  variant?: "sidebar" | "bar";
+}) {
+  const suffix = useTabSuffix();
+  const latest = periods.at(-1);
+  if (!latest || (latest.year === current.year && latest.month === current.month)) return null;
+  return (
+    <Link
+      href={`/periods/${latest.year}/${latest.month}${suffix ?? ""}`}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        variant === "sidebar"
+          ? "text-amber-400 hover:bg-white/5 hover:text-amber-300"
+          : "text-amber-700 hover:bg-zinc-100",
+      )}
+    >
+      <PendingIcon>
+        <Undo2 className="size-4" aria-hidden />
+      </PendingIcon>
+      Back to {monthLabel(latest.year, latest.month)}
+    </Link>
   );
 }
 

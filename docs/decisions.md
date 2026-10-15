@@ -847,6 +847,26 @@ page again.
 **Instead of:** `router.replace` (fetches the whole month again on every change), or putting
 every filter in the URL (more to keep in step, for filters nothing links to).
 
+## 2026-10-15 — "This month" is the newest month that exists
+**Decision:** the "Back to <month>" link under the month picker (`BackToLatest` in
+`components/period-nav.tsx`), like the house icon and `/`, goes to the newest month in the
+database, not the calendar month.
+**Why:** the next month starts the morning after the latest one ends, so for a few hours
+around the 1st the calendar month doesn't exist yet. The newest month always does.
+
+## 2026-10-15 — "Last paid" is in the greeting, for your own payments only
+**Decision:** while a housemate still has some left to pay, the greeting adds "Last paid Aug. 12
+· 2 months ago": their latest confirmed payment from any month, to anyone (`lastPaidOf`).
+Months are whole months (Sept. 30 → Oct. 1 is 0, so it shows just the date). With no payment on
+record there's no line.
+**Why:** a gentle nudge works best where only that person sees it, so nobody is shown as behind
+in front of the others. Payments to someone other than the House Budget still count, because the
+rules allow them. Payments from the Google Sheet days aren't in the app, so "never paid" could be
+wrong.
+**Instead of:** a "last paid" note under each name in Who owes what or in the table (everyone
+sees everyone's), or counting months since the debt began (someone paying part of every month
+would still look behind).
+
 ## 2026-10-16 — Spending Trends: stacked bars, insights worked out by the app
 **Decision:** a Trends tab ([features/trends.md](features/trends.md)) shows the last 1, 3 or 6
 months as stacked bars (a block per bill column and per advance category), a Where it went

@@ -27,7 +27,10 @@
   House Budget pays you ₱X" or "You're all settled 🎉". That's their Final less waiting "I paid"s
   and later payments, never more than they owe overall now (`payablesIn`, [settlement-rules.md →
   What's still owed](../settlement-rules.md)), the same as the bill banner and email, so nobody
-  is asked to pay twice. The collector sees "You get back ₱X overall" (they paid the bills upfront), as in Who owes what. A view-only login
+  is asked to pay twice. While they still have some left to pay, a small line under it says when
+  they last paid: "Last paid Aug. 12 · 2 months ago" (their latest confirmed payment, from any
+  month; just the date if it's under a month). With no payment on record there's no line. Only
+  their own, never someone else's. The collector sees "You get back ₱X overall" (they paid the bills upfront), as in Who owes what. A view-only login
   gets only the hello; a closed month just says it's closed.
 - "Who owes what" cards above the table: who pays into the House Budget, who gets paid from
   it, and what's left for the collector — readable on a phone where the wide table isn't.
@@ -69,6 +72,9 @@
   back to the start as the column narrows (which would widen it again, back and forth).
 - The collector's "overall" number comes from `collectorNetOf` (`lib/who-owes.ts`, pure, tested),
   used by both Who owes what and the greeting so they can't disagree.
+- The greeting's "Last paid" line comes from `lastPaidOf` (`lib/last-paid.ts`, pure, tested),
+  filled into `view.lastPaid` by `getPeriodView` from every month's payments, with today's date
+  from the server (`todayInManila`).
 - Edits: `updateBillTotal`, `updateBillShare`, `updateBillDates`, `updateSharedColumnAmount` in
   `app/periods/[year]/[month]/actions.ts`, through `components/inline-input.tsx`
   (`onSubmit` + `startTransition` so a failed save keeps what was typed).

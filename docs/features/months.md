@@ -7,6 +7,9 @@
 - **Month picker** at the top of the sidebar (on phones and tablets, centred in the top bar
   between ☰ and the house, with the short name, "SEP 2026"); the home page opens the most recent month. Switching keeps
   the section you're on.
+- **Back to <newest month>:** on an older month, a small link under the month picker (sidebar,
+  ☰ menu and the phone's top bar) opens the same section of the newest month. Hidden on the
+  newest month itself, so the top bar keeps its height there.
 - **Sidebar:** every month page and How it works (on the latest month) has a dark sidebar with the month, the sections (This month:
   Split Table, Advances, Helper Visits, Receipts, Settle Up; Household: Trends, Billers & Accounts,
   Manage), How it works, and the account menu (with the person's emoji). The house icon
