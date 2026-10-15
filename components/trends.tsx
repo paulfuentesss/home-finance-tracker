@@ -1,45 +1,16 @@
-import { ArrowDownRight, ArrowUpRight, ChartColumn, Lightbulb, ListOrdered } from "lucide-react";
+import { Lightbulb } from "lucide-react";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { WhereItWent } from "@/components/trends-breakdown";
 import { TrendsChart } from "@/components/trends-chart";
-import { seriesColor } from "@/components/trends-colors";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card, Change, pct } from "@/components/trends-parts";
 import { monthLabel } from "@/lib/format";
 import { formatPHP } from "@/lib/money";
 import { RANGES, spanLabel, type Insight, type Trends as TrendsData } from "@/lib/trends";
 import { cn } from "@/lib/utils";
 
-/** "+12%", "−5%", "0%". */
-function pct(change: number) {
-  return change > 0 ? `+${change}%` : change < 0 ? `−${-change}%` : "0%";
-}
-
-/** Up or down vs the period before, in words with an arrow (never colour alone). */
-function Change({ change }: { change: number | null }) {
-  if (change === null) return <span className="text-muted-foreground">—</span>;
-  const Icon = change > 0 ? ArrowUpRight : change < 0 ? ArrowDownRight : null;
-  return (
-    <span className="inline-flex items-center gap-0.5 tabular-nums">
-      {Icon && <Icon className="size-3.5" aria-hidden />}
-      {pct(change)}
-    </span>
-  );
-}
-
-function Card({ title, icon: Icon, children }: { title: string; icon: typeof ChartColumn; children: ReactNode }) {
-  return (
-    <section className="rounded-xl border bg-white p-5 shadow-xs">
-      <h2 className="flex items-center justify-between font-semibold">
-        {title}
-        <Icon className="size-4 text-muted-foreground" aria-hidden />
-      </h2>
-      {children}
-    </section>
-  );
-}
-
 // Tab: Spending Trends (docs/features/trends.md). The household's spending over the last 1, 3 or
-// 6 months up to the month picked, what it went on, and insights worked out by lib/trends.ts.
+// 6 months up to the month picked, what it went on (components/trends-breakdown.tsx), and
+// insights worked out by lib/trends.ts.
 export function Trends({ trends, base }: { trends: TrendsData; base: string }) {
   const { months, series, basis, headline, breakdown, insights, range, latestComplete, skipped } = trends;
   const inProgress = months.filter((m) => !m.complete);
@@ -111,7 +82,9 @@ export function Trends({ trends, base }: { trends: TrendsData; base: string }) {
         )}
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      {/* grid-cols-1, not the default auto column: that one grows to the table's no-wrap width and
+          pushes both cards off a phone screen. */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card title="Insights" icon={Lightbulb}>
           {basis.partial ? (
             <p className="mt-3 text-sm text-muted-foreground">
@@ -144,52 +117,12 @@ export function Trends({ trends, base }: { trends: TrendsData; base: string }) {
           )}
         </Card>
 
-        <Card title="Where it went" icon={ListOrdered}>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {basis.label}
-            {headline.previous && <> · change per month vs {headline.previous.label}</>}
-          </p>
-          {breakdown.length ? (
-            <Table className="mt-2 text-sm">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>What</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  <TableHead className="text-right">Share</TableHead>
-                  {basis.months > 1 && <TableHead className="hidden text-right sm:table-cell">Per month</TableHead>}
-                  {headline.previous && <TableHead className="text-right">Change</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {breakdown.map((row) => (
-                  <TableRow key={row.key}>
-                    <TableCell>
-                      <span className="flex items-center gap-2">
-                        <span className="size-2.5 shrink-0 rounded-[2px]" style={{ background: seriesColor(row) }} />
-                        {row.label}
-                        {row.kind === "advance" && <span className="text-xs text-muted-foreground">shared</span>}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right font-mono tabular-nums">{formatPHP(row.total)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{row.share}%</TableCell>
-                    {basis.months > 1 && (
-                      <TableCell className="hidden text-right font-mono tabular-nums sm:table-cell">
-                        {formatPHP(row.average)}
-                      </TableCell>
-                    )}
-                    {headline.previous && (
-                      <TableCell className="text-right">
-                        <Change change={row.change} />
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <p className="mt-3 text-sm text-muted-foreground">Nothing spent yet.</p>
-          )}
-        </Card>
+        <WhereItWent
+          rows={breakdown}
+          basisLabel={basis.label}
+          months={basis.months}
+          previousLabel={headline.previous?.label}
+        />
       </div>
     </div>
   );
@@ -223,14 +156,17 @@ function InsightText({ insight, basisLabel }: { insight: Insight; basisLabel: st
       return (
         <div>
           <p>Biggest single purchases:</p>
-          <ol className="mt-1.5 space-y-1">
+          <ol className="mt-2 space-y-2 sm:mt-1.5 sm:space-y-1">
             {insight.items.map((item, i) => (
-              <li key={i} className="flex items-baseline justify-between gap-3">
-                <span className="min-w-0 truncate">
-                  {item.description}{" "}
-                  <span className="text-xs text-muted-foreground">{spanLabel([item])}</span>
+              <li key={i} className="flex items-center justify-between gap-3 sm:items-baseline">
+                {/* On a phone the month goes on its own line under the name, the amount beside
+                    both, so the whole name fits; wider screens keep it on one line. A very long
+                    name still shortens with "…", never the month. */}
+                <span className="min-w-0 sm:flex sm:items-baseline sm:gap-1.5">
+                  <span className="block truncate">{item.description}</span>
+                  <span className="block text-xs text-muted-foreground sm:shrink-0">{spanLabel([item])}</span>
                 </span>
-                <span className="font-mono font-medium tabular-nums">{formatPHP(item.amount)}</span>
+                <span className="shrink-0 font-mono font-medium tabular-nums">{formatPHP(item.amount)}</span>
               </li>
             ))}
           </ol>
