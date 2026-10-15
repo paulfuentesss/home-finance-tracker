@@ -60,6 +60,7 @@ export function SplitTable({ view }: { view: PeriodView }) {
     !view.issue && view.rows.length > 0 && (budget.opening !== 0 || budget.received !== 0 || budget.paidOut !== 0);
   const budgetIn = (amount: number) => (showBudget ? amount : 0);
   const mismatched = columns.filter((c) => c.difference !== 0);
+  const base = `/periods/${view.period.year}/${view.period.month}`;
   const dragScroll = useDragScroll<HTMLDivElement>();
 
   return (
@@ -122,12 +123,7 @@ export function SplitTable({ view }: { view: PeriodView }) {
                   <td key={bill.id} className={cn(cellBase, "text-center")}>
                     {bill.paidBy ? (
                       // Visits are logged on the Helper tab; the total is what was handed over.
-                      <Link
-                        href={`/periods/${view.period.year}/${view.period.month}/helper`}
-                        className="font-semibold underline decoration-dotted underline-offset-4 hover:text-amber-700"
-                      >
-                        {formatPHP(bill.total)}
-                      </Link>
+                      <TotalLink href={`${base}/helper`} name={bill.name} amount={bill.total} tab="Helper" />
                     ) : editable && bill.splitMode !== "manual" ? (
                       <MoneyInput
                         action={updateBillTotal}
@@ -140,21 +136,26 @@ export function SplitTable({ view }: { view: PeriodView }) {
                       <span className="font-semibold">{formatPHP(bill.total)}</span>
                     )}
                     {bill.splitMode === "manual" && <div className="mt-1 text-[11px] text-muted-foreground">sum of shares</div>}
-                    {bill.paidBy && <div className="mt-1 font-sans text-[11px] text-muted-foreground">from the Helper tab</div>}
                     <EmailedNote bill={bill} />
                     {bill.status === "pending" && editable && <PendingBillActions bill={bill} />}
                   </td>
                 ))}
                 {columns.map((column) => (
                   <td key={column.id} className={cn(cellBase, "text-center")}>
-                    {/* The total is the advances logged into this column, on the Advances tab. */}
-                    <Link
-                      href={`/periods/${view.period.year}/${view.period.month}/advances`}
-                      className="font-semibold underline decoration-dotted underline-offset-4 hover:text-amber-700"
-                    >
-                      {formatPHP(column.total)}
-                    </Link>
-                    <div className="mt-1 font-sans text-[11px] text-muted-foreground">from the Advances tab</div>
+                    {/* The total is the advances logged into this column: it opens the Advances
+                        Log filtered to them. Not for an empty column (advances are always > 0,
+                        so ₱0.00 means none): nothing to see. Except, for PA, a Manual one that's
+                        over or short: the missing advance is logged there. */}
+                    {column.total !== 0 || (editable && column.difference !== 0) ? (
+                      <TotalLink
+                        href={`${base}/advances?column=${column.id}`}
+                        name={column.name}
+                        amount={column.total}
+                        tab="Advances"
+                      />
+                    ) : (
+                      <span className="font-semibold">{formatPHP(column.total)}</span>
+                    )}
                     {column.difference !== 0 && (
                       <div className="mt-1 font-sans text-[11px] font-medium text-rose-600">
                         {formatPHP(Math.abs(column.difference))} {column.difference > 0 ? "over" : "short"}
@@ -352,6 +353,28 @@ function ScrollLabel({ full, short }: { full: string; short: string }) {
       <Squeeze>{full}</Squeeze>
       <Squeeze reveal>{short}</Squeeze>
     </span>
+  );
+}
+
+/**
+ * A total that comes from another tab (the Helper's visits, a column's advances): a link there,
+ * with a note saying so. The link's label says where it goes, so the note is hidden from
+ * screen readers.
+ */
+function TotalLink({ href, name, amount, tab }: { href: string; name: string; amount: number; tab: string }) {
+  return (
+    <>
+      <Link
+        href={href}
+        aria-label={`${name} total ${formatPHP(amount)}, open the ${tab} tab`}
+        className="font-semibold underline decoration-dotted underline-offset-4 hover:text-amber-700"
+      >
+        {formatPHP(amount)}
+      </Link>
+      <div aria-hidden className="mt-1 font-sans text-[11px] text-muted-foreground">
+        from the {tab} tab
+      </div>
+    </>
   );
 }
 

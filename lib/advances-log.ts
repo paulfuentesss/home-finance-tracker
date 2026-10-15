@@ -34,8 +34,12 @@ export const BILLS_COLOR = "bg-violet-50 text-violet-700 ring-violet-200";
  * two columns share one (the palette only repeats past 8 one-off columns in a month).
  */
 export function oneOffColumnColors(columns: readonly { id: number; isDefault: boolean }[]): Map<number, string> {
-  const oneOffs = columns.filter((c) => !c.isDefault).sort((a, b) => a.id - b.id);
-  return new Map(oneOffs.map((c, i) => [c.id, ONE_OFF_COLORS[i % ONE_OFF_COLORS.length]]));
+  return new Map(oneOffColumns(columns).map((c, i) => [c.id, ONE_OFF_COLORS[i % ONE_OFF_COLORS.length]]));
+}
+
+/** A month's one-off columns (all but the default), in the order they were added. */
+export function oneOffColumns<T extends { id: number; isDefault: boolean }>(columns: readonly T[]): T[] {
+  return columns.filter((c) => !c.isDefault).sort((a, b) => a.id - b.id);
 }
 
 /**
@@ -48,6 +52,20 @@ export function sharedByLabel(
 ): string {
   const excluded = members.filter((m) => !includedIds.includes(m.id)).map((m) => m.name);
   return excluded.length === 0 ? "everyone" : `everyone except ${excluded.join(", ")}`;
+}
+
+/**
+ * The column to filter the log by, from the page's `?column=<id>` (set by a column total on the
+ * Split Table). Null unless it's one plain id of a column in this month.
+ */
+export function columnFilterFrom(param: string | null, columns: readonly { id: number }[]): number | null {
+  // Compared as text, so only the id exactly as the link writes it counts ("04", "4.0" don't).
+  return columns.find((c) => String(c.id) === param)?.id ?? null;
+}
+
+/** Whether a row is in the column filtered to (null = every column). Bill rows are in none. */
+export function inColumn(row: LogRow, columnId: number | null): boolean {
+  return columnId === null || (row.split.kind !== "bill" && row.split.columnId === columnId);
 }
 
 export interface LogRow {

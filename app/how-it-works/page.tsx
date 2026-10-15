@@ -249,9 +249,11 @@ export default async function HowItWorksPage() {
             total, the table shows how much it&apos;s over or short.
           </p>
           <p>
-            To see what&apos;s in a column, tap its total on the Split Table: it opens the Advances Log. Logged
-            something wrong? Edit it there (the pencil next to it) until the month ends, and everyone&apos;s shares
-            are recalculated.
+            To see what&apos;s in a column, tap its total on the Split Table (once anything&apos;s logged in it):
+            the Advances Log opens showing just that column. You can also pick one from its{" "}
+            <strong>Filter by column</strong> list. Logged something wrong? Your own advances in Advances Shared
+            have edit and delete buttons there until the month ends; for anything else, ask the admin.
+            Everyone&apos;s shares are recalculated either way.
           </p>
         </>
       ),

@@ -5,7 +5,12 @@
 
 ## What it does
 - **Advances Log:** every advance and bill paid in the month, grouped by person, with search
-  and filters. Bills paid show as read-only "Bills" rows (they're not stored as advances, so
+  and filters (payer, category, shared column). A column's total on the Split Table opens the
+  log filtered to that column (`?column=<id>`, kept in the address bar as the filter changes;
+  an id that isn't one of the month's columns is dropped by a redirect).
+  Each person's group starts closed; a search or filter opens them all so matches show, and
+  they can still be closed (or Expand / Collapse all) until the filters change.
+  Bills paid show as read-only "Bills" rows (they're not stored as advances, so
   nothing counts twice). The Helper, once its visits are logged, shows one row per person who
   paid her ([helper.md](helper.md)).
 - Log, edit (payer, category, description, amount, date, column) and delete advances;
@@ -21,8 +26,10 @@
 - Route: `app/periods/[year]/[month]/advances/page.tsx` (tab 2).
 - UI: `components/advances-log.tsx`, `components/advances-report.tsx`, the dialogs in
   `components/entry-dialogs.tsx` (`useDialogForm`: `onSubmit` + `startTransition`).
-- Pure helpers: `lib/advances-log.ts` (split tags, grouping by person) — tested in
-  `lib/advances-log.test.ts`.
+- Pure helpers: `lib/advances-log.ts` (split tags, grouping by person, the column filter:
+  `columnFilterFrom`, `inColumn`) — tested in `lib/advances-log.test.ts`.
+- The column filter is read from the URL (`useSearchParams`) and written back with
+  `history.replaceState`; why in [decisions.md](../decisions.md) (2026-10-15).
 - Actions: `addAdvance`, `updateAdvance`, `deleteAdvance` in `app/periods/[year]/[month]/actions.ts`
   — open to members (`run("member", …)`), like the Helper's ([helper.md](helper.md)): for a
   member the payer and column are forced, and `canManageAdvance` (`lib/permissions.ts`) is

@@ -834,3 +834,15 @@ the app cold shows the browser's own loading until the month is ready, rather th
 phones and iPads only, so desktop keeps its density.
 **Instead of:** `maximum-scale=1` in the viewport (stops the zoom, but also blocks pinch-zoom on
 Android), or bigger buttons everywhere (wastes room on desktop).
+
+## 2026-10-15 — The Advances Log's column filter lives in the URL
+**Decision:** a shared column's total on the Split Table links to `advances?column=<id>`, and
+the log reads its column filter from the URL (`useSearchParams`), writing it back with the
+native `history.replaceState`. Search, payer and category stay ordinary component state.
+**Why:** the column filter is the one that other pages link into. Next keeps the log mounted
+when only the query changes, so state seeded once from the URL went stale: the sidebar's
+Advances link would leave the log filtered. With the URL as the only source, the address bar,
+a refresh and every link agree. `replaceState` updates `useSearchParams` without fetching the
+page again.
+**Instead of:** `router.replace` (fetches the whole month again on every change), or putting
+every filter in the URL (more to keep in step, for filters nothing links to).
