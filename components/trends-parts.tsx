@@ -2,8 +2,8 @@ import { ArrowDownRight, ArrowUpRight, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-// Pieces shared by the Trends tab's server part (components/trends.tsx) and its Where it went
-// card (components/trends-breakdown.tsx, a Client Component), so no "use client" here.
+// Pieces shared by the Trends tab (components/trends.tsx) and its Where it went card
+// (components/trends-breakdown.tsx), both Client Components.
 
 /** "+12%", "−5%", "0%". */
 export function pct(change: number) {

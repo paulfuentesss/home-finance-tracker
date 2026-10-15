@@ -1,18 +1,64 @@
+"use client";
+
 import { Lightbulb } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useRef, type RefObject } from "react";
 import { WhereItWent } from "@/components/trends-breakdown";
 import { TrendsChart } from "@/components/trends-chart";
 import { Card, Change, pct } from "@/components/trends-parts";
 import { monthLabel } from "@/lib/format";
 import { formatPHP } from "@/lib/money";
-import { RANGES, spanLabel, type Insight, type Trends as TrendsData } from "@/lib/trends";
+import {
+  DEFAULT_RANGE,
+  parseRange,
+  RANGES,
+  spanLabel,
+  type Insight,
+  type Range,
+  type Trends as TrendsData,
+} from "@/lib/trends";
 import { cn } from "@/lib/utils";
+
+/**
+ * Sets `?range=` (or, for the default, removes it) with the native replaceState, which Next picks
+ * up in useSearchParams without fetching the page again (node_modules/next/dist/docs: Linking and
+ * Navigating → Native History API). Compares the raw value, so a junk one is cleaned up too.
+ */
+function setRange(range: Range) {
+  const url = new URL(window.location.href);
+  if (range === DEFAULT_RANGE) {
+    if (!url.searchParams.has("range")) return;
+    url.searchParams.delete("range");
+  } else {
+    if (url.searchParams.get("range") === String(range)) return;
+    url.searchParams.set("range", String(range));
+  }
+  window.history.replaceState(null, "", url);
+}
+
+/** Fades `ref`'s element in again whenever `value` changes (not on the first render). */
+function useFadeOnChange(ref: RefObject<HTMLElement | null>, value: unknown) {
+  const previous = useRef(value);
+  useEffect(() => {
+    if (previous.current === value) return;
+    previous.current = value;
+    ref.current?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: "ease-out" });
+  }, [ref, value]);
+}
 
 // Tab: Spending Trends (docs/features/trends.md). The household's spending over the last 1, 3 or
 // 6 months up to the month picked, what it went on (components/trends-breakdown.tsx), and
-// insights worked out by lib/trends.ts.
-export function Trends({ trends, base }: { trends: TrendsData; base: string }) {
-  const { months, series, basis, headline, breakdown, insights, range, latestComplete, skipped } = trends;
+// insights worked out by lib/trends.ts. The page sends all three ranges; the one shown comes from
+// `?range=` (like the Advances Log's column filter, docs/decisions.md), so switching is instant:
+// the highlight slides and the numbers fade over, with no reload.
+export function Trends({ byRange }: { byRange: Record<Range, TrendsData> }) {
+  const range = parseRange(useSearchParams().get("range"));
+  const { months, series, basis, headline, breakdown, insights, latestComplete, skipped } = byRange[range];
+  const headlineRef = useRef<HTMLDivElement>(null);
+  const cardsRef = useRef<HTMLDivElement>(null);
+  useFadeOnChange(headlineRef, range);
+  useFadeOnChange(cardsRef, range);
   const inProgress = months.filter((m) => !m.complete);
   const chartLabel = `Stacked bar chart of household spending per month, ${spanLabel(months)}. The Where it went table below lists the same amounts.`;
 
@@ -20,7 +66,7 @@ export function Trends({ trends, base }: { trends: TrendsData; base: string }) {
     <div className="space-y-6">
       <section className="space-y-4 rounded-xl border bg-white p-5 shadow-xs">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
+          <div ref={headlineRef}>
             <p className="text-sm text-muted-foreground">
               {basis.partial ? "So far in" : "Spent in"} {basis.label}
             </p>
@@ -41,21 +87,36 @@ export function Trends({ trends, base }: { trends: TrendsData; base: string }) {
               </p>
             )}
           </div>
-          <nav aria-label="How many months" className="flex rounded-lg bg-zinc-100 p-0.5 text-sm">
+          {/* Three equal thirds, so the white pill (a third, less the padding) slides across by its
+              own width per step. Reduced motion: it jumps. */}
+          <div
+            role="group"
+            aria-label="How many months"
+            className="relative grid grid-cols-3 rounded-lg bg-zinc-100 p-0.5 text-sm"
+          >
+            <span
+              aria-hidden
+              className={cn(
+                "absolute inset-y-0.5 left-0.5 w-[calc((100%-4px)/3)] rounded-md bg-white shadow-xs transition-transform duration-200 ease-out motion-reduce:transition-none",
+                range === RANGES[1] && "translate-x-full",
+                range === RANGES[2] && "translate-x-[200%]",
+              )}
+            />
             {RANGES.map((n) => (
-              <Link
+              <button
                 key={n}
-                href={`${base}/trends?range=${n}`}
-                aria-current={n === range ? "page" : undefined}
+                type="button"
+                aria-pressed={n === range}
+                onClick={() => setRange(n)}
                 className={cn(
-                  "rounded-md px-3 py-1.5 font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  n === range ? "bg-white text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground",
+                  "relative rounded-md px-3 py-1.5 font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  n === range ? "text-foreground" : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 {n === 1 ? "1 month" : `${n} months`}
-              </Link>
+              </button>
             ))}
-          </nav>
+          </div>
         </div>
 
         {skipped.length > 0 && (
@@ -84,7 +145,7 @@ export function Trends({ trends, base }: { trends: TrendsData; base: string }) {
 
       {/* grid-cols-1, not the default auto column: that one grows to the table's no-wrap width and
           pushes both cards off a phone screen. */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div ref={cardsRef} className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card title="Insights" icon={Lightbulb}>
           {basis.partial ? (
             <p className="mt-3 text-sm text-muted-foreground">

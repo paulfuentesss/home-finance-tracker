@@ -7,13 +7,15 @@ import { billingPeriods, db } from "@/db";
 import { requireViewer } from "@/lib/auth";
 import { todayInManila } from "@/lib/format";
 import { toCentavos } from "@/lib/money";
-import { buildTrends, LOOKBACK_MONTHS, type Range, type Trends } from "@/lib/trends";
+import { buildTrends, LOOKBACK_MONTHS, RANGES, type Range, type Trends } from "@/lib/trends";
 
 /**
- * The Trends numbers for the `range` months ending at year/month. Household-wide totals, the
- * same for everyone who can open the month, so a preview needs nothing different.
+ * The Trends numbers for every range (1, 3 and 6 months) ending at year/month, so the page can
+ * switch between them in the browser without asking the server again. One query: any range needs
+ * the same `LOOKBACK_MONTHS`. Household-wide totals, the same for everyone who can open the month,
+ * so a preview needs nothing different.
  */
-export async function getTrends(year: number, month: number, range: Range): Promise<Trends> {
+export async function getAllTrends(year: number, month: number): Promise<Record<Range, Trends>> {
   await requireViewer();
   const periods = await db.query.billingPeriods.findMany({
     columns: { year: true, month: true, status: true },
@@ -29,16 +31,17 @@ export async function getTrends(year: number, month: number, range: Range): Prom
       balances: { columns: { memberId: true } },
     },
   });
-  return buildTrends(
-    periods.map((p) => ({
-      year: p.year,
-      month: p.month,
-      status: p.status,
-      bills: p.billItems.map((b) => ({ name: b.name, kind: b.kind, status: b.status, total: toCentavos(b.totalAmount) })),
-      advances: p.advances.map((a) => ({ category: a.category, description: a.description, amount: toCentavos(a.amount) })),
-      people: p.balances.length,
-    })),
-    range,
-    todayInManila(),
-  );
+  const inputs = periods.map((p) => ({
+    year: p.year,
+    month: p.month,
+    status: p.status,
+    bills: p.billItems.map((b) => ({ name: b.name, kind: b.kind, status: b.status, total: toCentavos(b.totalAmount) })),
+    advances: p.advances.map((a) => ({ category: a.category, description: a.description, amount: toCentavos(a.amount) })),
+    people: p.balances.length,
+  }));
+  const today = todayInManila();
+  return Object.fromEntries(RANGES.map((range) => [range, buildTrends(inputs, range, today)])) as Record<
+    Range,
+    Trends
+  >;
 }

@@ -906,3 +906,15 @@ with a tap, so reading the bar from it could show the one tapped before.
 **Instead of:** a smaller tooltip with just the total (still covers bars, loses the breakdown),
 nothing on a tap (no way to see one month's amounts on a phone), or a table that scrolls
 sideways.
+
+## 2026-10-16 — Trends switches range in the browser, all three sent at once
+**Decision:** the Trends page works out 1, 3 and 6 months in one go (`getAllTrends`) and the
+page (`components/trends.tsx`, now a Client Component) shows the one in `?range=`, read with
+`useSearchParams` and written with `history.replaceState`, like the Advances Log's column filter.
+**Why:** picking a range used to reload the page (skeleton, then fade-in), so it felt slow and the
+highlight couldn't slide. Every range already needed the same 12 loaded months and the math is
+pure and quick, so sending all three costs one query and a little data. replaceState keeps the
+URL (refresh and links work) without a history entry per tap, so Back leaves the tab.
+**Instead of:** `router.push` inside a transition (keeps the old page up, but still waits on the
+server each time), or three server-rendered copies swapped by a small client wrapper (three times
+the page sent, and the chart rebuilt on every switch).
