@@ -167,6 +167,9 @@ function YourNumber({ view, memberId, theme }: { view: PeriodView; memberId: num
   const { waiting, left } = payables;
   // Named like the bill banner does (housemateNotice), so the two read the same.
   const confirmer = collector?.name ?? "the admin";
+  // Their latest confirmed payment, from any month. None on record: no line (payments from before
+  // the app aren't in it, so "never paid" could be wrong).
+  const lastPaid = view.lastPaid[String(memberId)];
   return (
     <p className={text}>
       {left > 0 ? (
@@ -180,6 +183,12 @@ function YourNumber({ view, memberId, theme }: { view: PeriodView; memberId: num
           >
             Settle up →
           </Link>
+          {lastPaid && (
+            <span className="mt-0.5 block text-xs">
+              Last paid {lastPaid.label}
+              {lastPaid.monthsAgo > 0 && ` · ${lastPaid.monthsAgo} month${lastPaid.monthsAgo === 1 ? "" : "s"} ago`}
+            </span>
+          )}
         </>
       ) : (
         // No amount: `waiting` is capped at what's due, so it could be less than what was sent.

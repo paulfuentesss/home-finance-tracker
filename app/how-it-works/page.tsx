@@ -361,7 +361,9 @@ export default async function HowItWorksPage() {
             still have to pay into the House Budget (with a <strong>Settle up</strong> link), that your payment is
             waiting for the admin to confirm, that the House Budget pays you, or that you&apos;re all settled. It&apos;s
             the same amount as your bill email and banner, so a payment you&apos;ve already sent is never asked for
-            again. Your own row in the table, and in Who owes what, is marked <strong>You</strong>.
+            again. While you still have some left to pay, a small line under it says when your last payment was (once
+            the admin confirmed it), and how many months ago. It&apos;s only on your own card. Your own row in the table, and in
+            Who owes what, is marked <strong>You</strong>.
           </p>
           <p>
             Everyone shows with their emoji, or a colour dot if they haven&apos;t picked one. To change yours, open the

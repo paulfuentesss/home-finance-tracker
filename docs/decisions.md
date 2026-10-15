@@ -846,3 +846,16 @@ a refresh and every link agree. `replaceState` updates `useSearchParams` without
 page again.
 **Instead of:** `router.replace` (fetches the whole month again on every change), or putting
 every filter in the URL (more to keep in step, for filters nothing links to).
+
+## 2026-10-15 — "Last paid" is in the greeting, for your own payments only
+**Decision:** while a housemate still has some left to pay, the greeting adds "Last paid Aug. 12
+· 2 months ago": their latest confirmed payment from any month, to anyone (`lastPaidOf`).
+Months are whole months (Sept. 30 → Oct. 1 is 0, so it shows just the date). With no payment on
+record there's no line.
+**Why:** a gentle nudge works best where only that person sees it, so nobody is shown as behind
+in front of the others. Payments to someone other than the House Budget still count, because the
+rules allow them. Payments from the Google Sheet days aren't in the app, so "never paid" could be
+wrong.
+**Instead of:** a "last paid" note under each name in Who owes what or in the table (everyone
+sees everyone's), or counting months since the debt began (someone paying part of every month
+would still look behind).
