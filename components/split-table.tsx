@@ -147,7 +147,14 @@ export function SplitTable({ view }: { view: PeriodView }) {
                 ))}
                 {columns.map((column) => (
                   <td key={column.id} className={cn(cellBase, "text-center")}>
-                    <span className="font-semibold">{formatPHP(column.total)}</span>
+                    {/* The total is the advances logged into this column, on the Advances tab. */}
+                    <Link
+                      href={`/periods/${view.period.year}/${view.period.month}/advances`}
+                      className="font-semibold underline decoration-dotted underline-offset-4 hover:text-amber-700"
+                    >
+                      {formatPHP(column.total)}
+                    </Link>
+                    <div className="mt-1 font-sans text-[11px] text-muted-foreground">from the Advances tab</div>
                     {column.difference !== 0 && (
                       <div className="mt-1 font-sans text-[11px] font-medium text-rose-600">
                         {formatPHP(Math.abs(column.difference))} {column.difference > 0 ? "over" : "short"}
