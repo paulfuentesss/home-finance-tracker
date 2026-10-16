@@ -8,7 +8,9 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "My House",
     short_name: "My House",
     description: "Household bills and shared expenses, settled monthly.",
-    start_url: "/",
+    // The launch screen (app/open/page.tsx), which loads the month behind it. `id` stays "/", so
+    // apps installed before it are still the same app.
+    start_url: "/open",
     scope: "/",
     display: "standalone",
     // The page background (zinc-50), so the splash screen and title bar match the app.

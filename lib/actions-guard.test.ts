@@ -39,6 +39,8 @@ const ROUTE_HANDLERS = [
 ];
 /** Routes anyone may fetch, signed out too: the install icons (generic artwork, no household data). */
 const PUBLIC_ROUTES = ["app/icons/[file]/route.tsx"];
+/** Pages proxy.ts lets through without a login: the installed app's launch screen (generic artwork). */
+const PUBLIC_PAGES = ["app/open/page.tsx", "components/launch-redirect.tsx"];
 /** The routes without a login, each with its shared secret first: the Gmail script's and Vercel's daily job. */
 const SECRET_ROUTE = "app/api/bill-email/route.ts";
 const CRON_ROUTE = "app/api/reminders/route.ts";
@@ -150,6 +152,12 @@ describe("Route Handlers", () => {
   it.each(PUBLIC_ROUTES)("%s touches no household data or login", (file) => {
     const source = read(join(ROOT, file));
     expect(source).not.toMatch(/from "@\/(db|lib\/auth|lib\/supabase)/);
+    expect(source).not.toMatch(/process\.env/);
+  });
+
+  it.each(PUBLIC_PAGES)("%s loads no household data or login", (file) => {
+    const source = read(join(ROOT, file));
+    expect(source).not.toMatch(/from "@\/(db|lib\/auth|lib\/supabase|lib\/periods)/);
     expect(source).not.toMatch(/process\.env/);
   });
 

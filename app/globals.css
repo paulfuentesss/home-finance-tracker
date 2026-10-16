@@ -172,3 +172,61 @@
     animation-name: page-enter-fade;
   }
 }
+
+/* The installed app's launch screen (app/open/page.tsx): the house and name fade in, then a thin
+   amber line sweeps under them while the month loads. The line waits 400ms, so a fast open never
+   shows it. Reduced motion keeps the fade, drops the growing, and the line gently pulses instead. */
+@keyframes launch-in {
+  from {
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+@keyframes launch-track-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes launch-sweep {
+  from {
+    translate: -100%;
+  }
+  to {
+    translate: 250%;
+  }
+}
+@keyframes launch-pulse {
+  50% {
+    opacity: 0.4;
+  }
+}
+.launch-in {
+  animation: launch-in 300ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+.launch-track {
+  position: relative;
+  overflow: hidden;
+  width: 6rem;
+  height: 3px;
+  border-radius: 9999px;
+  background: var(--color-zinc-200);
+  animation: launch-track-in 300ms 400ms both;
+}
+.launch-track::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  border-radius: inherit;
+  background: var(--color-amber-600);
+  animation: launch-sweep 1.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .launch-in {
+    animation-name: page-enter-fade;
+  }
+  .launch-track::after {
+    width: 100%;
+    animation: launch-pulse 1.6s ease-in-out infinite;
+  }
+}
