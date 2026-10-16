@@ -67,7 +67,9 @@ export const config = {
   // Everything except Next's static files, images (the app icons among them), robots.txt (crawlers
   // read it signed out), and the install-the-app files: browsers fetch the manifest without
   // cookies, so a login redirect there would make the app uninstallable (docs/features/install-app.md).
+  // Also the installed app's launch screen (/open): generic artwork, skipping the login check so
+  // it shows at once; the navigation to "/" right after goes through here.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|robots.txt|manifest.webmanifest|sw.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|manifest.webmanifest|sw.js|open$|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

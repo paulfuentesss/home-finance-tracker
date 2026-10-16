@@ -21,6 +21,14 @@ screen, like an app. Not offline yet: that's in [TODO.md](../TODO.md).
 - **Already installed:** Chrome and Edge know, and never offer to install again, so the card
   stays away. Safari on iPhone can't tell, so the iPhone card has **I've added it**, which stops
   it on that phone for good.
+- **Launch screen:** the installed app opens on a small My House screen (the house and name fade
+  in, then a thin amber line sweeps under them) that stays up while the month loads, then gives
+  way to it (or to the login page when signed out). It replaces the phone's own start-up screen
+  almost at once: on Android that's the big icon, on iPhone a blank white screen. After about
+  15 seconds it adds "Taking longer than usual" with **Try again**. Android apps installed
+  before it switch over by themselves once Chrome refreshes the app's details (about a day);
+  **an iPhone that added the app earlier keeps opening the month directly** until it's removed
+  and added again, because iOS reads the start page only when it's added.
 - **Install app** in the account menu (the name at the bottom of the sidebar) brings the card
   back any time, whatever was tapped before. Where the browser offers no install dialog
   (already installed, or Firefox/desktop Safari), it says where the browser's own menu option is.
@@ -43,7 +51,16 @@ screen, like an app. Not offline yet: that's in [TODO.md](../TODO.md).
 
 ## How it's built
 - `app/manifest.ts` — the web app manifest (name, start page, full-screen, colours, icons), served
-  at `/manifest.webmanifest`; Next links it from every page.
+  at `/manifest.webmanifest`; Next links it from every page. `start_url` is the launch screen
+  (`/open`); `id` stays `/`, so apps installed before it are still the same app.
+- `app/open/page.tsx` — the launch screen: static (built once, served from the CDN), no data, no
+  login, so it shows the moment the app opens. The house is `app/icon.svg` (served at
+  `/icon.svg`); the fade and sweep are the `launch-*` classes in `app/globals.css` (reduced
+  motion: fade only, and the line gently pulses). `components/launch-redirect.tsx` runs
+  `router.replace("/")` on load: an in-app navigation, so the launch screen stays up until the
+  month is ready, and stays out of the back history. Signed out, the proxy's redirect to
+  `/login` is followed the same way. This is how a cold open gets a designed wait without a
+  `loading.tsx` above the month layout ([decisions](../decisions.md), 2026-10-16).
 - `app/icons/[file]/route.tsx` — the three PNG install icons (192, 512 and a "maskable" 512 that
   Android crops to a circle), drawn at build time from `app/icon.svg` with `ImageResponse`, so the
   house has one source. iPhones use `app/apple-icon.png`.
@@ -65,14 +82,15 @@ screen, like an app. Not offline yet: that's in [TODO.md](../TODO.md).
   (`openInstallCard`, hidden inside the installed app by `useShowInstallItem`). "Installed app or
   browser?" and the iPhone/iPad check come from `lib/devices.ts`, shared with the admin's
   [who's using it](manage.md) on Manage.
-- `proxy.ts` — `manifest.webmanifest` and `sw.js` are in the matcher's skip list; the icons pass
-  as `.png`. Browsers fetch the manifest **without cookies**, so a login redirect there would
-  quietly make the app uninstallable.
+- `proxy.ts` — `manifest.webmanifest`, `sw.js` and the launch screen (`open$`) are in the
+  matcher's skip list; the icons pass as `.png` and `.svg`. Browsers fetch the manifest **without
+  cookies**, so a login redirect there would quietly make the app uninstallable. The launch
+  screen skips the login check so it shows at once; the `/` navigation right after is checked.
 
 ## Rules
-- The manifest, worker and icons stay public and hold nothing about the household.
-  `lib/actions-guard.test.ts` lists the icon route as public and fails if it ever imports the
-  database or the login.
+- The manifest, worker, icons and launch screen stay public and hold nothing about the
+  household. `lib/actions-guard.test.ts` lists the icon route and the launch screen
+  (`PUBLIC_ROUTES`, `PUBLIC_PAGES`) and fails if they ever import the database or the login.
 - The worker never caches pages or data. Offline viewing would put household finances on the
   phone and needs clearing on sign-out — a separate job ([TODO.md](../TODO.md)).
 - **Kill switch:** if the worker ever breaks the site on phones, replace `public/sw.js` with the
@@ -81,7 +99,8 @@ screen, like an app. Not offline yet: that's in [TODO.md](../TODO.md).
 ## Open items
 - Offline viewing: [TODO.md](../TODO.md).
 - Check on real phones after it's online: Android install, iPhone Add to Home Screen + Google
-  sign-in inside the app (the email code is the fallback), a link opened from Messenger.
+  sign-in inside the app (the email code is the fallback), a link opened from Messenger, the
+  launch screen.
 
 ## Built in
-`feat/install-app`.
+`feat/install-app`; the launch screen in `feat/launch-screen`.

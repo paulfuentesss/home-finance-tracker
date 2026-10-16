@@ -824,6 +824,7 @@ group to get one.
 so it couldn't know which one was coming, and two-column tabs jumped when they loaded.
 **Instead of:** loading the sidebar's data outside the month layout (a big rework). Cost: opening
 the app cold shows the browser's own loading until the month is ready, rather than a grey frame.
+(The installed app now covers that wait with a launch screen: 2026-10-16.)
 
 ## 2026-10-13 — Phones: 16px inputs and bigger buttons on touch screens
 **Decision:** inputs use 16px text below the `md` breakpoint (`max-md:text-base` in
@@ -918,3 +919,17 @@ URL (refresh and links work) without a history entry per tap, so Back leaves the
 **Instead of:** `router.push` inside a transition (keeps the old page up, but still waits on the
 server each time), or three server-rendered copies swapped by a small client wrapper (three times
 the page sent, and the chart rebuilt on every switch).
+
+## 2026-10-16 — The installed app opens on a static launch screen
+**Decision:** the manifest's `start_url` is `/open` (`app/open/page.tsx`), a static page with no
+data or login (the proxy skips it) showing the house, the name and a sweeping line. It moves on
+to `/` with `router.replace`, so it stays up until the month is ready.
+**Why:** the phone's own start-up screen (Android: the install icon drawn big; iPhone: blank
+white) stayed up for the whole cold open — login check, latest month, redirect, the whole month.
+A static page arrives at once and ends that screen; an in-app navigation keeps it on screen, still
+animating, until the month replaces it. It covers the cold-open cost of having no `loading.tsx`
+above the month layout (2026-10-13) without one.
+**Instead of:** shrinking the install icons (the wait stays, and the home-screen icon shrinks
+too), start-up images (Android has none for web apps; iPhone needs one per screen size and shows
+a still picture), or streaming the month layout (a big rework). Cost: iPhones that added the app
+before keep opening `/` until they re-add it.
