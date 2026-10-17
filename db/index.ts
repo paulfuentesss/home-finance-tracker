@@ -10,8 +10,11 @@ const globalForDb = globalThis as unknown as { pgClient?: postgres.Sql };
 function getClient(): postgres.Sql {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is not set — copy .env.example to .env.local and fill it in.");
-  // max: 1 — each serverless invocation needs only one connection; the Supabase pooler does the rest.
-  return createClient(url, { max: 1 });
+  // A few connections on the live site, so requests served at once (and a page's queries while a
+  // transaction holds one) don't queue behind each other; one everywhere else, since localhost,
+  // every worktree's dev server and the scripts share the session pooler's small pool
+  // (docs/decisions.md, 2026-10-18).
+  return createClient(url, { max: process.env.VERCEL_ENV === "production" ? 3 : 1 });
 }
 
 // Reuse one *connection* across hot reloads in dev (otherwise every reload opens a new one),

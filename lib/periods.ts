@@ -217,7 +217,7 @@ export interface PeriodView {
 /** The app's `db` or a transaction (Server Actions pass `tx` for a consistent snapshot). */
 export type Executor = Pick<Database, "query">;
 
-const loadPeriods = (executor: Executor = db) =>
+const queryPeriods = (executor: Executor) =>
   executor.query.billingPeriods.findMany({
     orderBy: [asc(billingPeriods.year), asc(billingPeriods.month)],
     with: {
@@ -231,7 +231,18 @@ const loadPeriods = (executor: Executor = db) =>
     },
   });
 
-type LoadedPeriod = Awaited<ReturnType<typeof loadPeriods>>[number];
+// The whole history, loaded once per page: the month view, the bill banner and the admin's nudge
+// all read it while the same page is drawn. React's cache() only remembers it during that render;
+// a Server Action or Route Handler loads it afresh each call, and a transaction (`tx`) always does.
+// Its rows are shared by every caller, so never sort or change them in place (copy first).
+// `async` matters: a Drizzle query runs again each time it's awaited, so the cache must hold the
+// promise of its result, not the query itself.
+const loadPagePeriods = cache(async () => await queryPeriods(db));
+
+/** Every month with all its rows, oldest first: shared per page for `db`, afresh for a transaction. */
+export const loadPeriods = (executor: Executor = db) => (executor === db ? loadPagePeriods() : queryPeriods(executor));
+
+type LoadedPeriod = Awaited<ReturnType<typeof queryPeriods>>[number];
 
 // Page reads go through getLatestPeriod / getPeriodView / getLatestPointsBills, and each one
 // requires a signed-in member first (lib/auth.ts). computePeriod is also used by actions,
