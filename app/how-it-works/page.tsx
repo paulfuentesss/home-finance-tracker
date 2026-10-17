@@ -475,13 +475,42 @@ export default async function HowItWorksPage() {
           </ul>
           <p>
             Closed the card? <strong>Install app</strong> in the menu under your name, at the bottom of the sidebar,
-            brings it back. My House still needs an internet connection. Opening the app shows a short My House screen
-            while your month loads.
+            brings it back. My House still needs an internet connection (
+            <a href="#offline" className="underline underline-offset-2">
+              what happens without one
+            </a>
+            ). Opening the app shows a short My House screen while your month loads.
           </p>
           <p>
             On a phone, tap ☰ or swipe right from near the left edge for the menu (start a finger-width in from the
             edge), and swipe it back left to close it.
           </p>
+        </>
+      ),
+    },
+    {
+      id: "offline",
+      q: "What if I lose my connection?",
+      a: (
+        <>
+          <p>
+            A <strong>No connection</strong> strip shows at the top. The page you have open stays, so you can keep
+            looking.
+          </p>
+          <ul className="list-disc space-y-1 pl-5">
+            <li>
+              <strong>Saving</strong> waits instead of failing: what you typed stays, and it saves by itself once
+              you&apos;re back online. Keep My House open until then — closing it drops what was waiting.
+            </li>
+            <li>
+              <strong>Another month or tab</strong> opens once you&apos;re back.
+            </li>
+            <li>
+              <strong>Opening My House</strong> with no connection shows a No connection screen: tap{" "}
+              <strong>Try again</strong> once you&apos;re back.
+            </li>
+          </ul>
+          <p>Very rarely, something saved just as the connection dropped shows up twice: delete the extra one.</p>
         </>
       ),
     },

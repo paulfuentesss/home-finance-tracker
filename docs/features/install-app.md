@@ -2,7 +2,8 @@
 
 ## Status
 ✅ Working. My House can be installed on a phone or computer and opens full-screen from the home
-screen, like an app. Not offline yet: that's in [TODO.md](../TODO.md).
+screen, like an app. Losing the connection: [offline](offline.md). Not offline viewing yet: that's
+in [TODO.md](../TODO.md).
 
 ## What it does
 - A small **Install My House** card at the bottom of the screen, on every page including the
@@ -65,7 +66,8 @@ screen, like an app. Not offline yet: that's in [TODO.md](../TODO.md).
   Android crops to a circle), drawn at build time from `app/icon.svg` with `ImageResponse`, so the
   house has one source. iPhones use `app/apple-icon.png`.
 - `public/sw.js` — the service worker. Its fetch handler only answers page loads, and only when
-  the network fails (the offline screen); everything else goes straight to the network. It uses
+  the network fails (the offline screen; the rest of having no connection: [offline](offline.md));
+  everything else goes straight to the network. It uses
   no Cache Storage. It also shows push notifications and opens their page when tapped
   ([notifications.md](notifications.md)). Chrome wants a real fetch handler before it offers to install, which is the
   main reason it exists. `next.config.ts` sends `/sw.js` with `Cache-Control: no-store`, so a

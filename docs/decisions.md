@@ -956,6 +956,22 @@ holding the household's device list, for what the browsers' own push services do
 replacing the reminder emails with pushes for people who turn them on (a push that doesn't arrive
 can't be noticed, and the emails hold the amounts).
 
+## 2026-10-17 — No connection: saves wait and go through by themselves
+**Decision:** with no connection, a save or a move to another month waits and runs once the
+connection is back, using Next's `experimental.useOffline`; a **No connection** strip
+(`components/offline-banner.tsx`) shows meanwhile ([offline.md](features/offline.md)).
+**Why:** before, a save with no connection threw into `app/error.tsx`: the whole page became
+"Something went wrong" (with a hint about Supabase being paused, the wrong lead), and what was
+typed was lost. Housemates use My House on phone data that comes and goes; waiting means nothing
+is retyped, and it's one setting plus a strip rather than changes to every form. Accepted risks:
+the setting is experimental (the kill switch is turning it off); a save waits only while the page
+stays open (the strip says to keep it open); and if the connection drops after the server saved
+but before the answer arrived, the save is sent again — rare, and the extra entry can be deleted.
+**Instead of:** failing at once with "No connection — not saved" next to each form (every save
+call wrapped in a helper, and the housemate has to remember to retry), or a queue that saves
+while the app is closed (needs storage on the phone and conflict handling; part of offline
+viewing in [TODO.md](TODO.md)).
+
 ## 2026-10-18 — Pages load the history once, and the live site uses 3 connections
 **Decision:** a page loads the whole history (`loadPeriods` in `lib/periods.ts`) once, shared
 through React's `cache()` by the month view, the bill banner and the admin's nudge. The month

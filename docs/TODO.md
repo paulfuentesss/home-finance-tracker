@@ -52,13 +52,16 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
 - [ ] **Clean up stray receipt files** ([receipts](features/receipts.md)) — a script listing files
       in the bucket with no `receipts` row (left if a removal after a delete failed), deleting
       them only with `--delete`. Rare; only if the bucket grows unexpectedly.
-- [ ] **Offline** ([install-app](features/install-app.md); installing already works). Offline
-      *viewing* (the last months loaded, cached by `public/sw.js`) first; offline *editing* needs
-      a sync queue and conflict handling. Cached pages put household finances on the device, so
-      signing out must clear the cache.
+- [ ] **Offline viewing** ([offline](features/offline.md); a page already open, and its saves,
+      already wait out a lost connection). Opening the last months loaded with no connection,
+      cached by `public/sw.js`; saving while the app is closed would need a sync queue and
+      conflict handling. Cached pages put household finances on the device, so signing out must
+      clear the cache.
 - [ ] **Check the installed app on real phones** once it's online ([install-app](features/install-app.md)):
       Android install, iPhone Add to Home Screen + Google sign-in inside it, a link from Messenger,
       the launch screen when opening the app (Android; iPhone after re-adding it).
+      No connection ([offline](features/offline.md)): airplane mode in Chrome and in the app —
+      the strip shows, an inline save waits and goes through once back, a month switch waits.
       The phone menu's swipes ([months](features/months.md)): open from near the left edge on
       Android with gesture navigation and on iPhone, stays open when the finger lifts (if not,
       open on `touchend` in `useEdgeSwipe`), drag back to close. Pull-to-refresh gone inside the
