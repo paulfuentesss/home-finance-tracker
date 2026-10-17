@@ -112,6 +112,11 @@ Getting My House running on a new machine. Afterwards, day to day you only need
    then redeploy — localhost and the live site share one database, so a different key on each
    would lock one out of the other's passwords. Save a copy in a password manager: if it's lost,
    the saved passwords are lost with it.
+   **h. The push keys** (optional — push notifications: [features/notifications.md](features/notifications.md)).
+   `npx web-push generate-vapid-keys`, then the pair into `.env.local` and Vercel as
+   `NEXT_PUBLIC_VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` — the same pair in both, and a copy in a
+   password manager ([operations.md → Push notifications](operations.md#push-notifications)).
+   Without them push is simply off.
 6. **Start the app**
    ```bash
    npm run dev

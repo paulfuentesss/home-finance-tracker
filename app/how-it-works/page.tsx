@@ -348,6 +348,13 @@ export default async function HowItWorksPage() {
             A <strong>view only</strong> login gets just one email a month: a short note when the month&apos;s bills are
             in, with a link to have a look. No amounts.
           </p>
+          <p>
+            Want a heads-up on your phone too? See{" "}
+            <a href="#notifications" className="underline underline-offset-2">
+              Can My House notify me on my phone?
+            </a>{" "}
+            — the emails keep coming either way.
+          </p>
         </>
       ),
     },
@@ -474,6 +481,40 @@ export default async function HowItWorksPage() {
           <p>
             On a phone, tap ☰ or swipe right from near the left edge for the menu (start a finger-width in from the
             edge), and swipe it back left to close it.
+          </p>
+        </>
+      ),
+    },
+    {
+      id: "notifications",
+      q: "Can My House notify me on my phone?",
+      a: (
+        <>
+          <p>
+            Yes — a short notification when something needs you soon. Tapping it opens the right page. It only
+            buzzes a few times a month:
+          </p>
+          <ul className="list-disc space-y-1 pl-5">
+            <li>
+              <strong>The month&apos;s last day</strong> — to log what you&apos;ve paid for the house.
+            </li>
+            <li>
+              <strong>Your bill is ready</strong>, and <strong>if it&apos;s still unpaid</strong> a few days later.
+            </li>
+            <li>
+              <strong>Your I paid was confirmed</strong> by the admin — or needs a look (tap to see why).
+            </li>
+          </ul>
+          <p>
+            To turn them on, open the menu under your name at the bottom of the sidebar and tap{" "}
+            <strong>Turn on notifications</strong>, then allow them. Inside the installed app a card offers it too. It
+            works per phone, so turn it on on each one you use. On an <strong>iPhone</strong>, add My House to your
+            Home Screen first and turn it on from there — Safari can&apos;t get them in a tab.
+          </p>
+          <p>
+            Notifications never show amounts (anyone can see a lock screen); the emails still come with the details.
+            Turn them off in the same menu any time. Signing out turns them off on that phone. A{" "}
+            <strong>view only</strong> login gets no notifications, just its monthly email.
           </p>
         </>
       ),

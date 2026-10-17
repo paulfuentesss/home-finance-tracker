@@ -5,6 +5,7 @@
 
 import "server-only";
 import { and, asc, eq, sql } from "drizzle-orm";
+import { after } from "next/server";
 import { billingPeriods, db, members, reminderSends, type Member } from "@/db";
 import { appLink, EmailNotSetUpError, emailIsLive, sendEmail } from "@/lib/email";
 import { ActionError } from "@/lib/errors";
@@ -13,6 +14,8 @@ import { sharesCosts } from "@/lib/members";
 import { monthHasEnded, payablesCheck } from "@/lib/month-lock";
 import { startNextMonthIn } from "@/lib/month-start";
 import { computeForPayables, payablesIn, pendingBillNames } from "@/lib/periods";
+import { sendPush } from "@/lib/push";
+import { billReadyPush, monthEndPush, PUSHES, readyPush, startBlockedPush, unpaidPush, type Push } from "@/lib/push-messages";
 import {
   billsInEmail,
   monthEndEmail,
@@ -67,7 +70,7 @@ export async function runDailyReminders(today: string): Promise<ReminderOutcome>
     const link = appLink(`/periods/${year}/${month}/advances`);
     for (const member of recipientsOf(current.balances.map((b) => b.member))) {
       const email = monthEndEmail(due, { name: member.name, year, month, daysLeft, link });
-      await sendOnce(current.id, due, member, email, outcome);
+      await sendOnce(current.id, due, member, email, outcome, monthEndPush(due, { year, month }));
     }
   }
 
@@ -93,7 +96,8 @@ export async function runDailyReminders(today: string): Promise<ReminderOutcome>
           reason: error.message,
           link: appLink(`/periods/${latest.year}/${latest.month}/settle`),
         });
-        await sendOnce(latest.id, "start_next", admin, email, outcome);
+        const push = startBlockedPush({ year: latest.year, month: latest.month });
+        await sendOnce(latest.id, "start_next", admin, email, outcome, push);
       }
     }
   }
@@ -112,7 +116,8 @@ export async function runDailyReminders(today: string): Promise<ReminderOutcome>
       month: nudge.month,
       link: appLink(`/periods/${nudge.year}/${nudge.month}/settle`),
     });
-    await sendOnce(nudge.periodId, nudge.kind === "email_bill" ? "ready_bill" : "ready_close", admin, email, outcome);
+    const push = readyPush({ kind: nudge.kind, year: nudge.year, month: nudge.month });
+    await sendOnce(nudge.periodId, nudge.kind === "email_bill" ? "ready_bill" : "ready_close", admin, email, outcome, push);
   }
   return outcome;
 }
@@ -121,7 +126,8 @@ export async function runDailyReminders(today: string): Promise<ReminderOutcome>
  * Claims the reminder, then sends it. Only the run that wins the claim sends (Vercel can call a
  * cron twice), and a failed send gives the claim back so the next day's run retries just that
  * person. Off the live site nothing is claimed (lib/email.ts → safety switch). Returns the error
- * when the send failed (it's also in `outcome.failed`).
+ * when the send failed (it's also in `outcome.failed`). `push` goes out only once the email has
+ * (and only for the kinds in PUSHES), so a retried email never pushes twice; it never throws.
  */
 async function sendOnce(
   periodId: number,
@@ -129,6 +135,7 @@ async function sendOnce(
   to: Recipient,
   email: Email,
   outcome: Pick<ReminderOutcome, "sent" | "failed">,
+  push?: Push | null,
 ): Promise<unknown> {
   const live = emailIsLive();
   if (live) {
@@ -142,7 +149,6 @@ async function sendOnce(
   try {
     await sendEmail(to.email, to.name, email);
     outcome.sent.push(`${kind} → ${to.name}`);
-    return undefined;
   } catch (error) {
     console.error(`Couldn't send the ${kind} email to ${to.name}`, error);
     outcome.failed.push(`${kind} → ${to.name}`);
@@ -155,6 +161,8 @@ async function sendOnce(
     }
     return error;
   }
+  if (push && PUSHES[kind]) await sendPush([to], push);
+  return undefined;
 }
 
 /**
@@ -188,14 +196,16 @@ async function sendUnpaidReminders(today: string, outcome: ReminderOutcome) {
       collectorName: computed.period.balances.find((b) => b.member.isCollector)?.member.name ?? "the admin",
       link: appLink(`/periods/${latest.year}/${latest.month}/settle`),
     });
-    await sendAgain(bill.periodId, member, last ?? null, email, outcome);
+    const push = unpaidPush({ year: bill.year, month: bill.month, path: `/periods/${latest.year}/${latest.month}/settle` });
+    await sendAgain(bill.periodId, member, last ?? null, email, outcome, push);
   }
 }
 
 /**
  * Like sendOnce, for the follow-up that repeats: its one row's time moves forward each time.
  * Only the run that moves it from the time it read sends (Vercel can call a cron twice), and a
- * failed send puts the old time back so the next day's run retries.
+ * failed send puts the old time back so the next day's run retries. The push, like sendOnce's,
+ * only once the email has gone.
  */
 async function sendAgain(
   periodId: number,
@@ -203,6 +213,7 @@ async function sendAgain(
   last: { id: number; sentAt: Date } | null,
   email: Email,
   outcome: ReminderOutcome,
+  push: Push,
 ) {
   const live = emailIsLive();
   if (live) {
@@ -236,7 +247,9 @@ async function sendAgain(
       if (last) await db.update(reminderSends).set({ sentAt: last.sentAt }).where(mine);
       else await db.delete(reminderSends).where(mine);
     }
+    return;
   }
+  if (PUSHES.unpaid) await sendPush([to], push);
 }
 
 /**
@@ -257,10 +270,15 @@ export async function sendPayables(periodId: number): Promise<void> {
   const inMonth = computed.period.balances.map((b) => b.member);
   const collectorName = inMonth.find((m) => m.isCollector)?.name ?? "the admin";
   const latest = computed.all.at(-1)!;
-  const link = appLink(`/periods/${latest.year}/${latest.month}/settle`);
+  const settlePath = `/periods/${latest.year}/${latest.month}/settle`;
+  const link = appLink(settlePath);
   const live = emailIsLive();
   const sent: string[] = [];
   const failed: string[] = [];
+  // The "bill ready" pushes, to whoever the email reached. Sent after the response, so the button
+  // never waits on a push service; registered first, so they go even if a send below throws.
+  const pushes: (() => Promise<void>)[] = [];
+  after(() => Promise.all(pushes.map((send) => send())));
   for (const member of recipientsOf(inMonth)) {
     const owed = payablesIn(computed, member.id);
     if (!owed) continue;
@@ -294,6 +312,8 @@ export async function sendPayables(periodId: number): Promise<void> {
           set: { sentAt: new Date() },
         });
     }
+    const push = billReadyPush({ year: target.year, month: target.month, payables: owed.payables, path: settlePath });
+    if (push && PUSHES.payables) pushes.push(() => sendPush([member], push));
   }
 
   // View-only logins: a "the bills are in" note, once per month (a resend doesn't repeat it).

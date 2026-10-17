@@ -3,12 +3,18 @@
 // the script can't sign in — so it checks the shared secret before anything else, then Gmail's
 // verdict that the biller really sent it (lib/bill-email/intake.ts). It only ever creates a
 // Pending bill or a Bill Inbox entry; PA still confirms. Retries are safe: importBillEmail
-// ignores an email (or a provider's month) it already has.
+// ignores an email (or a provider's month) it already has. A new one pushes to PA after the
+// response (docs/features/notifications.md), so the script never waits on it.
 
-import { db } from "@/db";
+import { desc, eq } from "drizzle-orm";
+import { after } from "next/server";
+import { billEmails, billingPeriods, db } from "@/db";
 import { checkBearerSecret } from "@/lib/bearer-secret";
 import { billEmailIntake, dkimPassFor } from "@/lib/bill-email/intake";
-import { importBillEmail } from "@/lib/bill-import";
+import { importBillEmail, type ImportOutcome } from "@/lib/bill-import";
+import { BILL_EMAIL_COLUMNS } from "@/lib/household-config";
+import { pushToAdmin } from "@/lib/push";
+import { billArrivedPush, billEmailStuckPush } from "@/lib/push-messages";
 
 export async function POST(request: Request) {
   const secret = process.env.BILL_EMAIL_SECRET;
@@ -26,5 +32,29 @@ export async function POST(request: Request) {
   }
 
   const outcome = await importBillEmail(db, email);
+  after(() => pushOutcome(outcome));
   return Response.json(outcome);
+}
+
+/** Tells PA a new bill is in (to confirm), or that one needs a look in the Bill inbox (on Manage). */
+async function pushOutcome(outcome: ImportOutcome) {
+  try {
+    if (outcome.kind === "duplicate") return;
+    const row = await db.query.billEmails.findFirst({ where: eq(billEmails.id, outcome.emailId) });
+    if (!row) return;
+    if (outcome.kind === "imported" && row.provider && row.billYear && row.billMonth) {
+      const bill = BILL_EMAIL_COLUMNS[row.provider];
+      await pushToAdmin(billArrivedPush({ bill, year: row.billYear, month: row.billMonth }));
+      return;
+    }
+    // The inbox is on every month's Manage; the latest month always exists (the bill's may not have started).
+    const [latest] = await db
+      .select({ year: billingPeriods.year, month: billingPeriods.month })
+      .from(billingPeriods)
+      .orderBy(desc(billingPeriods.year), desc(billingPeriods.month))
+      .limit(1);
+    await pushToAdmin(billEmailStuckPush({ path: latest ? `/periods/${latest.year}/${latest.month}/manage` : "/" }));
+  } catch (error) {
+    console.error("Couldn't push about a bill email", error);
+  }
 }

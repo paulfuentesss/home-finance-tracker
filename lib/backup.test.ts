@@ -58,6 +58,9 @@ const SAMPLE = `
     (1, 'opening', NULL, NULL, 2000.00, 0, NULL), (1, 'visit', 3, '2026-08-09', 600.00, 100.00, 'Half day');
   INSERT INTO reminder_sends (period_id, kind, member_id, sent_at) VALUES (1, 'last_day', 3, '2026-08-31T00:00:00Z');
   INSERT INTO member_devices (member_id, via, platform) VALUES (1, 'app', 'iphone'), (3, 'web', 'other');
+  INSERT INTO push_subscriptions (member_id, endpoint, p256dh, auth, platform, live) VALUES
+    (1, 'https://web.push.apple.com/QAbc-123', 'BPub_key-1', 'auth-1', 'iphone', true),
+    (3, 'https://fcm.googleapis.com/fcm/send/x:y', 'BPub_key-2', 'auth-2', 'android', false);
   INSERT INTO billers (name, sort_order) VALUES ('Water Co', 1);
   INSERT INTO biller_fields (biller_id, kind, label, value, secret_value, housemates_can_see) VALUES
     (1, 'text', 'Account no.', 'X-0001', NULL, true), (1, 'secret', 'Password', NULL, 'v1:bm9uY2U=:Y2lwaGVy', false);

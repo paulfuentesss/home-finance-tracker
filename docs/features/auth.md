@@ -43,7 +43,10 @@
 - The **account menu** at the bottom of the sidebar (`components/account-menu.tsx`) shows who's
   signed in — their emoji (or colour dot) and name. It opens to a greeting, their login
   email, what they can do, **Your emoji** (to change their own; not for view-only logins, and
-  hidden while previewing), and **Sign out** (this device only; two clicks, so never by accident).
+  hidden while previewing), **Turn on / off notifications** for this device
+  ([notifications.md](notifications.md); not for view-only logins), and **Sign out** (this device
+  only; two clicks, so never by accident). Signing out turns this device's notifications off
+  first, so the next person signed in on it doesn't get them.
 - **Preview as a housemate** (PA only): the account menu lists every housemate and view-only
   login in the household now (admins aside). Picking one shows every month tab as they see it — no Manage tab, no
   PA-only controls, "Log new advance" only for themselves — under a "Previewing as …" strip with

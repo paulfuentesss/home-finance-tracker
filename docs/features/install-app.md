@@ -66,7 +66,8 @@ screen, like an app. Not offline yet: that's in [TODO.md](../TODO.md).
   house has one source. iPhones use `app/apple-icon.png`.
 - `public/sw.js` — the service worker. Its fetch handler only answers page loads, and only when
   the network fails (the offline screen); everything else goes straight to the network. It uses
-  no Cache Storage. Chrome wants a real fetch handler before it offers to install, which is the
+  no Cache Storage. It also shows push notifications and opens their page when tapped
+  ([notifications.md](notifications.md)). Chrome wants a real fetch handler before it offers to install, which is the
   main reason it exists. `next.config.ts` sends `/sw.js` with `Cache-Control: no-store`, so a
   fixed worker reaches phones on their next visit.
 - `app/globals.css` — `overscroll-behavior-y: none` under `@media (display-mode: standalone)`
@@ -94,7 +95,8 @@ screen, like an app. Not offline yet: that's in [TODO.md](../TODO.md).
 - The worker never caches pages or data. Offline viewing would put household finances on the
   phone and needs clearing on sign-out — a separate job ([TODO.md](../TODO.md)).
 - **Kill switch:** if the worker ever breaks the site on phones, replace `public/sw.js` with the
-  two lines in its header comment (it unregisters itself) and deploy.
+  two lines in its header comment (it unregisters itself) and deploy. That also turns off every
+  device's notifications; each person turns them on again afterwards.
 
 ## Open items
 - Offline viewing: [TODO.md](../TODO.md).
