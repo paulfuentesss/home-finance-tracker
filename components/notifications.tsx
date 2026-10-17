@@ -23,6 +23,8 @@ import { isAdmin, isViewOnly } from "@/lib/permissions";
 const PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 /** "Not now" on the card: it never comes back on this device (the menu still has it). */
 const CARD_DISMISSED_KEY = "my-house:notifications-card-dismissed";
+/** Told to every menu and card on the page when one of them turns notifications on or off. */
+const CHANGED_EVENT = "my-house:notifications-changed";
 
 /**
  * - `unsupported`: this browser can't (or push isn't set up).
@@ -119,13 +121,19 @@ function useNotifications() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
 
+  // Checked when shown, and again whenever the other one (menu or card) turns them on or off, so
+  // the card never stays up after the menu turned them on.
   useEffect(() => {
     let live = true;
-    currentStatus()
-      .then((s) => live && setStatus(s))
-      .catch(() => live && setStatus("unsupported"));
+    const check = () =>
+      currentStatus()
+        .then((s) => live && setStatus(s))
+        .catch(() => live && setStatus("unsupported"));
+    check();
+    window.addEventListener(CHANGED_EVENT, check);
     return () => {
       live = false;
+      window.removeEventListener(CHANGED_EVENT, check);
     };
   }, []);
 
@@ -134,6 +142,7 @@ function useNotifications() {
     setError(false);
     try {
       setStatus(await (to === "on" ? turnOn() : turnOff()));
+      window.dispatchEvent(new Event(CHANGED_EVENT));
     } catch {
       setError(true);
     } finally {
