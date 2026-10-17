@@ -988,3 +988,26 @@ each worktree's dev server, the scripts and `db:studio` (one each locally).
 **Instead of:** Next's `cacheComponents` / `'use cache'` (keeps data across requests, but needs
 tags refreshed by every action: more work for less extra gain at this size), or loading only the
 months a page needs (carry-over needs every earlier month anyway).
+
+## 2026-10-18 — Changes take a shared lock on their month, so closing waits for them
+**Decision:** every way of writing into a month takes `FOR SHARE` on the month's row before
+checking it's open: the month actions' changes (`loadOpenPeriod`: advances, Helper visits, bills,
+columns, payments, receipts), adding or removing someone (`openPeriods`, each open month) and a
+bill email (`fillColumn` in `lib/bill-import.ts`). `closeMonth` and `reopenMonth` take `FOR
+UPDATE` first on the month and the months either side (`lockPeriodAndNeighbours`). All guard-tested.
+**Why:** closing locked the month, but changes only read its status. Something saved in the same
+moment as a close could pass the "is it open?" check, then be written after the close saved
+everyone's Finals: an advance missing from what carries over, a pending bill stuck in a closed
+month, or someone removed so the next month's opening balances no longer sum to ₱0.00. A shared
+lock lets changes save side by side, but a close waits for them and they wait for it. The
+neighbours: closing checks the month before is closed and writes the month after's openings, and
+reopening checks the month after is open, so closing one month and reopening the one before in
+two tabs could otherwise both go through. No deadlock: only close and reopen write a month's row;
+every `FOR UPDATE` on a month comes first in its transaction (nothing upgrades a shared lock);
+months are always locked oldest first; and months, then the Helper lock, come before members'
+rows (adding or removing someone calls `openPeriods`, and removing `lockHelper`, before locking the
+member, since starting a month, "I paid" and Helper changes hold those and then refer to
+members). Cost: a change waits a moment while the admin's page checks whether the next month can
+start (`startBlockReason`).
+**Instead of:** `FOR UPDATE` in every change (housemates saving at once would queue for no
+reason), or the serializable isolation level (every action would need to retry on conflicts).
