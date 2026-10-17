@@ -64,6 +64,12 @@
   `loadOpenPeriod(tx, id, viewer)` in the actions for the server.
 - Actions: `startNextMonth`, `closeMonth`, `reopenMonth` in `app/periods/[year]/[month]/actions.ts`.
   Starting itself is `startNextMonthIn` in `lib/month-start.ts`, shared with the daily job.
+- Taking turns: closing and reopening lock the month and the months either side
+  (`lockPeriodAndNeighbours`); starting and "I paid" lock theirs (`lockLatestPeriod`,
+  `lockPeriod`). Every other write into a month takes a shared lock on it first: `loadOpenPeriod`
+  (the month actions), `openPeriods` (adding or removing someone), `fillColumn` in
+  `lib/bill-import.ts` (a bill email). Changes save side by side, but a close waits for them and
+  they for it (guard-tested in `lib/actions-guard.test.ts`; why in `docs/decisions.md`).
 - Backup reminder: `backupReminder` in `lib/backup-reminder.ts` (pure, tested) compares every
   month's `created_at` / `closed_at` with the latest row in `backups` (read in
   `lib/backup-status.ts`, admin only); the banner is `components/backup-reminder.tsx`, shown by
@@ -80,4 +86,5 @@ None.
 
 ## Built in
 Early commits on `main` (month picker, Start next month, loading states); #1 (closing /
-reopening); #2 (pending bills block closing); #29 (waiting payments block closing and starting); the logo going home in `feat/member-photos`.
+reopening); #2 (pending bills block closing); #29 (waiting payments block closing and starting); the logo going home in `feat/member-photos`;
+changes taking turns with closing in `fix/close-month-lock`.

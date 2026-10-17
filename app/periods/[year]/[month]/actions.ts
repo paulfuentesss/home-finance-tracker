@@ -1148,6 +1148,8 @@ export async function addMember(_prev: ActionState, formData: FormData): Promise
   });
   return run("admin", schema, formData, async ({ name, viewOnly }) => {
     await db.transaction(async (tx) => {
+      // The months first, then the member (always that order: openPeriods).
+      const open = await openPeriods(tx);
       // Locked, so a second click (or tab) re-adding the same former member waits and then sees
       // them active. (Two adds of a brand-new name meet the unique name index instead.)
       const [existing] = await tx.select().from(members).where(eq(members.name, name)).for("update");
@@ -1186,7 +1188,7 @@ export async function addMember(_prev: ActionState, formData: FormData): Promise
       }
       // A view-only login joins no month, so shares in nothing (docs/settlement-rules.md).
       if (role === "view_only") return;
-      for (const period of await openPeriods(tx)) {
+      for (const period of open) {
         await tx.insert(periodBalances).values({ periodId: period.id, memberId }).onConflictDoNothing();
         // Newcomers share the everyday column; manual columns get them at ₱0; situational
         // equal columns (e.g. "w/o PA") are left as they were.
@@ -1207,12 +1209,15 @@ export async function removeMember(memberId: number): Promise<ActionState> {
   return run("admin", z.object({ memberId: id }), { memberId }, async ({ memberId }) => {
     // Returns the login they had, deleted below once the removal has committed.
     const oldLogin = await db.transaction(async (tx) => {
-      // Locked, so an invite saved at the same moment can't leave a stale login behind.
-      const [member] = await tx.select().from(members).where(eq(members.id, memberId)).for("update");
-      if (!member || !member.active) throw new ActionError("That person was already removed.");
+      // The months first, then the Helper tab, then the member: the order everything else locks
+      // in (openPeriods; a Helper change holds lockHelper while it writes rows naming members).
+      const open = await openPeriods(tx);
       // In turn with the Helper tab, so a visit they log right now can't land after the check
       // below that keeps them in a month where they paid her.
       await lockHelper(tx);
+      // Locked, so an invite saved at the same moment can't leave a stale login behind.
+      const [member] = await tx.select().from(members).where(eq(members.id, memberId)).for("update");
+      if (!member || !member.active) throw new ActionError("That person was already removed.");
       if (member.isCollector) throw new ActionError(`${member.name} is the collector and can't be removed.`);
       const active = await tx.select({ id: members.id, role: members.role }).from(members).where(eq(members.active, true));
       const staying = active.filter((m) => m.id !== memberId && sharesCosts(m));
@@ -1231,7 +1236,7 @@ export async function removeMember(memberId: number): Promise<ActionState> {
         where: and(eq(members.isCollector, true), eq(members.active, true)),
       });
 
-      for (const period of await openPeriods(tx)) {
+      for (const period of open) {
         // Anyone with records in a month stays in that month so its numbers don't change.
         if (await hasRecordsIn(tx, period.id, memberId)) continue;
         // So does anyone who carried an unsettled balance into it, or that money would vanish.
@@ -1381,8 +1386,9 @@ export async function startNextMonth(): Promise<ActionState> {
 export async function closeMonth(periodId: number): Promise<ActionState> {
   return run("admin", z.object({ periodId: id }), { periodId }, async ({ periodId }) => {
     await db.transaction(async (tx) => {
-      // Locked first, so a housemate's "I paid" can't slip in while it closes.
-      await lockPeriod(tx, periodId);
+      // Locked first, so no change (a housemate's advance, "I paid", someone added or removed, a
+      // bill email) can slip in while it closes, and the month before can't be reopened meanwhile.
+      await lockPeriodAndNeighbours(tx, periodId);
       const target = await tx.query.billingPeriods.findFirst({ where: eq(billingPeriods.id, periodId) });
       if (!target) throw new ActionError("That month no longer exists.");
       const computed = await computePeriod(tx, target.year, target.month);
@@ -1435,6 +1441,9 @@ export async function emailPayables(periodId: number): Promise<ActionState> {
 export async function reopenMonth(periodId: number): Promise<ActionState> {
   return run("admin", z.object({ periodId: id }), { periodId }, async ({ periodId }) => {
     await db.transaction(async (tx) => {
+      // Locked first, like closing: never halfway through a close, and the month after can't be
+      // closed meanwhile.
+      await lockPeriodAndNeighbours(tx, periodId);
       const all = await tx.query.billingPeriods.findMany({
         orderBy: [asc(billingPeriods.year), asc(billingPeriods.month)],
       });
@@ -1657,9 +1666,31 @@ function swapped(rows: { id: number }[], id: number, direction: "up" | "down"): 
   return ids;
 }
 
-/** Locks a month's row until the transaction ends (closing, starting and "I paid" take turns). */
+/**
+ * Locks a month's row until the transaction ends (closing, reopening, starting and "I paid" take
+ * turns, and wait for any change still being saved in it: loadOpenPeriod).
+ */
 async function lockPeriod(tx: Tx, periodId: number) {
   await tx.select({ id: billingPeriods.id }).from(billingPeriods).where(eq(billingPeriods.id, periodId)).for("update");
+}
+
+/**
+ * lockPeriod for closing and reopening, with the months either side too: closing checks the month
+ * before is closed and writes the month after's opening balances, reopening checks the month after
+ * is open. Locked oldest first (like openPeriods), so two of these can't block each other.
+ */
+async function lockPeriodAndNeighbours(tx: Tx, periodId: number) {
+  const ids = (
+    await tx.select({ id: billingPeriods.id }).from(billingPeriods).orderBy(asc(billingPeriods.year), asc(billingPeriods.month))
+  ).map((p) => p.id);
+  const index = ids.indexOf(periodId);
+  if (index === -1) return; // gone: the read after the lock says so
+  await tx
+    .select({ id: billingPeriods.id })
+    .from(billingPeriods)
+    .where(inArray(billingPeriods.id, ids.slice(Math.max(0, index - 1), index + 2)))
+    .orderBy(asc(billingPeriods.year), asc(billingPeriods.month))
+    .for("update");
 }
 
 /**
@@ -1667,8 +1698,13 @@ async function lockPeriod(tx: Tx, periodId: number) {
  * entries): once the month's last day has passed, only the admin can change it
  * (docs/settlement-rules.md → "Closing and reopening"). "I paid" doesn't pass it — settling up
  * happens after the month ends.
+ * Takes a shared lock on the month first, held until the change is saved: changes still save side
+ * by side, but closing the month (lockPeriodAndNeighbours) waits for them, and they for it, so nothing
+ * lands in a month after its Finals were saved. A change may also wait a moment while the admin's
+ * page checks whether the next month can start (startBlockReason).
  */
 async function loadOpenPeriod(tx: Tx, periodId: number, housemate?: Viewer) {
+  await tx.select({ id: billingPeriods.id }).from(billingPeriods).where(eq(billingPeriods.id, periodId)).for("share");
   const period = await tx.query.billingPeriods.findFirst({
     where: eq(billingPeriods.id, periodId),
     with: { balances: { with: { member: true } } },
@@ -1737,8 +1773,29 @@ async function periodOrder(tx: Tx, periodId: number): Promise<MemberId[]> {
   return splitOrder(balances.map((b) => b.member));
 }
 
-function openPeriods(tx: Tx) {
-  return tx.query.billingPeriods.findMany({ where: eq(billingPeriods.status, "open") });
+/**
+ * The open months, for adding or removing someone in each. Each gets a shared lock, like
+ * loadOpenPeriod, so closing waits for the change (and a month closed meanwhile is left out);
+ * oldest first, the same order closing locks in. Call it before locking the member's row:
+ * starting a month and "I paid" lock a month and then refer to members, so the other order
+ * could leave each waiting for the other.
+ */
+async function openPeriods(tx: Tx) {
+  const locked = await tx
+    .select({ id: billingPeriods.id })
+    .from(billingPeriods)
+    .where(eq(billingPeriods.status, "open"))
+    .orderBy(asc(billingPeriods.year), asc(billingPeriods.month))
+    .for("share");
+  if (locked.length === 0) return [];
+  // Only the months locked above: one started in between isn't held, so it's left out.
+  return tx.query.billingPeriods.findMany({
+    where: inArray(
+      billingPeriods.id,
+      locked.map((p) => p.id),
+    ),
+    orderBy: [asc(billingPeriods.year), asc(billingPeriods.month)],
+  });
 }
 
 /** Re-splits every bill in a month after its members change. */

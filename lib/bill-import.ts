@@ -95,8 +95,12 @@ async function fillColumn(tx: Tx, row: BillEmailRow): Promise<number> {
     throw new NoFit(row.reason ?? "This email couldn't be read as a bill.");
   }
   const label = monthLabel(billYear, billMonth);
+  // A shared lock on the month, like the app's own changes (loadOpenPeriod in the month actions):
+  // closing waits for this bill, or this waits for the close and finds the month closed.
+  const sameMonth = and(eq(billingPeriods.year, billYear), eq(billingPeriods.month, billMonth));
+  await tx.select({ id: billingPeriods.id }).from(billingPeriods).where(sameMonth).for("share");
   const period = await tx.query.billingPeriods.findFirst({
-    where: and(eq(billingPeriods.year, billYear), eq(billingPeriods.month, billMonth)),
+    where: sameMonth,
     with: { balances: { with: { member: true } } },
   });
   if (!period) throw new NoFit(`${label} hasn't been started yet. Start it, then Retry.`);
