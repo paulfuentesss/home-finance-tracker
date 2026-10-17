@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, count, desc, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { BackupCard } from "@/components/backup-card";
 import { BillInbox } from "@/components/emailed-bills";
@@ -28,45 +28,44 @@ export default async function ManagePage({ params }: PageProps<"/periods/[year]/
   const { year, month } = await parsePeriodParams(params);
   const viewer = await requireViewer();
   if (!isAdmin(viewer)) redirect(`/periods/${year}/${month}`);
-  const [preview, period, lastBackupAt] = await Promise.all([getPreview(), getPeriodView(year, month), getLastBackupAt()]);
+  // All at once, rather than one after another.
+  const [preview, period, lastBackupAt, active, inbox, deviceRows, pushRows] = await Promise.all([
+    getPreview(),
+    getPeriodView(year, month),
+    getLastBackupAt(),
+    // Everyone currently in the household (not just this month's members).
+    db.query.members.findMany({
+      where: eq(members.active, true),
+      orderBy: [asc(members.sortOrder), asc(members.id)],
+    }),
+    // The Bill inbox is household-wide, not per month.
+    db.query.billEmails.findMany({
+      where: eq(billEmails.status, "unmatched"),
+      orderBy: [desc(billEmails.receivedAt)],
+    }),
+    // Who's using My House, from the app or a browser (lib/devices.ts), for everyone current.
+    // Labels are worked out here, so only text goes to the browser.
+    db
+      .select({
+        memberId: memberDevices.memberId,
+        via: memberDevices.via,
+        platform: memberDevices.platform,
+        lastSeenAt: memberDevices.lastSeenAt,
+      })
+      .from(memberDevices)
+      .innerJoin(members, and(eq(members.id, memberDevices.memberId), eq(members.active, true))),
+    // Devices with notifications on (docs/features/notifications.md): the live site's only, the
+    // ones that get pushes. Just a count per member goes to the browser.
+    db
+      .select({ memberId: pushSubscriptions.memberId, devices: count() })
+      .from(pushSubscriptions)
+      .innerJoin(members, and(eq(members.id, pushSubscriptions.memberId), eq(members.active, true)))
+      .where(eq(pushSubscriptions.live, true))
+      .groupBy(pushSubscriptions.memberId),
+  ]);
   if (preview) redirect(`/periods/${year}/${month}`);
   const view = period!; // the layout already 404s a missing month
-  // Everyone currently in the household (not just this month's members).
-  const active = await db.query.members.findMany({
-    where: eq(members.active, true),
-    orderBy: [asc(members.sortOrder), asc(members.id)],
-  });
-  // The Bill inbox is household-wide, not per month.
-  const inbox = await db.query.billEmails.findMany({
-    where: eq(billEmails.status, "unmatched"),
-    orderBy: [desc(billEmails.receivedAt)],
-  });
-  // Who's using My House, from the app or a browser (lib/devices.ts). Labels are worked out here,
-  // so only text goes to the browser.
-  const activeIds = active.map((m) => m.id);
-  const deviceRows =
-    activeIds.length === 0
-      ? []
-      : await db
-          .select({
-            memberId: memberDevices.memberId,
-            via: memberDevices.via,
-            platform: memberDevices.platform,
-            lastSeenAt: memberDevices.lastSeenAt,
-          })
-          .from(memberDevices)
-          .where(inArray(memberDevices.memberId, activeIds));
   const activity = summarizeDevices(deviceRows);
-  // Devices with notifications on (docs/features/notifications.md): the live site's only, the ones
-  // that get pushes. Just a count per member goes to the browser.
-  const pushRows =
-    activeIds.length === 0
-      ? []
-      : await db
-          .select({ memberId: pushSubscriptions.memberId, devices: count() })
-          .from(pushSubscriptions)
-          .where(and(inArray(pushSubscriptions.memberId, activeIds), eq(pushSubscriptions.live, true)))
-          .groupBy(pushSubscriptions.memberId);
   const pushDevices = new Map(pushRows.map((r) => [r.memberId, r.devices]));
   const now = new Date();
 

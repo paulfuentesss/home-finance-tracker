@@ -32,27 +32,28 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function PeriodLayout({ params, children }: Props) {
   const { year, month } = await parsePeriodParams(params);
   const real = await requireViewer();
-  const [preview, view, previewChoices, reminder] = await Promise.all([
+  // Who the page is drawn for: the housemate being previewed, or the real viewer. Only this
+  // layout decides; the tabs read it from the context.
+  const viewerP = getPreview().then((preview) => preview ?? real);
+  // All at once. The notices (a housemate's emailed bill still to pay, or the admin's next step)
+  // need only the viewer, and share the month view's load of the history (lib/periods.ts).
+  const [preview, view, previewChoices, reminder, bill, nudge] = await Promise.all([
     getPreview(),
     getPeriodView(year, month),
     getPreviewChoices(),
     getBackupReminder(real),
+    viewerP.then(getBillNotice),
+    viewerP.then(getAdminNudge),
   ]);
   if (!view) notFound();
-  // Who the page is drawn for. Only this layout decides; the tabs read it from the context.
   const viewer = preview ?? real;
   const previewBy = preview ? real : null;
   const admin = isAdmin(viewer);
-  // For the notices: a housemate's emailed bill still to pay, or the admin's next step — and,
-  // once the latest month has ended, why the next one hasn't started (admin only).
+  // Once the latest month has ended, why the next one hasn't started (admin only).
   const today = todayInManila();
   const latest = view.periods.at(-1);
   const toStart = admin && latest !== undefined && monthHasEnded(latest.year, latest.month, today);
-  const [bill, nudge, startBlock] = await Promise.all([
-    getBillNotice(viewer),
-    getAdminNudge(viewer),
-    toStart ? startBlockReason() : null,
-  ]);
+  const startBlock = toStart ? await startBlockReason() : null;
 
   return (
     <AppShell viewer={viewer} previewBy={previewBy} sidebar={sidebarProps(view, viewer, previewChoices)}>
