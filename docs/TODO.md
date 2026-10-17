@@ -60,8 +60,6 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
 - [ ] **Check the installed app on real phones** once it's online ([install-app](features/install-app.md)):
       Android install, iPhone Add to Home Screen + Google sign-in inside it, a link from Messenger,
       the launch screen when opening the app (Android; iPhone after re-adding it).
-      No connection ([offline](features/offline.md)): airplane mode in Chrome and in the app —
-      the strip shows, an inline save waits and goes through once back, a month switch waits.
       The phone menu's swipes ([months](features/months.md)): open from near the left edge on
       Android with gesture navigation and on iPhone, stays open when the finger lifts (if not,
       open on `touchend` in `useEdgeSwipe`), drag back to close. Pull-to-refresh gone inside the

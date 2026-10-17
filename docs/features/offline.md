@@ -1,7 +1,8 @@
 # No connection
 
 ## Status
-✅ Working, in a browser tab and in the installed app. What's on screen stays, saves wait for the
+✅ Working, in a browser tab and in the installed app (checked on a real phone in airplane mode,
+2026-10-18). What's on screen stays, saves wait for the
 connection, and a strip says so. Not offline *viewing* (opening a page with no connection): that's
 in [TODO.md](../TODO.md).
 
@@ -51,7 +52,6 @@ in [TODO.md](../TODO.md).
 
 ## Open items
 - Offline viewing: [TODO.md](../TODO.md).
-- Check on a real phone in airplane mode, in Chrome and the installed app ([TODO.md](../TODO.md)).
 
 ## Built in
 `feat/offline`.
