@@ -62,6 +62,9 @@ banner at the top of the month pages.
   the still-unpaid reminder) and two questions: "What happens when the month ends?" and "What
   emails will I get?".
 
+**Notifications too:** on devices that turned them on, some of these also come as a short push,
+sent once the email has gone — which ones: [notifications.md](notifications.md).
+
 **Safety switch:** localhost and the live site share one database, so only the live site
 (Vercel production) emails housemates and records what it sent. Anywhere else, every email goes
 to `EMAIL_TEST_TO` with "[test → name]" in the subject (or is only logged when that's unset),

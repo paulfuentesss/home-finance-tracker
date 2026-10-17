@@ -29,6 +29,7 @@ const MEMBER_ACTIONS = [
 /** Route Handlers, each doing its own auth. */
 const ROUTE_HANDLERS = [
   "app/api/bill-email/route.ts",
+  "app/api/push/route.ts",
   "app/api/reminders/route.ts",
   "app/api/seen/route.ts",
   "app/auth/callback/route.ts",
@@ -50,6 +51,8 @@ const DATA_ROUTES = ["app/backup/route.ts", "app/biller-secrets/[id]/route.ts", 
 const ADMIN_ROUTES = ["app/backup/route.ts"];
 /** Notes "this member is using My House" for the caller only: the login check comes first. */
 const SEEN_ROUTE = "app/api/seen/route.ts";
+/** Turns notifications on/off for the caller's own device only: the login check comes first. */
+const PUSH_ROUTE = "app/api/push/route.ts";
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -169,6 +172,21 @@ describe("Route Handlers", () => {
     expect(source).not.toMatch(/export async function (GET|PUT|PATCH|DELETE)/);
   });
 
+  it(`${PUSH_ROUTE} checks the signed-in member first, and saves or removes only their own devices`, () => {
+    const source = read(join(ROOT, PUSH_ROUTE));
+    for (const method of ["POST", "DELETE"]) {
+      const handler = source.slice(source.indexOf(`export async function ${method}`));
+      expect(handler, method).toMatch(
+        new RegExp(`^export async function ${method}[^{]*\\{\\s*const viewer = await getViewer\\(\\);\\s*if \\(!viewer\\) return`),
+      );
+    }
+    expect(source).toMatch(/memberId: viewer\.memberId/);
+    expect(source).toMatch(/eq\(pushSubscriptions\.memberId, viewer\.memberId\)/);
+    // Saved on the live site or not: localhost's must never get the live site's pushes.
+    expect(source).toMatch(/live: emailIsLive\(\)/);
+    expect(source).not.toMatch(/export async function (GET|PUT|PATCH)/);
+  });
+
   it.each(DATA_ROUTES)("%s checks the signed-in member before anything else", (file) => {
     const source = read(join(ROOT, file));
     const handler = source.slice(source.indexOf("export async function GET"));
@@ -224,7 +242,7 @@ describe("secrets stay on the server", () => {
     const leaks = files
       .filter((f) => /^\s*["']use client["']/.test(read(f)))
       .filter((f) =>
-        /from "@\/lib\/(supabase\/admin|invites|auth|biller-secrets)"|from "@\/lib\/supabase\/admin-server"/.test(read(f)),
+        /from "@\/lib\/(supabase\/admin|invites|auth|biller-secrets|push|email)"|from "@\/lib\/supabase\/admin-server"/.test(read(f)),
       )
       .map(rel);
     expect(leaks).toEqual([]);
@@ -248,6 +266,12 @@ describe("secrets stay on the server", () => {
   it("CRON_SECRET is read only by the reminders route", () => {
     const readers = files.filter((f) => read(f).includes("process.env.CRON_SECRET")).map(rel);
     expect(readers).toEqual([CRON_ROUTE]);
+  });
+
+  it("the VAPID private key is read only by lib/push.ts, which only the server loads", () => {
+    const readers = files.filter((f) => read(f).includes("process.env.VAPID_PRIVATE_KEY")).map(rel);
+    expect(readers).toEqual(["lib/push.ts"]);
+    expect(read(join(ROOT, "lib/push.ts"))).toMatch(/^(\/\/[^\n]*\n)*\nimport "server-only";/);
   });
 
   it("the Gmail app password is read only by lib/email.ts, which only the server loads", () => {

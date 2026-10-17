@@ -119,6 +119,12 @@ Part of every change, in the same PR — not a separate chore.
   - **Emails** go out only through `lib/email.ts` (the only reader of `GMAIL_SMTP_APP_PASSWORD`).
     Only the live site emails housemates and writes `reminder_sends`; localhost redirects every
     email to `EMAIL_TEST_TO` — keep it that way (one database: `docs/features/reminders.md`).
+  - **Push notifications** go out only through `lib/push.ts` (the only reader of
+    `VAPID_PRIVATE_KEY`), and like email only from the live site, to subscriptions saved there
+    (`push_subscriptions.live`); localhost only logs, or with `PUSH_TEST=on` pushes to the admin's
+    devices. No amounts or typed text in a push (`lib/push-messages.ts`), and a push never blocks
+    an email, a save or the cron: after the email has gone, or in `after()`
+    (`docs/features/notifications.md`).
   - Once a month has ended, housemates can't change it: the advance and Helper actions pass the
     viewer to `loadOpenPeriod` (guard-tested); the UI uses `canLogIn`.
   - Storage policies must never grant access to every `authenticated` user.

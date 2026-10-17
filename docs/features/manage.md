@@ -35,7 +35,9 @@
   (a typo after the @) is refused (`lib/email-domain.ts`).
 - **Who's using it:** each housemate with a login shows **Last seen** ("3 h ago · App on
   iPhone", plus their other devices) or "Not seen yet", and an **app installed** badge once
-  they've opened the installed app ([install-app.md](install-app.md)). Limits: "app installed"
+  they've opened the installed app ([install-app.md](install-app.md)), and **🔔 notifications on**
+  when at least one of their devices gets pushes from the live site
+  ([notifications.md](notifications.md); hover for how many). Limits: "app installed"
   means *opened* at least once — installing without opening, or uninstalling, can't be seen;
   the device type is coarse (iPhone, iPad, Android, Mac, Windows, other); it all counts from when
   this was added. Housemates aren't told on screen (PA's choice, [decisions.md](../decisions.md)).

@@ -21,6 +21,8 @@ counts as working once a real bill has arrived this way ([TODO.md](../TODO.md)).
   already there) wait in the **Bill Inbox** (Manage tab) with the reason: **Retry** or
   **Dismiss**.
 - A month can't be closed while a bill in it is pending.
+- PA gets a notification ([notifications.md](notifications.md)) when a bill comes in (to confirm on
+  the Split Table) or lands in the Bill Inbox — on devices that turned them on.
 
 ## How it's built
 0. **Intake** — `scripts/gmail/bill-forwarder.gs`, a Google Apps Script in the My House Gmail

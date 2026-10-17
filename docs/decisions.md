@@ -933,3 +933,25 @@ above the month layout (2026-10-13) without one.
 too), start-up images (Android has none for web apps; iPhone needs one per screen size and shows
 a still picture), or streaming the month layout (a big rework). Cost: iPhones that added the app
 before keep opening `/` until they re-add it.
+
+## 2026-10-16 — Push notifications: Web Push, alongside email, only when something's due
+**Decision:** the installed app (and browsers) can get push notifications, sent with the
+`web-push` library and our own VAPID keys (`lib/push.ts`), opt-in per device. They go out
+**alongside** the emails, never instead, and only where something is due soon: the last-day
+reminder, the bill, still unpaid, "I paid" confirmed or rejected; for the admin, a housemate's
+"I paid", a bill email, the nudges (`PUSHES` in `lib/push-messages.ts`). No amounts, and no
+rejection reason, in any push. A reminder's push goes out only after its email has. Subscriptions
+record whether they were saved on the live site, and only those get its pushes.
+**Why:** Paul asked whether the PWA could notify phones: it can — Android always, iPhones from the
+home-screen app — and two moments had no email at all (a housemate's "I paid" for the admin, the
+admin's answer for the housemate). Pushing every email too would buzz twice for the same thing,
+so the early month-end reminders and the view-only note stay email-only (about 3–4 pushes a month
+for a housemate who pays on time). Emails stay because a push can be turned off, blocked or
+missed, and they carry the amounts. The lock screen is public, so amounts stay in the app and
+email. Pushing after the email keeps the "sent once" claim untouched: a failed email gives its
+claim back and is retried the next day, so a push sent before it would be sent twice. One
+database: without `live`, a subscription made on localhost would get the live site's pushes.
+**Instead of:** Firebase Cloud Messaging or OneSignal (another account and SDK, and a third party
+holding the household's device list, for what the browsers' own push services do for free), or
+replacing the reminder emails with pushes for people who turn them on (a push that doesn't arrive
+can't be noticed, and the emails hold the amounts).

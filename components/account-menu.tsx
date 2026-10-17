@@ -1,12 +1,13 @@
 "use client";
 
 import { Check, ChevronsUpDown, Download, Eye, LogOut } from "lucide-react";
-import { useState } from "react";
+import { startTransition, useState } from "react";
 import { signOut } from "@/app/login/actions";
 import { updateMemberEmoji } from "@/app/periods/[year]/[month]/actions";
 import { InlineInput } from "@/components/inline-input";
 import { openInstallCard, useShowInstallItem } from "@/components/install-prompt";
 import { MemberMark } from "@/components/member-mark";
+import { forgetThisDevice, NotificationsMenuItem } from "@/components/notifications";
 import { MAX_EMOJI_LENGTH } from "@/lib/members";
 import { SIDEBAR_POPUP, SIDEBAR_POPUP_ITEM } from "@/components/period-nav";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -23,8 +24,8 @@ const ITEM = cn(
 /**
  * Who's signed in, as the row at the bottom of the sidebar: the member's emoji (or colour dot)
  * and name. It opens a small menu with a greeting, the login email, what they can do, their own
- * emoji to change (not for view-only logins), and Sign out
- * — two clicks, so nobody signs out by accident. PA also gets "Preview as…" (lib/preview.ts):
+ * emoji to change (not for view-only logins), notifications on this device
+ * (components/notifications.tsx), and Sign out — two clicks, so nobody signs out by accident. PA also gets "Preview as…" (lib/preview.ts):
  * the tabs then show what that housemate sees, and so does this chip.
  */
 export function AccountMenu({
@@ -41,6 +42,7 @@ export function AccountMenu({
   const [open, setOpen] = useState(false);
   const { pending, switchTo } = usePreviewSwitch();
   const showInstall = useShowInstallItem();
+  const [signingOut, setSigningOut] = useState(false);
 
   function preview(memberId: number | null) {
     setOpen(false);
@@ -138,8 +140,26 @@ export function AccountMenu({
             </button>
           </div>
         )}
-        <form action={signOut} className="border-t border-white/10 p-1">
-          <button type="submit" className={ITEM}>
+        <NotificationsMenuItem itemClass={ITEM} />
+        <form
+          className="border-t border-white/10 p-1"
+          onSubmit={(event) => {
+            event.preventDefault();
+            // This device's notifications stop first (at most ~2 s), so the next person signed in
+            // here doesn't get them; signing out goes ahead whatever happens.
+            setSigningOut(true);
+            startTransition(async () => {
+              await forgetThisDevice();
+              try {
+                await signOut(); // redirects to /login
+              } catch (error) {
+                setSigningOut(false);
+                throw error;
+              }
+            });
+          }}
+        >
+          <button type="submit" disabled={signingOut} className={ITEM}>
             <LogOut className="size-4 text-zinc-400" aria-hidden />
             Sign out
           </button>

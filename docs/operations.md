@@ -94,6 +94,10 @@ Logins live in Supabase's own `auth` schema, not in either backup. After restori
 ([setup.md](setup.md) step 5), then re-invite everyone (`npm run auth:invite -- PA …`, the
 rest from Manage).
 
+Devices with notifications on (`push_subscriptions`) are in the backup, but only work with the
+**same VAPID key pair** ([Push notifications](#push-notifications)). With a new pair, everyone
+taps Turn on notifications again.
+
 `db:backup` needs `pg_dump` (its version must be at least Supabase's Postgres version), and
 restoring needs `psql`. Both come with `libpq`:
 
@@ -227,7 +231,8 @@ secrets or a password manager.
   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `BILL_EMAIL_SECRET` (the
   Gmail script's shared secret; [setup.md](setup.md) step 7), and the email ones
   ([Emails & reminders](#emails--reminders)): `GMAIL_SMTP_USER`, `GMAIL_SMTP_APP_PASSWORD`,
-  `CRON_SECRET`. Not `EMAIL_TEST_TO` (localhost only). Not `DIRECT_URL` — only
+  `CRON_SECRET`, and the push keys `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`
+  ([below](#push-notifications)). Not `EMAIL_TEST_TO` or `PUSH_TEST` (localhost only). Not `DIRECT_URL` — only
   scripts and migrations use it, and they run on PA's laptop. A changed value only takes
   effect after a redeploy (Deployments → ⋯ → Redeploy).
 - **The address** is also Supabase's **Site URL** and is in its Redirect URLs as
@@ -276,6 +281,32 @@ Vercel's logs for `/api/reminders` (a 503 means `CRON_SECRET` is missing; "Could
 means Gmail refused — a revoked app password, or the account's sending limit). A missed day is
 caught up the next day by itself.
 
+### Push notifications
+
+Pushes ([features/notifications.md](features/notifications.md)) go out alongside some of the
+emails, to devices that turned them on. Off until both keys are set; nothing else changes then.
+
+**Switching it on** (once):
+1. `npx web-push generate-vapid-keys` prints a public and a private key.
+2. Add both to Vercel (Production; mark the private one Sensitive) and redeploy — the public key
+   is built into the page, so it only takes effect with a new build:
+   - `NEXT_PUBLIC_VAPID_PUBLIC_KEY` — the public key.
+   - `VAPID_PRIVATE_KEY` — the private key.
+3. Put the **same pair** in `.env.local` (the main folder's, and any worktree's): a device's
+   subscription only takes pushes signed with the key it was made with. Keep the pair in the
+   password manager. **Losing or changing it** means every device stops getting pushes until
+   its person taps Turn on notifications again.
+
+**Safety switch (one database):** only the live site pushes, and only to devices that turned
+notifications on there (`push_subscriptions.live`). On localhost a push is only logged — or, with
+`PUSH_TEST=on` in `.env.local`, sent to the admin's own devices with "[test → name]" in front.
+Chrome on a Mac can get pushes from `localhost`: turn them on there, then run the `curl` above.
+
+**If pushes stop:** the device may have dropped its subscription (an app removed, notifications
+turned off, a browser reset) — it's deleted when the push service says so, and comes back when
+the app is opened with notifications still allowed. Vercel's logs show "Couldn't push to
+subscription …" with the push service's answer.
+
 ## Privacy & security
 
 The app holds household finances, and **this repo is public**, so:
@@ -295,6 +326,10 @@ The app holds household finances, and **this repo is public**, so:
   and `CRON_SECRET` only `/api/reminders` (both checked by `lib/actions-guard.test.ts`). Each
   bill email goes only to its own housemate, and a view-only login's "the bills are in" note
   carries no amounts; the pages never receive anyone's email address.
+- **`VAPID_PRIVATE_KEY` signs the push notifications** ([features/notifications.md](features/notifications.md)).
+  Server-only; only `lib/push.ts` reads it (checked by `lib/actions-guard.test.ts`). Pushes
+  carry no amounts and nothing anyone typed: they show on lock screens. A device is saved only
+  for its own signed-in member, and only with a known push service's address.
 - **File storage (receipts):** a private bucket, and policies must never grant
   access to every `authenticated` user. The app reads and writes receipts with the secret key
   after its own login check; files are shown through `/receipts/<id>`, which redirects to a

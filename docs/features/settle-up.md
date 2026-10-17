@@ -25,6 +25,9 @@
   asks for a short reason, and it stays in the list as rejected — never counted. The housemate
   can **Cancel** their own while it's waiting or rejected, and send it again. On a member's
   row, a waiting amount shows ("₱X sent, waiting"), so PA doesn't record it a second time.
+- **Notifications** (on devices that turned them on, [notifications.md](notifications.md)): PA
+  gets one when a housemate taps "I paid", and the housemate one when PA confirms or rejects it
+  (no amounts, no reason — tapping opens Settle Up). Sent after the save, so they never slow it.
 - Nothing updates live: the count, like the rest of the month, is as of the page's last load.
   Coming back to the app after 30 seconds or more away refreshes it (`useRefreshOnReturn` in
   `components/viewer-context.tsx`); moving between tabs alone keeps the month's sidebar and header as they were.

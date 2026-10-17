@@ -18,6 +18,13 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
       says "Passwords aren't set up". Then type in the billers from the old sheet, and delete the
       passwords from the sheet.
 
+- [ ] **Turn on push notifications** ([notifications](features/notifications.md)) — built, off
+      until its keys are set. Paul: generate the pair, add both to Vercel and `.env.local`, keep a
+      copy in a password manager, redeploy ([operations.md → Push notifications](operations.md#push-notifications)).
+      Then on real phones: the installed app on Android and the home-screen app on iPhone → Turn
+      on → a housemate's "I paid" reaches PA, PA's confirm reaches them, and the lock screen shows
+      no amounts. Then tell the housemates (with the reminder emails, below).
+
 - [ ] **Tell the housemates about the reminder emails** ([reminders](features/reminders.md)) —
       live since 2026-10-13. They come from the household Gmail; mark the first one "Not spam"
       if it lands there. A bill left unpaid now brings a reminder a few days later, then weekly.

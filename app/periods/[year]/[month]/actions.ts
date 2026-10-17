@@ -12,6 +12,7 @@ import { randomUUID } from "node:crypto";
 import { and, asc, desc, eq, gt, inArray, max, not, or, sql, type SQL } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { z } from "zod";
 import {
   advances,
@@ -69,6 +70,8 @@ import {
 } from "@/lib/permissions";
 import { computePeriod, pendingBillNames, periodMembers, waitingPaymentLabels } from "@/lib/periods";
 import { ensureDefaultColumn, startNextMonthIn } from "@/lib/month-start";
+import { pushToAdmin, sendPush } from "@/lib/push";
+import { paymentDecidedPush, paymentSentPush } from "@/lib/push-messages";
 import { sendPayables } from "@/lib/reminder-send";
 import {
   checkReceiptFile,
@@ -757,6 +760,10 @@ export async function submitPayment(_prev: ActionState, formData: FormData): Pro
       await removeReceiptFilesQuietly([path]);
       throw error;
     }
+    // After the response: a push never slows down or fails the save (lib/push.ts).
+    if (!isAdmin(viewer)) {
+      after(() => pushToAdmin(paymentSentPush({ name: viewer.name, year: period.year, month: period.month })));
+    }
   });
 }
 
@@ -769,9 +776,11 @@ export async function cancelPayment(paymentId: number): Promise<ActionState> {
 
 /** PA checked the bank: the waiting payment counts from now on. */
 export async function confirmPayment(paymentId: number): Promise<ActionState> {
-  return run("admin", z.object({ paymentId: id }), { paymentId }, ({ paymentId }) =>
-    decideWaitingPayment(paymentId, { status: "confirmed" }),
-  );
+  return run("admin", z.object({ paymentId: id }), { paymentId }, async ({ paymentId }) => {
+    // Returns nothing: run() would take a returned value for a page to go to.
+    const decided = await decideWaitingPayment(paymentId, { status: "confirmed" });
+    pushDecision(decided, "confirmed");
+  });
 }
 
 /** PA didn't receive it: it stays in the list as rejected, with the reason, and never counts. */
@@ -784,9 +793,16 @@ export async function rejectPayment(paymentId: number, reason: string): Promise<
       .min(1, "Say why, so they know what to check.")
       .max(120, "Keep the reason under 120 characters"),
   });
-  return run("admin", schema, { paymentId, reason }, ({ paymentId, reason }) =>
-    decideWaitingPayment(paymentId, { status: "rejected", rejectedReason: reason }),
-  );
+  return run("admin", schema, { paymentId, reason }, async ({ paymentId, reason }) => {
+    const decided = await decideWaitingPayment(paymentId, { status: "rejected", rejectedReason: reason });
+    pushDecision(decided, "rejected");
+  });
+}
+
+/** Tells the housemate PA confirmed or rejected their "I paid", after the response (lib/push.ts). */
+function pushDecision(decided: Decided, status: "confirmed" | "rejected") {
+  const { payer, year, month, collectorName } = decided;
+  if (payer) after(() => sendPush([payer], paymentDecidedPush({ status, year, month, collectorName })));
 }
 
 /** The latest, open month and its collector, for a housemate's "I paid". */
@@ -810,24 +826,42 @@ async function loadPaymentTarget(tx: Tx, periodId: number, viewer: Viewer) {
   return { period };
 }
 
+/** Who sent a payment PA just decided, and its month: for the push to them. */
+interface Decided {
+  payer: { id: number; name: string } | null;
+  year: number;
+  month: number;
+  collectorName: string;
+}
+
 /**
  * Confirms or rejects a waiting payment. Only from "pending": if the housemate cancelled it or
- * PA already decided (in another tab), nothing changes and the page says so.
+ * PA already decided (in another tab), nothing changes and the page says so. Returns who sent it
+ * and its month, for the push to them.
  */
 async function decideWaitingPayment(
   paymentId: number,
   values: { status: "confirmed" } | { status: "rejected"; rejectedReason: string },
-) {
-  await db.transaction(async (tx) => {
+): Promise<Decided> {
+  return db.transaction(async (tx) => {
     const payment = await tx.query.payments.findFirst({ where: eq(payments.id, paymentId) });
     if (!payment) throw new ActionError("That payment was cancelled.");
-    await loadOpenPeriod(tx, payment.periodId);
+    const { period } = await loadOpenPeriod(tx, payment.periodId);
     const updated = await tx
       .update(payments)
       .set(values)
       .where(and(eq(payments.id, paymentId), eq(payments.status, "pending")))
       .returning({ id: payments.id });
     if (updated.length === 0) throw new ActionError("That payment isn't waiting any more. Reload to see it.");
+    const inMonth = period.balances.map((b) => b.member);
+    const from = partyFromColumn(payment.fromMemberId);
+    const payer = from === HOUSE_BUDGET ? undefined : inMonth.find((m) => m.id === from);
+    return {
+      payer: payer ? { id: payer.id, name: payer.name } : null,
+      year: period.year,
+      month: period.month,
+      collectorName: inMonth.find((m) => m.isCollector)?.name ?? "The admin",
+    };
   });
 }
 

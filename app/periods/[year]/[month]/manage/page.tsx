@@ -1,4 +1,4 @@
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { BackupCard } from "@/components/backup-card";
 import { BillInbox } from "@/components/emailed-bills";
@@ -7,7 +7,7 @@ import { ManageMembers, type MemberActivityView } from "@/components/manage-memb
 import { ManageSharedColumns } from "@/components/manage-shared-columns";
 import { MeralcoPoints } from "@/components/meralco-points";
 import { PageEnter } from "@/components/page-enter";
-import { billEmails, db, memberDevices, members } from "@/db";
+import { billEmails, db, memberDevices, members, pushSubscriptions } from "@/db";
 import { getPreview, requireViewer } from "@/lib/auth";
 import { getLastBackupAt } from "@/lib/backup-status";
 import { deviceLabel, seenLabel, summarizeDevices, type MemberActivity } from "@/lib/devices";
@@ -57,6 +57,17 @@ export default async function ManagePage({ params }: PageProps<"/periods/[year]/
           .from(memberDevices)
           .where(inArray(memberDevices.memberId, activeIds));
   const activity = summarizeDevices(deviceRows);
+  // Devices with notifications on (docs/features/notifications.md): the live site's only, the ones
+  // that get pushes. Just a count per member goes to the browser.
+  const pushRows =
+    activeIds.length === 0
+      ? []
+      : await db
+          .select({ memberId: pushSubscriptions.memberId, devices: count() })
+          .from(pushSubscriptions)
+          .where(and(inArray(pushSubscriptions.memberId, activeIds), eq(pushSubscriptions.live, true)))
+          .groupBy(pushSubscriptions.memberId);
+  const pushDevices = new Map(pushRows.map((r) => [r.memberId, r.devices]));
   const now = new Date();
 
   return (
@@ -95,6 +106,7 @@ export default async function ManagePage({ params }: PageProps<"/periods/[year]/
             email: m.email,
             linked: m.authUserId !== null,
             activity: activityView(activity.get(m.id), now),
+            notifications: pushDevices.get(m.id) ?? 0,
           }))}
         />
         <BackupCard lastBackupAt={lastBackupAt} />

@@ -482,6 +482,28 @@ export const memberDevices = pgTable(
   (t) => [uniqueIndex("member_devices_member_via_platform").on(t.memberId, t.via, t.platform)],
 ).enableRLS();
 
+// Phones and browsers that turned notifications on (docs/features/notifications.md). One row per
+// browser subscription — the push service's address for that device and the keys that encrypt
+// what's sent to it. Written by app/api/push/route.ts for the signed-in member only; read only by
+// lib/push.ts (and Manage, as a count). `live`: saved on the live site. One database, so a
+// subscription made on localhost must never get the live site's pushes.
+export const pushSubscriptions = pgTable(
+  "push_subscriptions",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    memberId: integer("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    endpoint: text("endpoint").notNull(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    platform: devicePlatform("platform").notNull(),
+    live: boolean("live").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("push_subscriptions_endpoint").on(t.endpoint), index("push_subscriptions_member_id").on(t.memberId)],
+).enableRLS();
+
 // A Download backup that finished streaming (app/backup/route.ts). The month pages remind the
 // admin to back up when a month was started or closed since the latest one (lib/backup-reminder.ts).
 export const backups = pgTable("backups", {
@@ -633,3 +655,4 @@ export type Biller = typeof billers.$inferSelect;
 export type BillerField = typeof billerFields.$inferSelect;
 export type ReminderSend = typeof reminderSends.$inferSelect;
 export type MemberDevice = typeof memberDevices.$inferSelect;
+export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect;

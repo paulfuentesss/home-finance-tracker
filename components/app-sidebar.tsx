@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { AccountMenu } from "@/components/account-menu";
 import { HouseBadge } from "@/components/house-badge";
+import { NotificationsCard } from "@/components/notifications";
 import { BackToLatest, MonthPicker, SIDEBAR_LINK, SidebarNav } from "@/components/period-nav";
 import { PreviewBanner } from "@/components/preview-banner";
 import { SeenTracker } from "@/components/seen-tracker";
@@ -136,6 +137,8 @@ export function AppShell({
       </div>
       {/* Notes who's using My House, app or browser, for the admin's Manage page. */}
       <SeenTracker />
+      {/* Inside the installed app: a one-time "Turn on notifications" card, and keeping them in sync. */}
+      <NotificationsCard />
     </ViewerProvider>
   );
 }

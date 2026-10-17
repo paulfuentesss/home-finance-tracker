@@ -31,6 +31,8 @@ interface Member {
   linked: boolean;
   /** When they last used My House and from where (lib/devices.ts); null before their first visit. */
   activity: MemberActivityView | null;
+  /** How many of their devices have notifications on (docs/features/notifications.md). */
+  notifications: number;
 }
 
 /** Ready-made text, worked out on the server (app/periods/[year]/[month]/manage/page.tsx). */
@@ -117,6 +119,14 @@ export function ManageMembers({
                 {m.activity?.installed && (
                   <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-normal text-amber-700">
                     app installed
+                  </span>
+                )}
+                {m.notifications > 0 && (
+                  <span
+                    className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-normal text-violet-700"
+                    title={`Notifications on ${m.notifications === 1 ? "1 device" : `${m.notifications} devices`}`}
+                  >
+                    🔔 notifications on
                   </span>
                 )}
               </span>
