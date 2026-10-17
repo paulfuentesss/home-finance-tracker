@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObjec
 import { AccountMenu } from "@/components/account-menu";
 import { HouseBadge } from "@/components/house-badge";
 import { NotificationsCard } from "@/components/notifications";
+import { OfflineBanner } from "@/components/offline-banner";
 import { BackToLatest, MonthPicker, SIDEBAR_LINK, SidebarNav } from "@/components/period-nav";
 import { PreviewBanner } from "@/components/preview-banner";
 import { SeenTracker } from "@/components/seen-tracker";
@@ -108,7 +109,7 @@ function SidebarContent({
 
 /**
  * The frame around every signed-in page with the sidebar (the month pages, How it works): the
- * sidebar, the phone's top bar, the preview strip, then the page. `viewer` is who the page is
+ * sidebar, the phone's top bar, the No connection and preview strips, then the page. `viewer` is who the page is
  * drawn for (lib/preview.ts); the pages below read it from the context.
  */
 export function AppShell({
@@ -130,7 +131,12 @@ export function AppShell({
         {/* min-w-0 lets this column shrink below its widest table, so wide tables scroll inside
             their own box instead of pushing the page sideways. */}
         <div ref={pageRef} className="min-w-0 flex-1">
-          <MobileTopBar {...sidebar} pageRef={pageRef} />
+          {/* One sticky box, so the No connection strip stays in view under the phone's top bar
+              (lg:hidden: on desktop the box holds just the strip). */}
+          <div className="sticky top-0 z-30">
+            <MobileTopBar {...sidebar} pageRef={pageRef} />
+            <OfflineBanner />
+          </div>
           <PreviewBanner />
           {children}
         </div>

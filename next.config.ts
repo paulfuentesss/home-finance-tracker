@@ -8,6 +8,10 @@ const nextConfig: NextConfig = {
       // proxy.ts buffers (proxyClientMaxBodySize).
       bodySizeLimit: "6mb",
     },
+    // No connection (docs/features/offline.md): a save or a tap to another month waits and goes
+    // through by itself once the connection is back, instead of failing; OfflineBanner says so.
+    // Turning this off is the kill switch.
+    useOffline: true,
   },
   async headers() {
     return [
