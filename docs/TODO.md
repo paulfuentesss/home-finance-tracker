@@ -82,7 +82,21 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
       - Small or faint text: sidebar group labels, the 10–11px text in the Split Table, the
         scroll chevron.
 
+- [ ] **Database tests for the riskiest paths** ([testing](testing.md)): starting the next month
+      (`lib/month-start.ts`, carry-over), closing a month, bill-email import (`lib/bill-import.ts`,
+      dedupe) and the daily job's claim-then-send (`lib/reminder-send.ts`) are checked today only
+      by the pure tests around them. PGlite (already used in `lib/backup.test.ts`) can run them
+      against a real Postgres with the made-up August fixture, no secrets.
+
 ## Ideas (not decided)
+
+- **A history of changes** — who changed or deleted an amount, and when (a bill total, an advance,
+  a payment). Deletes are permanent today, payments don't record who confirmed them, and an
+  advance the admin logs for someone doesn't record who entered it. Would be an append-only table
+  written inside `run()`'s transaction and shown to the admin. A schema change.
+
+- **Error tracking** (e.g. Sentry's free plan): unexpected errors a housemate hits today show only
+  "Something went wrong" and a line in Vercel's logs that nobody reads.
 
 - Google's consent screen says "Sign in to `<project-ref>.supabase.co`" ([auth](features/auth.md)).
   Once there's an own domain: free options are Google's own sign-in button

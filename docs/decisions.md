@@ -370,8 +370,8 @@ transaction pooler hung every time and the session pooler never did. Turning pip
 (`max_pipeline: 0`) stopped the hang but broke transactions, and prepared statements didn't
 help.
 **Trade-off:** in session mode each connection holds a database connection while it's open.
-The app uses one per server instance and closes it after 20 s idle; the free plan's pool (about
-15) is far more than a household needs.
+The app uses a few per server instance (see "Pages load the history once…", 2026-10-18) and closes
+them after 20 s idle; the free plan's pool (about 15) is far more than a household needs.
 
 ## 2026-10-11 — Worktrees link `.env.local` instead of copying it
 **Decision:** a new worktree gets `.env.local` as a symlink to the main folder's
@@ -971,3 +971,20 @@ but before the answer arrived, the save is sent again — rare, and the extra en
 call wrapped in a helper, and the housemate has to remember to retry), or a queue that saves
 while the app is closed (needs storage on the phone and conflict handling; part of offline
 viewing in [TODO.md](TODO.md)).
+
+## 2026-10-18 — Pages load the history once, and the live site uses 3 connections
+**Decision:** a page loads the whole history (`loadPeriods` in `lib/periods.ts`) once, shared
+through React's `cache()` by the month view, the bill banner and the admin's nudge. The month
+layout asks for those notices together with the month view rather than after it, and the Manage
+page runs its queries together. On the live site each server instance keeps up to 3 database
+connections; everywhere else 1 (`db/index.ts`).
+**Why:** a month page loaded the whole history 2–5 times (once per notice, twice for an older
+month), in 5–6 steps one after another, and it grows every month. React's `cache()` only remembers
+while a page is drawn, so a Server Action or the daily job still reads afresh, and a transaction
+never uses it. One connection per instance made requests served at once (Vercel's Fluid compute)
+queue, and the admin's "why hasn't the next month started" check holds it for a transaction.
+Three, not more: the session pooler holds about 15, shared by the live site, `localhost:3000`,
+each worktree's dev server, the scripts and `db:studio` (one each locally).
+**Instead of:** Next's `cacheComponents` / `'use cache'` (keeps data across requests, but needs
+tags refreshed by every action: more work for less extra gain at this size), or loading only the
+months a page needs (carry-over needs every earlier month anyway).
