@@ -147,7 +147,18 @@ pre-commit hook runs ESLint on the whole project (`.husky/pre-commit`, root file
 `proxy.ts` included), so lint errors block the commit.
 
 Before a PR: `npm run typecheck`, `npm run lint`, `npm test`. The PR template has a
-checklist for keeping the docs up to date.
+checklist for keeping the docs up to date. CI (`.github/workflows/checks.yml`) runs those three
+and a production build (`npm run build`, with placeholder settings, no secrets) on every PR.
+
+## Dependencies
+
+**Dependabot** (`.github/dependabot.yml`) opens PRs every Saturday for newer versions: Next.js
+with its lint config in one, React with its types in another, every other minor or patch update
+together, and each major update on its own (it may need code changes). GitHub Actions versions
+too. Each PR runs the checks above. **Merging one deploys the live site**, so merge only when
+it's green; for a Next.js or major one, also run it locally (`gh pr checkout <n>` in a worktree,
+`npm install`, `npm run dev`) and click through before merging. Next.js, React and nodemailer
+are pinned to exact versions, so they change only through these PRs.
 
 ## Troubleshooting
 
@@ -186,7 +197,7 @@ app/            Next.js routes: /periods/[year]/[month] (the sidebar's sections)
                 startup check, git-guard.sh and edit-overlap.sh for sessions sharing the folder), and
                 the commands it may run without asking (settings.json → permissions.allow:
                 read-only checks only — typecheck, test, lint, git fetch)
-.github/        Workflows (checks on every PR, keep-alive), PR template
+.github/        Workflows (checks and build on every PR, keep-alive), PR template, Dependabot
 components/     App components (inline-input.tsx = the shared edit-in-place field)
 components/ui/  shadcn/ui components
 db/             Drizzle schema (schema.ts) and database clients
@@ -214,6 +225,7 @@ secrets or a password manager.
 | My House Gmail (the household's own, not PA's) | Sends the email sign-in codes (Supabase custom SMTP) and the app's reminders and bill emails ([below](#emails--reminders)); Meralco, Manila Water and PLDT bills go to it (switching over: [TODO.md](TODO.md)) | 2-Step Verification on; two App Passwords, one each: Supabase's SMTP settings, and the app's `GMAIL_SMTP_APP_PASSWORD`; the bill-email script runs in this account (the row below). Changing it: [setup.md](setup.md) step 5b |
 | GitHub `paulfuentesss/home-finance-tracker` | Code, PRs, the keep-alive job | **Public**; secret `DIRECT_URL` for the keep-alive job |
 | Vercel (Hobby, project `myhouse`) | Runs the app online | Address in `.private/NOTES.md`; how it's set up: [Hosting](#hosting-vercel) below |
+| healthchecks.io (free plan, PA's own email — not the My House Gmail) | Emails PA when the daily job fails or doesn't run ([Emails & reminders](#emails--reminders) step 4) | Gets only a plain GET to the check's URL (`HEALTHCHECK_URL` in Vercel), no household data |
 | Google Apps Script "My House bills" (in the My House Gmail's account) | Sends the billers' emails to the app hourly (`scripts/gmail/bill-forwarder.gs`) | Script Properties hold the app address and `BILL_EMAIL_SECRET`; setup and fixing: [setup.md](setup.md) step 7, [below](#bills-stop-arriving-by-email) |
 
 ## Hosting (Vercel)
@@ -231,8 +243,9 @@ secrets or a password manager.
   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `BILL_EMAIL_SECRET` (the
   Gmail script's shared secret; [setup.md](setup.md) step 7), and the email ones
   ([Emails & reminders](#emails--reminders)): `GMAIL_SMTP_USER`, `GMAIL_SMTP_APP_PASSWORD`,
-  `CRON_SECRET`, and the push keys `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`
-  ([below](#push-notifications)). Not `EMAIL_TEST_TO` or `PUSH_TEST` (localhost only). Not `DIRECT_URL` — only
+  `CRON_SECRET`, the optional `HEALTHCHECK_URL` (the failure alert, step 4 there), and the push
+  keys `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` ([below](#push-notifications)). Not
+  `EMAIL_TEST_TO` or `PUSH_TEST` (localhost only; nor `HEALTHCHECK_URL` locally). Not `DIRECT_URL` — only
   scripts and migrations use it, and they run on PA's laptop. A changed value only takes
   effect after a redeploy (Deployments → ⋯ → Redeploy).
 - **The address** is also Supabase's **Site URL** and is in its Redirect URLs as
@@ -259,6 +272,13 @@ while a bill stays unpaid ([features/reminders.md](features/reminders.md)) — f
      without it the job answers "not set up" and sends nothing.
 3. Check: Settings → Cron Jobs → **Run**. The response lists what was sent (usually nothing,
    mid-month). On Settle Up, the bill-email box shows when it was last sent.
+4. **An alert when it fails** (optional, free): at [healthchecks.io](https://healthchecks.io),
+   sign up with an address that isn't the My House Gmail, and add a check with the schedule
+   **Cron** `0 1 * * *`, time zone **UTC**, grace time **3 hours** (Hobby runs the job any time
+   within that hour). Copy its ping URL into Vercel as `HEALTHCHECK_URL` (Production, Sensitive)
+   and redeploy. After each run the job pings it — its `/fail` address when an email couldn't be
+   sent or the run crashed — and healthchecks.io emails you on a failure, or when no ping came by
+   the deadline (the job didn't run at all). The ping carries nothing but the URL.
 
 **Safety switch (one database):** only the live site emails housemates and records what it
 sent (`VERCEL_ENV=production`, `lib/email.ts`). On localhost every email goes to
@@ -276,10 +296,11 @@ for the admin's "start November"; a few days after a bill email for its still-un
 follow-up — localhost records nothing, so that needs a bill email the live site sent). The live
 site ignores it.
 
-**If reminders stop:** the Settle Up box's "Month-end reminder … sent" line stops moving. Check
-Vercel's logs for `/api/reminders` (a 503 means `CRON_SECRET` is missing; "Couldn't send"
-means Gmail refused — a revoked app password, or the account's sending limit). A missed day is
-caught up the next day by itself.
+**If reminders stop:** healthchecks.io emails you (step 4); without it, the Settle Up box's
+"Month-end reminder … sent" line stops moving. Check Vercel's logs for `/api/reminders` (a 503
+means `CRON_SECRET` is missing; "Couldn't send" means Gmail refused — a revoked app password, or
+the account's sending limit; a database error that can't find the tenant means Supabase paused:
+CLAUDE.md → Known pitfalls). A missed day is caught up the next day by itself.
 
 ### Push notifications
 
@@ -326,6 +347,9 @@ The app holds household finances, and **this repo is public**, so:
   and `CRON_SECRET` only `/api/reminders` (both checked by `lib/actions-guard.test.ts`). Each
   bill email goes only to its own housemate, and a view-only login's "the bills are in" note
   carries no amounts; the pages never receive anyone's email address.
+- **`HEALTHCHECK_URL` works like a password** — anyone with it could send a fake "all good". Only
+  `/api/reminders` reads it, from the live site only (checked by `lib/actions-guard.test.ts`), and
+  the ping carries no names, amounts or outcome: just "fine" or `/fail`.
 - **`VAPID_PRIVATE_KEY` signs the push notifications** ([features/notifications.md](features/notifications.md)).
   Server-only; only `lib/push.ts` reads it (checked by `lib/actions-guard.test.ts`). Pushes
   carry no amounts and nothing anyone typed: they show on lock screens. A device is saved only

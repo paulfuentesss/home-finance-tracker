@@ -309,6 +309,12 @@ describe("secrets stay on the server", () => {
     expect(readers).toEqual([CRON_ROUTE]);
   });
 
+  it("HEALTHCHECK_URL is read only by the reminders route, which pings from the live site only", () => {
+    const readers = files.filter((f) => read(f).includes("process.env.HEALTHCHECK_URL")).map(rel);
+    expect(readers).toEqual([CRON_ROUTE]);
+    expect(read(join(ROOT, CRON_ROUTE))).toMatch(/if \(!url \|\| !emailIsLive\(\)\) return;/);
+  });
+
   it("the VAPID private key is read only by lib/push.ts, which only the server loads", () => {
     const readers = files.filter((f) => read(f).includes("process.env.VAPID_PRIVATE_KEY")).map(rel);
     expect(readers).toEqual(["lib/push.ts"]);

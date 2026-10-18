@@ -129,8 +129,9 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
   - **Sign out everywhere**, for a lost phone: sign-out is `scope: "local"` (this device only).
   - **Security headers** in `next.config.ts` (only `Cache-Control` now): a Content-Security-Policy,
     `frame-ancestors 'none'` (no embedding the site in another page), Referrer-Policy.
-  - **GitHub's free checks for a public repo:** Dependabot security updates, secret scanning with
-    push protection (check they're on).
+  - **GitHub's free checks for a public repo:** Dependabot *security* updates and secret
+    scanning with push protection — switches in the repo's Settings → Code security (check
+    they're on; the weekly version PRs are already set up: operations.md → Dependencies).
   - **Backups** off the laptop and password-protected: Later, above.
   - **Rotate the shared secrets** now and then (`BILL_EMAIL_SECRET`, `CRON_SECRET`; Vercel, plus
     the Gmail script for the first). `BILLER_SECRET_KEY` needs a script that re-encrypts every

@@ -9,9 +9,10 @@ Supabase, `actions-guard.test.ts` reads the source files, and the [database test
 (`backup`, `month-close`, `month-start`, `bill-import`, `reminder-send`) run a real Postgres in
 memory (PGlite), never the live database.
 
-**CI:** GitHub Actions runs `npm run typecheck`, `npm run lint` and `npm test` on every pull
-request and every push to main (`.github/workflows/checks.yml`); a failure shows as a red ✗
-on the PR. It needs no secrets because no test touches the live database or any other service —
+**CI:** GitHub Actions runs `npm run typecheck`, `npm run lint`, `npm test` and a production
+build (`npm run build`, with placeholder settings) on every pull request and every push to main
+(`.github/workflows/checks.yml`); a failure shows as a red ✗ on the PR. It needs no secrets
+because no test touches the live database or any other service and the build fetches nothing —
 keep it that way.
 
 | Test file | Covers |
