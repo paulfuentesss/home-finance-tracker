@@ -4,6 +4,7 @@ import { Pencil } from "lucide-react";
 import { Fragment, useMemo, useState } from "react";
 import { deleteHelperEntry } from "@/app/periods/[year]/[month]/actions";
 import { ConfirmDeleteButton } from "@/components/confirm-button";
+import { EmptyState } from "@/components/empty-state";
 import { AddHelperEntryDialog, EditHelperEntryDialog } from "@/components/entry-dialogs";
 import { Button } from "@/components/ui/button";
 import { useViewer } from "@/components/viewer-context";
@@ -76,7 +77,7 @@ export function HelperLog({ view }: { view: PeriodView }) {
       <section className="overflow-hidden rounded-xl border bg-white shadow-xs">
         <div className="flex flex-wrap items-start justify-between gap-4 border-b p-5">
           <div>
-            <h2 className="text-lg font-semibold">Visits &amp; Early Pay</h2>
+            <h2 className="text-base font-semibold">Visits &amp; Early Pay</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Every day she worked and every early pay this month, with what she owes after each.
             </p>
@@ -190,8 +191,8 @@ export function HelperLog({ view }: { view: PeriodView }) {
               })}
               {helper.entries.length === 0 && (
                 <tr>
-                  <td colSpan={columnCount} className="py-10 text-center text-muted-foreground">
-                    No visits or early pay logged this month yet.
+                  <td colSpan={columnCount} className="p-4">
+                    <EmptyState>No visits or early pay logged this month yet.</EmptyState>
                   </td>
                 </tr>
               )}

@@ -2,6 +2,7 @@
 
 import { deleteBill, renameBill } from "@/app/periods/[year]/[month]/actions";
 import { ConfirmDeleteButton } from "@/components/confirm-button";
+import { EmptyState } from "@/components/empty-state";
 import { InlineInput } from "@/components/inline-input";
 import { AddBillDialog } from "@/components/entry-dialogs";
 import { formatPHP } from "@/lib/money";
@@ -22,7 +23,7 @@ export function ManageBills({ view }: { view: PeriodView }) {
     <section className="rounded-xl border bg-white p-5 shadow-xs">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold">Bill Columns</h2>
+          <h2 className="text-base font-semibold">Bill Columns</h2>
           <p className="mt-1 text-sm text-muted-foreground">Each bill&apos;s split is fixed: Meralco by points, the rest as chosen when added.</p>
         </div>
         {editable && <AddBillDialog view={view} label="New column" />}
@@ -32,7 +33,7 @@ export function ManageBills({ view }: { view: PeriodView }) {
           <BillRow key={bill.id} bill={bill} editable={editable} />
         ))}
         {view.bills.length === 0 && (
-          <li className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">No bill columns yet.</li>
+          <EmptyState as="li">No bill columns yet.</EmptyState>
         )}
       </ul>
     </section>

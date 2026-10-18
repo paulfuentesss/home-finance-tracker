@@ -16,7 +16,7 @@ export function MeralcoPoints({ view }: { view: PeriodView }) {
 
   return (
     <section className="rounded-xl border bg-white p-5 shadow-xs">
-      <h2 className="text-lg font-semibold">Meralco Points</h2>
+      <h2 className="text-base font-semibold">Meralco Points</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Change when the allocation changes (new aircon, PC, someone moving rooms). Saving re-splits the bill.
       </p>

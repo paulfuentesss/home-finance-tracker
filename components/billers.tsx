@@ -20,6 +20,7 @@ import {
 } from "@/app/periods/[year]/[month]/actions";
 import { ConfirmDeleteButton } from "@/components/confirm-button";
 import { CopyButton } from "@/components/copy-button";
+import { EmptyState } from "@/components/empty-state";
 import { AddBillerDialog, AddBillerFieldDialog, ChangeBillerSecretDialog } from "@/components/entry-dialogs";
 import { InlineInput } from "@/components/inline-input";
 import { Button } from "@/components/ui/button";
@@ -60,9 +61,10 @@ export function Billers({ billers }: { billers: ViewBiller[] }) {
         )}
       </section>
       {billers.length === 0 ? (
-        <p className="rounded-xl border border-dashed bg-white p-8 text-center text-sm text-muted-foreground">
+        // White: it sits on the page's grey, not inside a card.
+        <EmptyState className="bg-white">
           {!admin ? "Nothing here yet." : edit ? "No billers yet. Add one to start." : "No billers yet. Tap Edit to add one."}
-        </p>
+        </EmptyState>
       ) : (
         <div className="grid items-start gap-6 lg:grid-cols-2">
           {billers.map((biller, i) => (
@@ -151,7 +153,7 @@ function BillerCard({
             aria-controls={bodyId}
             onClick={() => setOpen(!open)}
           >
-            <h2 className="text-lg font-semibold">{biller.name}</h2>
+            <h2 className="text-base font-semibold">{biller.name}</h2>
             <ChevronDown className={cn("size-5 shrink-0 text-muted-foreground transition-transform lg:hidden", open && "rotate-180")} />
           </button>
         ) : (
@@ -164,7 +166,7 @@ function BillerCard({
             maxLength={60}
             allowEmpty={false}
             className="min-w-0 flex-1"
-            inputClassName="w-full border-transparent bg-transparent px-1 text-lg font-semibold hover:border-input focus:bg-white max-md:text-lg"
+            inputClassName="w-full border-transparent bg-transparent px-1 text-base font-semibold hover:border-input focus:bg-white"
           />
         )}
         {edit && (
@@ -179,7 +181,11 @@ function BillerCard({
           </div>
         )}
       </div>
-      {error && <p className="mt-1 text-sm text-destructive">{error}</p>}
+      {error && (
+        <p role="alert" className="mt-1 text-sm text-destructive">
+          {error}
+        </p>
+      )}
       <div id={bodyId} className={cn(!open && !edit && "hidden", "lg:block")}>
         <ul className="mt-3 divide-y">
           {biller.fields.map((field, i) => (
@@ -279,7 +285,11 @@ function FieldRow({
           </div>
         )}
       </div>
-      {error && <p className="mt-1 text-sm text-destructive">{error}</p>}
+      {error && (
+        <p role="alert" className="mt-1 text-sm text-destructive">
+          {error}
+        </p>
+      )}
     </li>
   );
 }
@@ -373,7 +383,11 @@ function SecretValue({ field }: { field: ViewBillerField }) {
         </Button>
         {value !== null && <CopyButton value={value} label={field.label} />}
       </div>
-      {error && <p className="px-1 text-xs text-destructive">{error}</p>}
+      {error && (
+        <p role="alert" className="px-1 text-xs text-destructive">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

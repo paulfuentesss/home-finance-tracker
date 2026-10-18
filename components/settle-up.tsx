@@ -13,6 +13,7 @@ import {
   type ActionState,
 } from "@/app/periods/[year]/[month]/actions";
 import { ConfirmDeleteButton } from "@/components/confirm-button";
+import { EmptyState } from "@/components/empty-state";
 import { EditPaymentDialog, RecordPaymentDialog, SubmitPaymentDialog } from "@/components/entry-dialogs";
 import { Pair, partyName, partyView } from "@/components/member-pair";
 import { ProofThumbs } from "@/components/receipts";
@@ -93,8 +94,8 @@ function EmailBill({ view, status }: { view: PeriodView; status: EmailStatus }) 
   const toTell = status.viewOnly.filter((v) => v.hasEmail && !v.sentOn);
   const count = toEmail.length + toTell.length;
   return (
-    <section className="rounded-xl border bg-white p-4 shadow-xs sm:p-5">
-      <h2 className="flex items-center gap-2 text-lg font-semibold">
+    <section className="rounded-xl border bg-white p-5 shadow-xs">
+      <h2 className="flex items-center gap-2 text-base font-semibold">
         <Mail className="size-4 text-zinc-500" />
         Email everyone their bill
       </h2>
@@ -246,7 +247,7 @@ function WaitingForYou({ view, receipts }: { view: PeriodView; receipts: ViewRec
   if (!editable || waiting.length === 0) return null;
   return (
     <section aria-labelledby="waiting-for-you" className="rounded-xl border border-amber-300 bg-amber-50 p-4 sm:p-5">
-      <h2 id="waiting-for-you" className="text-lg font-semibold text-amber-950">
+      <h2 id="waiting-for-you" className="text-base font-semibold text-amber-950">
         Waiting for you ({waiting.length})
       </h2>
       <p className="mt-1 text-sm text-amber-900">
@@ -292,9 +293,9 @@ function WhoStillOwes({ view, compact }: { view: PeriodView; compact: boolean })
   const isOwed = !editable && suggestions.some((s) => s.toMemberId === viewer.memberId);
 
   return (
-    <section aria-labelledby="who-still-owes" className="rounded-xl border bg-white p-4 shadow-xs sm:p-5">
+    <section aria-labelledby="who-still-owes" className="rounded-xl border bg-white p-5 shadow-xs">
       <div className="flex items-center justify-between gap-3">
-        <h2 id="who-still-owes" className="text-lg font-semibold">
+        <h2 id="who-still-owes" className="text-base font-semibold">
           Who still owes
         </h2>
         {/* One icon that switches: lines folding together → Compact, spreading apart → Normal. */}
@@ -436,15 +437,13 @@ function WhoStillOwes({ view, compact }: { view: PeriodView; compact: boolean })
 function PaymentsList({ view, receipts }: { view: PeriodView; receipts: ViewReceipt[] }) {
   // PA records payments (in an open month); housemates' own come from "I paid".
   return (
-    <section aria-labelledby="payments-this-month" className="rounded-xl border bg-white p-4 shadow-xs sm:p-5">
-      <h2 id="payments-this-month" className="text-lg font-semibold">
+    <section aria-labelledby="payments-this-month" className="rounded-xl border bg-white p-5 shadow-xs">
+      <h2 id="payments-this-month" className="text-base font-semibold">
         Payments this month
       </h2>
 
       {view.payments.length === 0 ? (
-        <p className="mt-4 rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-          No payments recorded yet.
-        </p>
+        <EmptyState className="mt-4">No payments recorded yet.</EmptyState>
       ) : (
         <ul className="mt-3 divide-y">
           {view.payments.map((p) => (
@@ -630,7 +629,11 @@ function RejectButton({ payment, label }: { payment: ViewPayment; label: string 
             maxLength={120}
             required
           />
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
           <DialogFooter>
             <DialogClose render={<Button variant="outline" type="button" />}>Keep waiting</DialogClose>
             <Button type="submit" disabled={pending}>
@@ -653,8 +656,8 @@ function MonthLock({ view }: { view: PeriodView }) {
 
   if (status === "closed") {
     return (
-      <section className="rounded-xl border bg-white p-4 shadow-xs sm:p-5">
-        <h2 className="flex items-center gap-2 text-lg font-semibold">
+      <section className="rounded-xl border bg-white p-5 shadow-xs">
+        <h2 className="flex items-center gap-2 text-base font-semibold">
           <Lock className="size-4 text-zinc-500" />
           {label} is closed
         </h2>
@@ -691,8 +694,8 @@ function MonthLock({ view }: { view: PeriodView }) {
 
   if (!admin) {
     return (
-      <section className="rounded-xl border bg-white p-4 shadow-xs sm:p-5">
-        <h2 className="text-lg font-semibold">{label} is open</h2>
+      <section className="rounded-xl border bg-white p-5 shadow-xs">
+        <h2 className="text-base font-semibold">{label} is open</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           The admin closes the month once it&apos;s settled. Anything still unpaid then carries over
           {next ? ` to ${next}` : " to next month"} as Prev Month Unsettled.
@@ -707,8 +710,8 @@ function MonthLock({ view }: { view: PeriodView }) {
   const offColumns = view.columns.filter((c) => c.difference !== 0);
 
   return (
-    <section className="rounded-xl border bg-white p-4 shadow-xs sm:p-5">
-      <h2 className="text-lg font-semibold">Close {label}</h2>
+    <section className="rounded-xl border bg-white p-5 shadow-xs">
+      <h2 className="text-base font-semibold">Close {label}</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Locks the month so nothing in it can change. Anything still unpaid carries over
         {next ? ` to ${next}` : " to next month"} as Prev Month Unsettled. You can reopen it later.
@@ -822,7 +825,11 @@ function ConfirmAction({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         {children}
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
           <Button

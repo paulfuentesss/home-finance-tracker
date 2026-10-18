@@ -9,6 +9,7 @@ import {
   updateSharedColumnMembers,
 } from "@/app/periods/[year]/[month]/actions";
 import { ConfirmDeleteButton } from "@/components/confirm-button";
+import { EmptyState } from "@/components/empty-state";
 import { AddSharedColumnDialog } from "@/components/entry-dialogs";
 import { InlineInput } from "@/components/inline-input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -24,7 +25,7 @@ export function ManageSharedColumns({ view }: { view: PeriodView }) {
     <section className="rounded-xl border bg-white p-5 shadow-xs">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold">Shared Columns</h2>
+          <h2 className="text-base font-semibold">Shared Columns</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Where advances are split. &ldquo;Advances Shared&rdquo; is always there; add others when needed.
           </p>
@@ -36,9 +37,9 @@ export function ManageSharedColumns({ view }: { view: PeriodView }) {
           <ColumnRow key={column.id} column={column} view={view} editable={editable} />
         ))}
         {view.columns.length === 0 && (
-          <li className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+          <EmptyState as="li">
             No shared columns yet — logging an advance creates &ldquo;Advances Shared&rdquo;.
-          </li>
+          </EmptyState>
         )}
       </ul>
     </section>
@@ -158,7 +159,11 @@ function SharedBy({ column, members }: { column: ViewColumn; members: PeriodView
           </label>
         ))}
       </div>
-      {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
+      {error && (
+        <p role="alert" className="mt-1 text-xs text-destructive">
+          {error}
+        </p>
+      )}
     </fieldset>
   );
 }
@@ -228,7 +233,11 @@ function ModePill({ column, editable }: { column: ViewColumn; editable: boolean 
           </ul>
         </PopoverContent>
       </Popover>
-      {error && <span className="text-xs text-destructive">{error}</span>}
+      {error && (
+        <span role="alert" className="text-xs text-destructive">
+          {error}
+        </span>
+      )}
     </>
   );
 }

@@ -93,8 +93,11 @@ export function InlineInput({
           readOnly={pending || previewing}
           // max-md:text-base: iPhone zooms into any input under 16px when tapped, so phones get
           // 16px whatever size the caller sets (a caller bigger than that sets its own max-md: size).
+          // The focus ring: amber-600, the first amber that stands out from white enough (3:1)
+          // to see where you are. (focus-visible, like the tabs; a text field counts as visible
+          // focus however it's reached, so a tap shows it too, which is what typing needs.)
           className={cn(
-            "rounded-md border border-input bg-white max-md:text-base focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none read-only:opacity-50 aria-invalid:border-rose-500",
+            "rounded-md border border-input bg-white max-md:text-base focus-visible:border-amber-600 focus-visible:ring-2 focus-visible:ring-amber-600/50 focus-visible:outline-none read-only:opacity-50 aria-invalid:border-rose-500",
             prefix && "pl-5",
             inputClassName,
           )}
@@ -118,13 +121,23 @@ export function InlineInput({
         {state.saves > 0 && !error && (
           <Check
             key={state.saves}
-            aria-label="Saved"
+            aria-hidden
             className="absolute -right-5 size-3.5 animate-out fill-mode-forwards text-emerald-600 duration-500 fade-out delay-1000"
           />
         )}
+        {/* What a screen reader says after each save; the check above is only for the eyes. Always
+            there, so its change is announced; the alternating no-break space makes a second save a
+            change too. */}
+        <span role="status" className="sr-only">
+          {state.saves > 0 && !error ? `${label} saved${state.saves % 2 ? "" : " "}` : ""}
+        </span>
       </span>
       {error && (
-        <p id={errorId} className="mx-auto mt-1 max-w-40 font-sans text-[11px] whitespace-normal text-destructive">
+        <p
+          id={errorId}
+          role="alert"
+          className="mx-auto mt-1 max-w-40 font-sans text-[11px] whitespace-normal text-destructive"
+        >
           {error}
         </p>
       )}

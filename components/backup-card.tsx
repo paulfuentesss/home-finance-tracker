@@ -10,7 +10,7 @@ export function BackupCard({ lastBackupAt }: { lastBackupAt: Date | null }) {
     <section className="rounded-xl border bg-white p-5 shadow-xs">
       <div className="flex items-center gap-2">
         <HardDriveDownload className="size-5 text-muted-foreground" />
-        <h2 className="text-lg font-semibold">Backup</h2>
+        <h2 className="text-base font-semibold">Backup</h2>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
         A zip of everything: every month&apos;s data and every receipt picture. Supabase&apos;s free plan

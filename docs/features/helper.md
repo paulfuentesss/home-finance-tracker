@@ -32,7 +32,7 @@ Replaces the Google Sheet's two Helper tables: her daily pay per visit, and her 
 ## How it's built
 - Route: `app/periods/[year]/[month]/helper/page.tsx`. UI: `components/helper-log.tsx`, plus
   `AddHelperEntryDialog` / `EditHelperEntryDialog` in `components/entry-dialogs.tsx`
-  (`useDialogForm`).
+  (`useDialogForm`, with a toast once saved).
 - Pure math: `lib/helper.ts` (`countsInBill`, `handedOver`, `helperPaidBy`, `helperBillTotal`,
   `helperMonthSummary`, `ledgerCompare`, `owesAfter`, `firstOverdrawn`), tested in
   `lib/helper.test.ts`.

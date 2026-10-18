@@ -52,17 +52,11 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
       Download backup zip into a cloud drive, `.private/NOTES.md` there too, and
       `BILLER_SECRET_KEY` in a password manager. Maybe password-protect the zips.
 
-- [ ] **UI polish left from the 2026-10-13 audit** (all tabs; the fade-in, month switching,
-      per-tab placeholders, 16px inputs and touch-size buttons are done):
-      - Confirm a save after a dialog closes (a toast or similar); today it just closes.
-      - Error text with `role="alert"`, and InlineInput's "Saved" in a live region, so screen
-        readers announce them.
-      - `prefers-reduced-motion` for the phone menu's slide and the dialogs' zoom.
-      - Inline inputs: `focus-visible` instead of `focus`, and a stronger focus ring on white.
-      - One style each for empty states, card headings and card padding (they differ by tab).
-      - Small or faint text: sidebar group labels, the 10–11px text in the Split Table, the
-        scroll chevron.
-
+- [ ] **One shared card component** (all tabs): every card is written out by hand
+      (`rounded-xl border bg-white p-5 shadow-xs` and its `<h2>`, about 30 copies), which is how
+      Settle Up drifted to other padding and title sizes (`docs/decisions.md`, 2026-10-18). A
+      `SectionCard` with a `title` would hold the look once, so a new tab can't differ. No visual
+      change; after the UI polish PR.
 - [ ] **Removing someone while the next month starts** ([manage](features/manage.md)): if the
       daily job (or Start next month) starts a month at the very moment the admin removes someone,
       the start can still put them in the new month (they were active when it read the list), and
