@@ -102,6 +102,10 @@ and nothing is recorded. A test can't stop a real reminder.
   Manila time (Hobby runs it any time within the scheduled hour). The route
   (`app/api/reminders/route.ts`) checks `CRON_SECRET` first and is public in `proxy.ts`. Off
   the live site, `?today=YYYY-MM-DD` tries a given day.
+- Failure alert: after each run the live site pings `HEALTHCHECK_URL` (healthchecks.io) — its
+  `/fail` address when an email couldn't be sent or the run threw (`healthPingPath` in
+  `lib/health-ping.ts`, tested). The service emails the admin on a failure or a missed day.
+  Optional: with it unset nothing is pinged. Setup in operations.md (below).
 - No double sends: each reminder is claimed in `reminder_sends` (unique month + kind + member)
   before it's sent, so a second call of the same cron sends nothing. A failed send removes its
   claim, so the next day retries just that person. A bill email rewrites its row's time. The
@@ -124,7 +128,8 @@ and nothing is recorded. A test can't stop a real reminder.
 [Closing and reopening a month](../settlement-rules.md#closing-and-reopening-a-month)
 
 ## Open items
-[TODO.md](../TODO.md): telling the housemates; a biller's due date reminder (Ideas).
+[TODO.md](../TODO.md): telling the housemates; setting up the failure alert; a biller's due
+date reminder (Ideas).
 
 ## Built in
 #38 (`feat/install-app`); fixes after review in `test/backup-coverage`.

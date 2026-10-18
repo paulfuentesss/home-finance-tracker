@@ -8,6 +8,11 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
 
 ## Next
 
+- [ ] **Turn on the daily job's failure alert** ([reminders](features/reminders.md)) — built,
+      off until `HEALTHCHECK_URL` is set. Paul: a free healthchecks.io check, its ping URL in
+      Vercel, redeploy ([operations → Emails & reminders](operations.md#emails--reminders) step 4).
+      Then check the next morning's run shows "up" there.
+
 - [ ] **Add the worktrees' local sites to Supabase's Redirect URLs** (Paul, in the dashboard):
       `http://localhost:3001/**` up to `http://localhost:3005/**` ([setup.md](setup.md) step 5,
       [commands.md → Working in parallel](commands.md#working-in-parallel)). Until then, signing
