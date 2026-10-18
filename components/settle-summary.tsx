@@ -36,7 +36,7 @@ export function SettleSummary({ view }: { view: PeriodView }) {
   );
 
   return (
-    <section aria-labelledby="settle-summary" className="rounded-xl border bg-white p-4 shadow-xs sm:p-5">
+    <section aria-labelledby="settle-summary" className="rounded-xl border bg-white p-5 shadow-xs">
       <div className="flex items-baseline justify-between gap-3">
         <h2 id="settle-summary" className="text-base font-semibold">
           Who owes what

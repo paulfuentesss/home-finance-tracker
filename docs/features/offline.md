@@ -12,7 +12,8 @@ in [TODO.md](../TODO.md).
   connection is back.
 - **Saving waits instead of failing.** An inline amount stays greyed out, a dialog's button stays
   on its "saving" state, "I paid" stays pending. When the connection comes back, the save goes
-  through by itself (the ✓ appears, the dialog closes). Nothing has to be typed again.
+  through by itself (the ✓ appears, or the dialog closes with its "saved" message). Nothing has to
+  be typed again.
 - **Moving to another month or tab waits too.** The arrow or month tapped keeps its spinner, and
   the page opens once the connection is back.
 - **Opening or reloading a page** with no connection shows the service worker's "No connection"

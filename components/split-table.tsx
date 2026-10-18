@@ -87,7 +87,7 @@ export function SplitTable({ view }: { view: PeriodView }) {
                   <th key={bill.id} className={cn(cellBase, headCell, "min-w-36 text-center font-bold")}>
                     {bill.name}
                     {bill.status === "pending" && (
-                      <span className="ml-1.5 rounded-full bg-white/70 px-1.5 py-0.5 align-middle text-[10px] font-semibold text-amber-800">
+                      <span className="ml-1.5 rounded-full bg-white/70 px-1.5 py-0.5 align-middle text-[11px] font-semibold text-amber-800">
                         Pending
                       </span>
                     )}
@@ -187,7 +187,7 @@ export function SplitTable({ view }: { view: PeriodView }) {
                         <Squeeze className={squeezeGap}>
                           {member.name}
                           {member.isCollector && (
-                            <span className="rounded-full bg-zinc-100 px-1.5 text-[10px] font-normal text-zinc-600">collector</span>
+                            <span className="rounded-full bg-zinc-100 px-1.5 text-[11px] font-normal text-zinc-600">collector</span>
                           )}
                           <YouTag memberId={member.id} />
                         </Squeeze>
@@ -286,7 +286,7 @@ export function SplitTable({ view }: { view: PeriodView }) {
           aria-hidden
           className="pointer-events-none absolute top-1/2 right-1 -translate-y-1/2 rounded-full bg-white/90 p-0.5 opacity-0 shadow-xs transition-opacity peer-data-more-right:opacity-100"
         >
-          <ChevronRight className="size-5 text-zinc-400" />
+          <ChevronRight className="size-5 text-zinc-500" />
         </div>
       </div>
 
@@ -550,7 +550,11 @@ function DateCell({ bill, field, editable }: { bill: ViewBill; field: "dueDate" 
           onChange={(e) => e.currentTarget.form?.requestSubmit()}
         />
       </label>
-      {state?.ok === false && <p className="text-[11px] text-destructive">{state.error}</p>}
+      {state?.ok === false && (
+        <p role="alert" className="text-[11px] text-destructive">
+          {state.error}
+        </p>
+      )}
     </form>
   );
 }

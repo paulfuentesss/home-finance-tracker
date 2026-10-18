@@ -1,4 +1,5 @@
 import { ShieldCheck } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
 import { Pair, partyName, partyView } from "@/components/member-pair";
 import { PageEnter } from "@/components/page-enter";
 import { ReceiptsCard, ReceiptsNote, ReceiptsRow } from "@/components/receipts";
@@ -38,9 +39,7 @@ export default async function ReceiptsPage({ params }: PageProps<"/periods/[year
           Bills
         </h2>
         {bills.length === 0 ? (
-          <p className="rounded-xl border border-dashed bg-white p-10 text-center text-muted-foreground">
-            No bills this month yet.
-          </p>
+          <EmptyState className="bg-white">No bills this month yet.</EmptyState>
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {bills.map((bill) => (
@@ -83,9 +82,9 @@ export default async function ReceiptsPage({ params }: PageProps<"/periods/[year
           Payments
         </h2>
         {view.payments.length === 0 ? (
-          <p className="rounded-xl border border-dashed bg-white p-10 text-center text-muted-foreground">
+          <EmptyState className="bg-white">
             No payments recorded this month yet. They&apos;re recorded on Settle Up.
-          </p>
+          </EmptyState>
         ) : (
           <ul className="divide-y rounded-xl border bg-white px-4 shadow-xs sm:px-5">
             {view.payments.map((p) => {

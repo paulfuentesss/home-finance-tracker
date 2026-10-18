@@ -25,7 +25,9 @@
 ## How it's built
 - Route: `app/periods/[year]/[month]/advances/page.tsx` (tab 2).
 - UI: `components/advances-log.tsx`, `components/advances-report.tsx`, the dialogs in
-  `components/entry-dialogs.tsx` (`useDialogForm`: `onSubmit` + `startTransition`).
+  `components/entry-dialogs.tsx` (`useDialogForm`: `onSubmit` + `startTransition`; a toast once
+  saved, its `saved` text, as for every dialog: `docs/decisions.md`, 2026-10-18). An empty month
+  shows `components/empty-state.tsx`.
 - Pure helpers: `lib/advances-log.ts` (split tags, grouping by person, the column filter:
   `columnFilterFrom`, `inColumn`) — tested in `lib/advances-log.test.ts`.
 - The column filter is read from the URL (`useSearchParams`) and written back with

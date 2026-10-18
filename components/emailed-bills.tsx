@@ -81,7 +81,11 @@ export function PendingBillActions({ bill }: { bill: ViewBill }) {
           onConfirm={() => discardEmailBill(bill.id)}
         />
       </div>
-      {error && <p className="mt-1 max-w-36 text-[11px] whitespace-normal text-destructive">{error}</p>}
+      {error && (
+        <p role="alert" className="mt-1 max-w-36 text-[11px] whitespace-normal text-destructive">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -109,7 +113,7 @@ export function BillInbox({ emails }: { emails: InboxEmail[] }) {
     <section className="rounded-xl border bg-white p-5 shadow-xs">
       <div className="flex items-center gap-2">
         <Inbox className="size-5 text-muted-foreground" />
-        <h2 className="text-lg font-semibold">Bill Inbox</h2>
+        <h2 className="text-base font-semibold">Bill Inbox</h2>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
         Bill emails that couldn&apos;t go straight into a month. Fix what the note says and Retry, or Dismiss.
@@ -156,7 +160,11 @@ function InboxRow({ email }: { email: InboxEmail }) {
       </p>
       {email.reason && <p className="mt-1.5 text-amber-800">{email.reason}</p>}
       {email.snippet && <p className="mt-1.5 line-clamp-3 text-xs text-zinc-600">{email.snippet}</p>}
-      {error && error !== email.reason && <p className="mt-1.5 text-destructive">{error}</p>}
+      {error && error !== email.reason && (
+        <p role="alert" className="mt-1.5 text-destructive">
+          {error}
+        </p>
+      )}
       <div className="mt-2 flex gap-2">
         {email.canRetry && (
           <Button size="sm" variant="outline" disabled={pending} onClick={() => run(() => retryBillEmail(email.id))}>

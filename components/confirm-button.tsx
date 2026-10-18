@@ -59,7 +59,11 @@ export function ConfirmDeleteButton({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
         {previewing && onConfirm && <p className="text-sm text-sky-800">You&apos;re previewing, so deleting is off.</p>}
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>{onConfirm ? "Cancel" : "OK"}</DialogClose>

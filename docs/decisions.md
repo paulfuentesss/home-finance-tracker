@@ -1011,3 +1011,23 @@ members). Cost: a change waits a moment while the admin's page checks whether th
 start (`startBlockReason`).
 **Instead of:** `FOR UPDATE` in every change (housemates saving at once would queue for no
 reason), or the serializable isolation level (every action would need to retry on conflicts).
+
+## 2026-10-18 — A toast after a dialog saves; the rest of the UI audit
+**Decision:** a dialog that saves closes with a short toast ("Advance logged") from Sonner
+(`components/ui/sonner.tsx`, `<Toaster />` in `app/layout.tsx`), set per dialog through
+`useDialogForm`'s `saved`. Top centre, so it never covers the install or notifications prompts at
+the bottom. "Save & add another" keeps its own "Logged …" line instead. Error text is
+`role="alert"` everywhere, InlineInput's save is announced from a `role="status"` region, reduced
+motion keeps the pop-ups' fade but drops their zoom and slide (`app/globals.css`), empty lists use
+one `EmptyState`, and the Split Table's smallest text and scroll arrow are bigger or darker. The
+sidebar's grey group labels stay as they were (zinc-500, kept by choice: Paul preferred the
+original look to the lighter, higher-contrast one). Cards: every card's title is 16px
+(`text-base font-semibold`, as "Who owes what" already was) and every card has 20px inside
+(`p-5`, phones too: Settle Up's and "Who owes what" were 16px there), Paul's pick.
+**Why:** a dialog that just closes leaves you wondering whether it saved, and screen readers
+announced neither a save nor an error. Sonner is shadcn's toast: its live region is built in and it
+stacks and dismisses itself. Inline inputs' focus ring is amber-600, the first amber with 3:1
+against white (2026-10-09, text contrast). They use `focus-visible` like the tabs, though a text
+field counts as visibly focused however it's reached, so a tap shows the ring too, which typing needs.
+**Instead of:** a home-made toast (the same live region and timing to write and look after), or
+a "Saved" line inside the dialog (it closes straight away).

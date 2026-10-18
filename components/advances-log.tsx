@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Fragment, useMemo, useState } from "react";
 import { deleteAdvance } from "@/app/periods/[year]/[month]/actions";
 import { ConfirmDeleteButton } from "@/components/confirm-button";
+import { EmptyState } from "@/components/empty-state";
 import { AddAdvanceDialog, EditAdvanceDialog } from "@/components/entry-dialogs";
 import { MemberMark } from "@/components/member-mark";
 import { Button } from "@/components/ui/button";
@@ -203,7 +204,7 @@ export function AdvancesLog({ view }: { view: PeriodView }) {
     <section className="overflow-hidden rounded-xl border bg-white shadow-xs">
       <div className="flex flex-wrap items-start justify-between gap-4 border-b p-5">
         <div>
-          <h2 className="text-lg font-semibold">Advances &amp; Out-of-Pocket Expenses Log</h2>
+          <h2 className="text-base font-semibold">Advances &amp; Out-of-Pocket Expenses Log</h2>
           <p className="mt-1 text-sm text-muted-foreground">Everything each person paid this month, grouped by person.</p>
         </div>
         {canAdd && <AddAdvanceDialog view={view} className="w-full sm:w-auto" />}
@@ -318,8 +319,8 @@ export function AdvancesLog({ view }: { view: PeriodView }) {
           {groups.length === 0 && (
             <tbody>
               <tr>
-                <td colSpan={columnCount} className="py-10 text-center text-muted-foreground">
-                  {isFiltered ? "Nothing matches these filters." : "No advances logged this month yet."}
+                <td colSpan={columnCount} className="p-4">
+                  <EmptyState>{isFiltered ? "Nothing matches these filters." : "No advances logged this month yet."}</EmptyState>
                 </td>
               </tr>
             </tbody>

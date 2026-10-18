@@ -2,6 +2,7 @@
 
 import { Columns3, HandCoins, KeyRound, NotebookPen, Plus, UserPlus } from "lucide-react";
 import { startTransition, useActionState, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
   addAdvance,
   addBill,
@@ -57,17 +58,28 @@ type Action = (prev: ActionState, formData: FormData) => Promise<ActionState>;
  * `action` — even one that returned an error — which would wipe everything typed so far
  * because of one mistyped amount.
  *
- * `prepare` runs first, in the browser (e.g. shrinking a screenshot); it returns the form data
- * to send, or an error to show instead of sending.
+ * `saved` is the toast once it's saved ("Advance logged"), since the dialog just closes; null for
+ * none (it stays open and says so itself). `prepare` runs first, in the browser (e.g. shrinking
+ * a screenshot); it returns the form data to send, or an error to show instead of sending.
  */
 function useDialogForm(
   action: Action,
   onSuccess: (formData: FormData) => void,
-  prepare?: (formData: FormData) => Promise<FormData | { error: string }>,
+  {
+    saved,
+    prepare,
+  }: {
+    saved: string | ((formData: FormData) => string | null);
+    prepare?: (formData: FormData) => Promise<FormData | { error: string }>;
+  },
 ) {
   const [state, dispatch, pending] = useActionState<ActionState, FormData>(async (prev, formData) => {
     const result = await action(prev, formData);
-    if (result?.ok) onSuccess(formData);
+    if (result?.ok) {
+      onSuccess(formData);
+      const message = typeof saved === "string" ? saved : saved(formData);
+      if (message) toast.success(message);
+    }
     return result;
   }, null);
   const [preparing, setPreparing] = useState(false);
@@ -138,14 +150,19 @@ function AdvanceForm({ view, advance, onDone }: Props & { advance?: ViewAdvance;
   const descriptionRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
   const [logged, setLogged] = useState<string | null>(null);
-  const { state, pending, previewing, onSubmit } = useDialogForm(advance ? updateAdvance : addAdvance, (formData) => {
-    if (formData.get("intent") !== "another") return onDone();
-    const amount = parseMoneyInput(String(formData.get("amount")));
-    setLogged(`Logged ${formData.get("description")}${amount === null ? "" : ` · ${formatPHP(amount)}`}`);
-    descriptionRef.current!.value = "";
-    amountRef.current!.value = "";
-    descriptionRef.current!.focus();
-  });
+  const { state, pending, previewing, onSubmit } = useDialogForm(
+    advance ? updateAdvance : addAdvance,
+    (formData) => {
+      if (formData.get("intent") !== "another") return onDone();
+      const amount = parseMoneyInput(String(formData.get("amount")));
+      setLogged(`Logged ${formData.get("description")}${amount === null ? "" : ` · ${formatPHP(amount)}`}`);
+      descriptionRef.current!.value = "";
+      amountRef.current!.value = "";
+      descriptionRef.current!.focus();
+    },
+    // "Save & add another" stays open with its own "Logged …" line instead.
+    { saved: (formData) => (formData.get("intent") === "another" ? null : advance ? "Advance saved" : "Advance logged") },
+  );
 
   const memberItems = view.members.map((m) => ({ value: String(m.id), label: m.name }));
   const categoryItems = Object.entries(CATEGORY_LABELS).map(([value, label]) => ({ value, label }));
@@ -241,8 +258,16 @@ function AdvanceForm({ view, advance, onDone }: Props & { advance?: ViewAdvance;
             <input type="hidden" name="columnId" value="0" />
           </p>
         )}
-        {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
-        {state?.ok && logged && <p className="text-sm text-emerald-700">{logged}</p>}
+        {state?.ok === false && (
+          <p role="alert" className="text-sm text-destructive">
+            {state.error}
+          </p>
+        )}
+        {state?.ok && logged && (
+          <p role="status" className="text-sm text-emerald-700">
+            {logged}
+          </p>
+        )}
         {previewing && <p className="text-sm text-sky-800">You&apos;re previewing, so saving is off.</p>}
         <DialogFooter>
           <DialogClose render={<Button variant="outline" type="button" />}>{logged ? "Done" : "Cancel"}</DialogClose>
@@ -265,7 +290,16 @@ type HelperKind = ViewHelperEntry["kind"];
 
 const HELPER_FORMS: Record<
   HelperKind,
-  { button: string; title: string; editTitle: string; description: string; amountLabel: string; submit: string }
+  {
+    button: string;
+    title: string;
+    editTitle: string;
+    description: string;
+    amountLabel: string;
+    submit: string;
+    /** The toast once a new one is saved. */
+    saved: string;
+  }
 > = {
   visit: {
     button: "Log a visit",
@@ -275,6 +309,7 @@ const HELPER_FORMS: Record<
       "A day she worked. Whoever paid her gets it back in the split. Anything taken off her pay comes off what she owes.",
     amountLabel: "Daily pay (₱)",
     submit: "Log visit",
+    saved: "Visit logged",
   },
   early_pay: {
     button: "Give early pay",
@@ -284,6 +319,7 @@ const HELPER_FORMS: Record<
       "Money given to her before she works. Whoever gave it gets it back in this month's split, and it's added to what she owes.",
     amountLabel: "Early pay (₱)",
     submit: "Save early pay",
+    saved: "Early pay saved",
   },
   opening: {
     button: "Set starting debt",
@@ -293,6 +329,7 @@ const HELPER_FORMS: Record<
       "What she still owes from the Google Sheet (its Remaining). It's only added to what she owes — not split, since the sheet already settled it.",
     amountLabel: "She owes (₱)",
     submit: "Save",
+    saved: "Starting debt saved",
   },
 };
 
@@ -347,8 +384,10 @@ function HelperEntryForm({
   // same, whatever this form sends.)
   const viewer = useViewer();
   const admin = isAdmin(viewer);
-  const { state, pending, previewing, onSubmit } = useDialogForm(entry ? updateHelperEntry : addHelperEntry, onDone);
   const form = HELPER_FORMS[kind];
+  const { state, pending, previewing, onSubmit } = useDialogForm(entry ? updateHelperEntry : addHelperEntry, onDone, {
+    saved: entry ? "Changes saved" : form.saved,
+  });
   const memberItems = view.members.map((m) => ({ value: String(m.id), label: m.name }));
   const collectorId = String(view.members.find((m) => m.isCollector)?.id ?? view.members[0]?.id);
   // What she owes before this visit's deduction (when editing, add back what it took off).
@@ -433,7 +472,11 @@ function HelperEntryForm({
             maxLength={120}
           />
         </Field>
-        {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
+        {state?.ok === false && (
+          <p role="alert" className="text-sm text-destructive">
+            {state.error}
+          </p>
+        )}
         {previewing && <p className="text-sm text-sky-800">You&apos;re previewing, so saving is off.</p>}
         <DialogFooter>
           <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
@@ -547,10 +590,13 @@ function SubmitPaymentForm({
   waiting,
   onDone,
 }: Props & { owed: Centavos; waiting: Centavos; onDone: () => void }) {
-  const { state, pending, previewing, onSubmit } = useDialogForm(submitPayment, onDone, prepareProof);
+  const collector = view.members.find((m) => m.isCollector)?.name ?? "PA";
+  const { state, pending, previewing, onSubmit } = useDialogForm(submitPayment, onDone, {
+    saved: `Sent. It's waiting for ${collector} to check it arrived.`,
+    prepare: prepareProof,
+  });
   const [typed, setTyped] = useState(owed > 0 ? fromCentavos(owed) : "");
   const typedAmount = parseMoneyInput(typed);
-  const collector = view.members.find((m) => m.isCollector)?.name ?? "PA";
 
   return (
     <>
@@ -597,7 +643,11 @@ function SubmitPaymentForm({
         <Field label="Note (optional)" htmlFor="note">
           <Input id="note" name="note" placeholder="GCash" maxLength={120} />
         </Field>
-        {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
+        {state?.ok === false && (
+          <p role="alert" className="text-sm text-destructive">
+            {state.error}
+          </p>
+        )}
         <DialogFooter>
           <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
           <Button type="submit" disabled={pending || previewing}>
@@ -615,7 +665,9 @@ function PaymentForm({
   prefill,
   onDone,
 }: Props & { payment?: ViewPayment; prefill?: PaymentPrefill; onDone: () => void }) {
-  const { state, pending, previewing, onSubmit } = useDialogForm(payment ? updatePayment : addPayment, onDone);
+  const { state, pending, previewing, onSubmit } = useDialogForm(payment ? updatePayment : addPayment, onDone, {
+    saved: payment ? "Payment saved" : "Payment recorded",
+  });
   const [typed, setTyped] = useState(prefill ? fromCentavos(prefill.amount) : "");
   const typedAmount = parseMoneyInput(typed);
   const memberOf = new Map(view.members.map((m) => [m.id, m]));
@@ -681,7 +733,11 @@ function PaymentForm({
         <Field label="Note (optional)" htmlFor="note">
           <Input id="note" name="note" placeholder="GCash" defaultValue={payment?.note ?? ""} maxLength={120} />
         </Field>
-        {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
+        {state?.ok === false && (
+          <p role="alert" className="text-sm text-destructive">
+            {state.error}
+          </p>
+        )}
         <DialogFooter>
           <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
           <Button type="submit" disabled={pending || previewing}>
@@ -709,7 +765,7 @@ export function AddBillDialog({ view, label = "Add bill column" }: Props & { lab
 }
 
 function AddBillForm({ view, onDone }: Props & { onDone: () => void }) {
-  const { state, pending, previewing, onSubmit } = useDialogForm(addBill, onDone);
+  const { state, pending, previewing, onSubmit } = useDialogForm(addBill, onDone, { saved: "Bill column added" });
   const [splitMode, setSplitMode] = useState<"equal" | "manual">("equal");
   const memberItems = view.members.map((m) => ({ value: String(m.id), label: m.name }));
   const collectorId = String(view.members.find((m) => m.isCollector)?.id ?? view.members[0]?.id);
@@ -741,7 +797,11 @@ function AddBillForm({ view, onDone }: Props & { onDone: () => void }) {
         <Field label="Paid to the provider by" htmlFor="paidById">
           <SelectField id="paidById" items={memberItems} defaultValue={collectorId} />
         </Field>
-        {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
+        {state?.ok === false && (
+          <p role="alert" className="text-sm text-destructive">
+            {state.error}
+          </p>
+        )}
         <DialogFooter>
           <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
           <Button type="submit" disabled={pending || previewing}>
@@ -769,7 +829,9 @@ export function AddMemberDialog({ className }: { className?: string }) {
 }
 
 function AddMemberForm({ onDone }: { onDone: () => void }) {
-  const { state, pending, previewing, onSubmit } = useDialogForm(addMember, onDone);
+  const { state, pending, previewing, onSubmit } = useDialogForm(addMember, onDone, {
+    saved: (formData) => (formData.get("viewOnly") ? "View-only login added" : "Housemate added"),
+  });
   const [viewOnly, setViewOnly] = useState(false);
   return (
     <>
@@ -797,7 +859,11 @@ function AddMemberForm({ onDone }: { onDone: () => void }) {
             View only <span className="text-muted-foreground">— sees what housemates see, shares in no costs</span>
           </span>
         </label>
-        {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
+        {state?.ok === false && (
+          <p role="alert" className="text-sm text-destructive">
+            {state.error}
+          </p>
+        )}
         <DialogFooter>
           <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
           <Button type="submit" disabled={pending || previewing}>
@@ -825,7 +891,7 @@ export function AddSharedColumnDialog({ view }: Props) {
 }
 
 function AddSharedColumnForm({ view, onDone }: Props & { onDone: () => void }) {
-  const { state, pending, previewing, onSubmit } = useDialogForm(addSharedColumn, onDone);
+  const { state, pending, previewing, onSubmit } = useDialogForm(addSharedColumn, onDone, { saved: "Shared column added" });
   const [splitMode, setSplitMode] = useState<"equal" | "manual">("equal");
   const [sharedMode, setSharedMode] = useState<"all" | "except">("all");
 
@@ -879,7 +945,11 @@ function AddSharedColumnForm({ view, onDone }: Props & { onDone: () => void }) {
             )}
           </fieldset>
         )}
-        {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
+        {state?.ok === false && (
+          <p role="alert" className="text-sm text-destructive">
+            {state.error}
+          </p>
+        )}
         <DialogFooter>
           <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
           <Button type="submit" disabled={pending || previewing}>
@@ -910,7 +980,7 @@ export function AddBillerDialog() {
 }
 
 function AddBillerForm({ onDone }: { onDone: () => void }) {
-  const { state, pending, previewing, onSubmit } = useDialogForm(addBiller, onDone);
+  const { state, pending, previewing, onSubmit } = useDialogForm(addBiller, onDone, { saved: "Biller added" });
   return (
     <>
       <DialogHeader>
@@ -921,7 +991,11 @@ function AddBillerForm({ onDone }: { onDone: () => void }) {
         <Field label="Name" htmlFor="biller-name">
           <Input id="biller-name" name="name" placeholder="Meralco" required maxLength={60} />
         </Field>
-        {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
+        {state?.ok === false && (
+          <p role="alert" className="text-sm text-destructive">
+            {state.error}
+          </p>
+        )}
         <DialogFooter>
           <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
           <Button type="submit" disabled={pending || previewing}>
@@ -958,7 +1032,7 @@ export function AddBillerFieldDialog({ billerId, billerName }: { billerId: numbe
 }
 
 function AddBillerFieldForm({ billerId, billerName, onDone }: { billerId: number; billerName: string; onDone: () => void }) {
-  const { state, pending, previewing, onSubmit } = useDialogForm(addBillerField, onDone);
+  const { state, pending, previewing, onSubmit } = useDialogForm(addBillerField, onDone, { saved: "Line added" });
   const [kind, setKind] = useState<BillerFieldKind>("text");
   return (
     <>
@@ -1008,7 +1082,11 @@ function AddBillerFieldForm({ billerId, billerName, onDone }: { billerId: number
           <input type="checkbox" name="housematesCanSee" defaultChecked className="accent-amber-600" />
           Housemates can see this
         </label>
-        {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
+        {state?.ok === false && (
+          <p role="alert" className="text-sm text-destructive">
+            {state.error}
+          </p>
+        )}
         <DialogFooter>
           <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
           <Button type="submit" disabled={pending || previewing}>
@@ -1036,7 +1114,10 @@ export function ChangeBillerSecretDialog({ fieldId, label }: { fieldId: number; 
 }
 
 function ChangeBillerSecretForm({ fieldId, label, onDone }: { fieldId: number; label: string; onDone: () => void }) {
-  const { state, pending, previewing, onSubmit } = useDialogForm(setBillerSecret, onDone);
+  const { state, pending, previewing, onSubmit } = useDialogForm(setBillerSecret, onDone, {
+    // Never the password itself: only whether one was saved.
+    saved: (formData) => (formData.get("secret") ? "Password saved" : "Password cleared"),
+  });
   return (
     <>
       <DialogHeader>
@@ -1050,7 +1131,11 @@ function ChangeBillerSecretForm({ fieldId, label, onDone }: { fieldId: number; l
         <Field label="New password" htmlFor="new-secret">
           <Input id="new-secret" name="secret" type="password" autoComplete="new-password" maxLength={200} />
         </Field>
-        {state?.ok === false && <p className="text-sm text-destructive">{state.error}</p>}
+        {state?.ok === false && (
+          <p role="alert" className="text-sm text-destructive">
+            {state.error}
+          </p>
+        )}
         <DialogFooter>
           <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
           <Button type="submit" disabled={pending || previewing}>
