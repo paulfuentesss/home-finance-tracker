@@ -1,8 +1,8 @@
 # Install as an app
 
 ## Status
-✅ Working. My House can be installed on a phone or computer and opens full-screen from the home
-screen, like an app. Losing the connection: [offline](offline.md). Not offline viewing yet: that's
+✅ Working (checked on a real Android phone and iPhone, 2026-10-18). My House can be installed on
+a phone or computer and opens full-screen from the home screen, like an app. Losing the connection: [offline](offline.md). Not offline viewing yet: that's
 in [TODO.md](../TODO.md).
 
 ## What it does
@@ -102,9 +102,6 @@ in [TODO.md](../TODO.md).
 
 ## Open items
 - Offline viewing: [TODO.md](../TODO.md).
-- Check on real phones after it's online: Android install, iPhone Add to Home Screen + Google
-  sign-in inside the app (the email code is the fallback), a link opened from Messenger, the
-  launch screen.
 
 ## Built in
 `feat/install-app`; the launch screen in `feat/launch-screen`.

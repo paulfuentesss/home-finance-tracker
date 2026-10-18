@@ -1,9 +1,8 @@
 # Notifications (push)
 
 ## Status
-✅ Built, waiting for its keys online: push is off until `NEXT_PUBLIC_VAPID_PUBLIC_KEY` and
-`VAPID_PRIVATE_KEY` are in Vercel ([TODO.md → Going online](../TODO.md#going-online)). Not yet
-tried on a real Android phone or iPhone.
+✅ Working: live since 2026-10-18 (its keys in Vercel), checked on a real Android phone and
+iPhone.
 
 ## What it does
 A short notification on the phone (or computer) when something is due soon, opening the right
@@ -99,7 +98,7 @@ That's about 3–4 a month for a housemate who pays on time.
 - A push never blocks, slows or fails an email, a save or the daily job.
 
 ## Open items
-[TODO.md](../TODO.md): the keys in Vercel, then a check on a real Android phone and iPhone.
+[TODO.md](../TODO.md): telling the housemates.
 
 ## Built in
 `feat/push-notifications`.

@@ -12,22 +12,12 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
       `http://localhost:3001/**` up to `http://localhost:3005/**` ([setup.md](setup.md) step 5,
       [commands.md → Working in parallel](commands.md#working-in-parallel)). Until then, signing
       in fresh on a worktree's site ends on the live site; a sign-in on `localhost:3000` carries over.
-- [ ] **Set up the passwords key, then fill in the Billers tab** ([billers](features/billers.md)).
-      `BILLER_SECRET_KEY` in `.env.local` and Vercel, plus a copy in a password manager
-      ([setup.md](setup.md) step 5g) — *before merging*, or saving a password on the live site
-      says "Passwords aren't set up". Then type in the billers from the old sheet, and delete the
-      passwords from the sheet.
 
-- [ ] **Turn on push notifications** ([notifications](features/notifications.md)) — built, off
-      until its keys are set. Paul: generate the pair, add both to Vercel and `.env.local`, keep a
-      copy in a password manager, redeploy ([operations.md → Push notifications](operations.md#push-notifications)).
-      Then on real phones: the installed app on Android and the home-screen app on iPhone → Turn
-      on → a housemate's "I paid" reaches PA, PA's confirm reaches them, and the lock screen shows
-      no amounts. Then tell the housemates (with the reminder emails, below).
-
-- [ ] **Tell the housemates about the reminder emails** ([reminders](features/reminders.md)) —
-      live since 2026-10-13. They come from the household Gmail; mark the first one "Not spam"
-      if it lands there. A bill left unpaid now brings a reminder a few days later, then weekly.
+- [ ] **Tell the housemates about the reminder emails and push notifications**
+      ([reminders](features/reminders.md), [notifications](features/notifications.md)) — emails
+      live since 2026-10-13, push since 2026-10-18. The emails come from the household Gmail; mark
+      the first one "Not spam" if it lands there. A bill left unpaid now brings a reminder a few
+      days later, then weekly. Push is turned on per device: account menu → Turn on notifications.
 
 - [ ] **Bills to the My House Gmail** ([email-bills](features/email-bills.md)) — *waiting on the
       billers.* Changed in their apps, and each biller was emailed (2026-10-11) after a PLDT bill
@@ -57,13 +47,6 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
       cached by `public/sw.js`; saving while the app is closed would need a sync queue and
       conflict handling. Cached pages put household finances on the device, so signing out must
       clear the cache.
-- [ ] **Check the installed app on real phones** once it's online ([install-app](features/install-app.md)):
-      Android install, iPhone Add to Home Screen + Google sign-in inside it, a link from Messenger,
-      the launch screen when opening the app (Android; iPhone after re-adding it).
-      The phone menu's swipes ([months](features/months.md)): open from near the left edge on
-      Android with gesture navigation and on iPhone, stays open when the finger lifts (if not,
-      open on `touchend` in `useEdgeSwipe`), drag back to close. Pull-to-refresh gone inside the
-      app, still there in a Chrome tab.
 - [ ] **Backups off the laptop** ([operations → Backups](operations.md#backups) says how and
       why) — not copied anywhere safe yet (skipped by choice when going online, below). Each
       Download backup zip into a cloud drive, `.private/NOTES.md` there too, and
