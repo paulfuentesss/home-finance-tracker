@@ -1011,3 +1011,18 @@ members). Cost: a change waits a moment while the admin's page checks whether th
 start (`startBlockReason`).
 **Instead of:** `FOR UPDATE` in every change (housemates saving at once would queue for no
 reason), or the serializable isolation level (every action would need to retry on conflicts).
+
+## 2026-10-18 — The daily job pings a health check, so a failure reaches the admin
+**Decision:** after each run, `/api/reminders` pings a free healthchecks.io check
+(`HEALTHCHECK_URL`), or its `/fail` address when an email couldn't be sent or the run threw. The
+service emails the admin on a failure, or when no ping arrives by the deadline. Only the live site
+pings; the ping is a plain GET with nothing in it.
+**Why:** the job starts each month and sends every reminder, and nothing said when it broke: it
+answered 200 with failures listed in a response nobody reads, and a crash (Supabase paused, a bug)
+was a 500 in Vercel's logs. The only sign was a "sent" line on Settle Up that stopped moving. A
+"no ping" alert also catches the job not running at all, which no error inside it can. It comes
+from outside the household Gmail, since Gmail is one of the things that can break it. Nothing
+personal leaves: the run's outcome lists names, so the ping carries none of it.
+**Instead of:** emailing the admin from the job itself (it can't when Gmail or the database is
+what failed, and can't notice a run that never happened), Sentry (catches errors, not a missing
+run; kept as an idea in TODO.md), or a Vercel log drain or alert (paid plans).
