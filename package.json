@@ -51,7 +51,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@commitlint/cli": "^20.5.3",
+    "@commitlint/cli": "^21.2.3",
     "@commitlint/config-conventional": "^20.5.3",
     "@electric-sql/pglite": "^0.5.8",
     "@tailwindcss/postcss": "^4",
