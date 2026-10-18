@@ -1026,3 +1026,18 @@ personal leaves: the run's outcome lists names, so the ping carries none of it.
 **Instead of:** emailing the admin from the job itself (it can't when Gmail or the database is
 what failed, and can't notice a run that never happened), Sentry (catches errors, not a missing
 run; kept as an idea in TODO.md), or a Vercel log drain or alert (paid plans).
+
+## 2026-10-18 — Dependabot PRs, a build in CI, and Next's notes through `@AGENTS.md`
+**Decision:** Dependabot opens grouped update PRs weekly (`.github/dependabot.yml`; how to handle
+them: operations.md → Dependencies). CI runs `npm run build` after the tests, with placeholder
+settings. `CLAUDE.md` ends with `@AGENTS.md` instead of a copy of Next's agent-rules block.
+**Why:** Next.js, React and nodemailer are pinned to exact versions, so security fixes only
+arrived when someone remembered to bump them; grouping keeps it to a few PRs a week, and major
+updates come alone because they may need code changes. A page that only fails when built showed
+up first as a failed Vercel deploy after merging; the build needs no secrets because every page
+needs a login, so nothing is fetched at build time (the database client connects lazily), which
+keeps the public repo's CI secret-free. Next 16.4's `next dev` writes its notes to `AGENTS.md`
+only and stopped updating `CLAUDE.md`; Claude Code reads `CLAUDE.md`, and an `@` import there
+pulls `AGENTS.md` in, so the notes stay Next's own and current.
+**Instead of:** Renovate (more setup, same result here), real secrets in CI (the Actions logs of
+a public repo), or copying Next's block into `CLAUDE.md` by hand (goes stale with each version).

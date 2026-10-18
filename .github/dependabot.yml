@@ -1,0 +1,37 @@
+# Dependabot opens a PR when a dependency has a newer version, so security fixes arrive without
+# remembering to check (docs/operations.md → Dependencies). Each PR runs the Checks workflow;
+# merging one deploys the live site, so merge only when it's green.
+#
+# Grouped to keep the PRs few: Next.js with its lint config (pinned to the same version), React
+# with its types, and every other minor or patch update together. Major updates come one by one,
+# since they may need code changes.
+
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: saturday
+      timezone: Asia/Manila
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      next:
+        patterns: ["next", "eslint-config-next", "@next/*"]
+      react:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: saturday
+      timezone: Asia/Manila
+    commit-message:
+      prefix: chore
+      include: scope

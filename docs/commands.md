@@ -34,7 +34,7 @@ The `db:` and `test:` prefixes are just a naming convention for grouping.
 | Command | What it does | When to run it |
 |---|---|---|
 | `npm run dev` | Starts the dev server with hot reload (`scripts/dev.sh`): http://localhost:3000 in the main folder; in a worktree, the first free port from 3001, with the worktree's name in the tab title. Refuses if that folder's server is already running, and says where | While working on the app |
-| `npm run build` | Builds the production version | Before deploying, or to check that everything compiles. Stop that folder's `dev` first: they share `.next/` and the dev server hangs |
+| `npm run build` | Builds the production version | CI runs it on every PR; locally, to check that everything compiles. Stop that folder's `dev` first: they share `.next/` and the dev server hangs |
 | `npm run start` | Serves the production build (run `build` first) | To test the production build locally |
 
 ## Code quality
