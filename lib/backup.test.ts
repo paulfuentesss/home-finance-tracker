@@ -4,24 +4,13 @@
 
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
-import { PGlite } from "@electric-sql/pglite";
+import type { PGlite } from "@electric-sql/pglite";
 import { unzipSync } from "fflate";
 import { describe, expect, it } from "vitest";
 import { backupZipStream, buildBackupSql, manilaClock, orderTables, type Query } from "./backup";
+import { migratedDb } from "./test-db";
 
-const MIGRATIONS = join(__dirname, "..", "drizzle");
 const NOW = new Date("2026-10-11T06:03:00Z");
-
-/** A fresh database with every migration in drizzle/ applied, like `npm run db:migrate`. */
-async function migratedDb(): Promise<PGlite> {
-  const pg = new PGlite();
-  for (const file of readdirSync(MIGRATIONS).filter((f) => f.endsWith(".sql")).sort()) {
-    for (const statement of readFileSync(join(MIGRATIONS, file), "utf8").split("--> statement-breakpoint")) {
-      if (statement.trim()) await pg.exec(statement);
-    }
-  }
-  return pg;
-}
 
 const queryOf = (pg: PGlite): Query => async <T,>(text: string) => (await pg.query<T>(text)).rows;
 

@@ -141,14 +141,16 @@ describe("Server Actions check who's calling", () => {
     expect(source.match(/await openPeriods\(tx\)/g)).toHaveLength(2);
     const billImport = read(join(ROOT, "lib/bill-import.ts"));
     expect(sharesFirst(billImport, "fillColumn", "tx.query.billingPeriods.findFirst")).toBe(true);
-    // …and closing or reopening locks it (and the months either side) outright first.
+    // …and closing or reopening locks it (and the months either side) outright first. Closing
+    // runs in lib/month-close.ts: the action only opens the transaction for it.
+    const locksFirst = /^[^{]*\{\s*(\/\/[^\n]*\n\s*)*await lockPeriodAndNeighbours\(tx, periodId\);/;
     const actions = exportedFunctions(source);
-    for (const name of ["closeMonth", "reopenMonth"]) {
-      const body = actions.find((f) => f.name === name)?.body ?? "";
-      expect(body, name).toMatch(
-        /db\.transaction\(async \(tx\) => \{\s*(\/\/[^\n]*\n\s*)*await lockPeriodAndNeighbours\(tx, periodId\);/,
-      );
-    }
+    const reopen = actions.find((f) => f.name === "reopenMonth")?.body ?? "";
+    expect(reopen.slice(reopen.indexOf("db.transaction(")), "reopenMonth").toMatch(locksFirst);
+    const close = actions.find((f) => f.name === "closeMonth")?.body ?? "";
+    expect(close, "closeMonth").toMatch(/await db\.transaction\(\(tx\) => closeMonthIn\(tx, periodId\)\);/);
+    const closeIn = exportedFunctions(read(join(ROOT, "lib/month-close.ts"))).find((f) => f.name === "closeMonthIn");
+    expect(closeIn?.body ?? "", "closeMonthIn").toMatch(locksFirst);
   });
 
   it("Server Action files export only async functions (and types)", () => {

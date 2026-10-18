@@ -51,13 +51,7 @@ import {
   type Centavos,
 } from "@/lib/money";
 import { parseEmoji, sharesCosts } from "@/lib/members";
-import {
-  closeCheck,
-  monthAfter,
-  monthHasEnded,
-  reopenCheck,
-  vanishingBalances,
-} from "@/lib/month-lock";
+import { monthAfter, monthHasEnded, reopenCheck } from "@/lib/month-lock";
 import {
   canCancelPayment,
   canManageAdvance,
@@ -68,7 +62,8 @@ import {
   isViewOnly,
   type Viewer,
 } from "@/lib/permissions";
-import { computePeriod, pendingBillNames, periodMembers, waitingPaymentLabels } from "@/lib/periods";
+import { computePeriod } from "@/lib/periods";
+import { closeMonthIn, lockPeriodAndNeighbours } from "@/lib/month-close";
 import { ensureDefaultColumn, startNextMonthIn } from "@/lib/month-start";
 import { pushToAdmin, sendPush } from "@/lib/push";
 import { paymentDecidedPush, paymentSentPush } from "@/lib/push-messages";
@@ -83,7 +78,6 @@ import {
 import {
   computeBillShares,
   HOUSE_BUDGET,
-  openingBalancesFrom,
   partyFromColumn,
   partyToColumn,
   SettlementError,
@@ -1385,47 +1379,8 @@ export async function startNextMonth(): Promise<ActionState> {
  */
 export async function closeMonth(periodId: number): Promise<ActionState> {
   return run("admin", z.object({ periodId: id }), { periodId }, async ({ periodId }) => {
-    await db.transaction(async (tx) => {
-      // Locked first, so no change (a housemate's advance, "I paid", someone added or removed, a
-      // bill email) can slip in while it closes, and the month before can't be reopened meanwhile.
-      await lockPeriodAndNeighbours(tx, periodId);
-      const target = await tx.query.billingPeriods.findFirst({ where: eq(billingPeriods.id, periodId) });
-      if (!target) throw new ActionError("That month no longer exists.");
-      const computed = await computePeriod(tx, target.year, target.month);
-      if (!computed) throw new ActionError("That month no longer exists.");
-      const { all, index, period, result, issue } = computed;
-      const check = closeCheck(period, all[index - 1] ?? null, issue, pendingBillNames(period), waitingPaymentLabels(period));
-      if (!check.ok || !result) throw new ActionError(check.reason ?? "This month can't be closed yet.");
-
-      const finals = openingBalancesFrom(result);
-      const next = all[index + 1] ?? null;
-      const lost = vanishingBalances(finals, next ? new Set(next.balances.map((b) => b.memberId)) : null);
-      if (next && lost.length) {
-        const names = periodMembers(period).filter((m) => lost.includes(m.id)).map((m) => m.name);
-        throw new ActionError(
-          `${names.join(" and ")} ${lost.length === 1 ? "isn't" : "aren't"} in ${monthLabel(next.year, next.month)} but still ${lost.length === 1 ? "has" : "have"} an unsettled balance. Record the payment first.`,
-        );
-      }
-
-      for (const [memberId, balance] of finals) {
-        await tx
-          .update(periodBalances)
-          .set({ closingBalance: fromCentavos(balance) })
-          .where(and(eq(periodBalances.periodId, periodId), eq(periodBalances.memberId, memberId)));
-      }
-      await tx
-        .update(billingPeriods)
-        .set({ status: "closed", closedAt: new Date() })
-        .where(eq(billingPeriods.id, periodId));
-      if (next) {
-        for (const b of next.balances) {
-          await tx
-            .update(periodBalances)
-            .set({ openingBalance: fromCentavos(finals.get(b.memberId) ?? 0) })
-            .where(and(eq(periodBalances.periodId, next.id), eq(periodBalances.memberId, b.memberId)));
-        }
-      }
-    });
+    // lib/month-close.ts, so the database tests can run it (lib/month-close.test.ts).
+    await db.transaction((tx) => closeMonthIn(tx, periodId));
   });
 }
 
@@ -1672,25 +1627,6 @@ function swapped(rows: { id: number }[], id: number, direction: "up" | "down"): 
  */
 async function lockPeriod(tx: Tx, periodId: number) {
   await tx.select({ id: billingPeriods.id }).from(billingPeriods).where(eq(billingPeriods.id, periodId)).for("update");
-}
-
-/**
- * lockPeriod for closing and reopening, with the months either side too: closing checks the month
- * before is closed and writes the month after's opening balances, reopening checks the month after
- * is open. Locked oldest first (like openPeriods), so two of these can't block each other.
- */
-async function lockPeriodAndNeighbours(tx: Tx, periodId: number) {
-  const ids = (
-    await tx.select({ id: billingPeriods.id }).from(billingPeriods).orderBy(asc(billingPeriods.year), asc(billingPeriods.month))
-  ).map((p) => p.id);
-  const index = ids.indexOf(periodId);
-  if (index === -1) return; // gone: the read after the lock says so
-  await tx
-    .select({ id: billingPeriods.id })
-    .from(billingPeriods)
-    .where(inArray(billingPeriods.id, ids.slice(Math.max(0, index - 1), index + 2)))
-    .orderBy(asc(billingPeriods.year), asc(billingPeriods.month))
-    .for("update");
 }
 
 /**

@@ -63,7 +63,9 @@
   `PeriodView` (`lib/periods.ts`), `canLogIn` in `lib/permissions.ts` for the buttons,
   `loadOpenPeriod(tx, id, viewer)` in the actions for the server.
 - Actions: `startNextMonth`, `closeMonth`, `reopenMonth` in `app/periods/[year]/[month]/actions.ts`.
-  Starting itself is `startNextMonthIn` in `lib/month-start.ts`, shared with the daily job.
+  Starting itself is `startNextMonthIn` in `lib/month-start.ts`, shared with the daily job;
+  closing is `closeMonthIn` in `lib/month-close.ts`. Both are tested against a real Postgres
+  (`lib/month-start.test.ts`, `lib/month-close.test.ts`; [testing](../testing.md#database-tests)).
 - Taking turns: closing and reopening lock the month and the months either side
   (`lockPeriodAndNeighbours`); starting and "I paid" lock theirs (`lockLatestPeriod`,
   `lockPeriod`). Every other write into a month takes a shared lock on it first: `loadOpenPeriod`
