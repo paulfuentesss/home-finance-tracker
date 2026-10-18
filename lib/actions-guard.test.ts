@@ -112,6 +112,45 @@ describe("Server Actions check who's calling", () => {
     expect(unlocked).toEqual([]);
   });
 
+  it("a change can't land in a month while it's being closed (they take turns on the month's row)", () => {
+    const source = read(join(ROOT, "app/periods/[year]/[month]/actions.ts"));
+    /** The function's body, and whether it takes a shared lock before it reads the month(s). */
+    const sharesFirst = (src: string, fn: string, read: string) => {
+      const [body] = src.match(new RegExp(`^(export )?async function ${fn}[\\s\\S]*?^}`, "m")) ?? [""];
+      const lock = body.indexOf('.for("share")');
+      return lock > -1 && lock < body.indexOf(read);
+    };
+    // Every way into a month takes a shared lock on it before checking it's open: the changes
+    // (loadOpenPeriod), adding or removing someone (openPeriods), a bill email (fillColumn)…
+    expect(sharesFirst(source, "loadOpenPeriod", "tx.query.billingPeriods.findFirst")).toBe(true);
+    expect(sharesFirst(source, "openPeriods", "tx.query.billingPeriods.findMany")).toBe(true);
+    // Adding or removing someone locks the months before the member's row (starting a month and
+    // "I paid" lock a month, then refer to members: the other order could deadlock).
+    const actionList = exportedFunctions(source);
+    for (const name of ["addMember", "removeMember"]) {
+      const body = actionList.find((f) => f.name === name)?.body ?? "";
+      const months = body.indexOf("await openPeriods(tx)");
+      expect(months, name).toBeGreaterThan(-1);
+      expect(months, name).toBeLessThan(body.indexOf('.for("update")'));
+    }
+    // Removing someone also takes the Helper lock before the member's row (Helper changes hold it
+    // while writing rows that name members).
+    const remove = actionList.find((f) => f.name === "removeMember")?.body ?? "";
+    expect(remove.indexOf("await lockHelper(tx)")).toBeGreaterThan(-1);
+    expect(remove.indexOf("await lockHelper(tx)")).toBeLessThan(remove.indexOf('.for("update")'));
+    expect(source.match(/await openPeriods\(tx\)/g)).toHaveLength(2);
+    const billImport = read(join(ROOT, "lib/bill-import.ts"));
+    expect(sharesFirst(billImport, "fillColumn", "tx.query.billingPeriods.findFirst")).toBe(true);
+    // …and closing or reopening locks it (and the months either side) outright first.
+    const actions = exportedFunctions(source);
+    for (const name of ["closeMonth", "reopenMonth"]) {
+      const body = actions.find((f) => f.name === name)?.body ?? "";
+      expect(body, name).toMatch(
+        /db\.transaction\(async \(tx\) => \{\s*(\/\/[^\n]*\n\s*)*await lockPeriodAndNeighbours\(tx, periodId\);/,
+      );
+    }
+  });
+
   it("Server Action files export only async functions (and types)", () => {
     for (const file of serverFiles) {
       expect(read(file), rel(file)).not.toMatch(/^export (const|let|var|default|\{|class)/m);
@@ -266,6 +305,12 @@ describe("secrets stay on the server", () => {
   it("CRON_SECRET is read only by the reminders route", () => {
     const readers = files.filter((f) => read(f).includes("process.env.CRON_SECRET")).map(rel);
     expect(readers).toEqual([CRON_ROUTE]);
+  });
+
+  it("HEALTHCHECK_URL is read only by the reminders route, which pings from the live site only", () => {
+    const readers = files.filter((f) => read(f).includes("process.env.HEALTHCHECK_URL")).map(rel);
+    expect(readers).toEqual([CRON_ROUTE]);
+    expect(read(join(ROOT, CRON_ROUTE))).toMatch(/if \(!url \|\| !emailIsLive\(\)\) return;/);
   });
 
   it("the VAPID private key is read only by lib/push.ts, which only the server loads", () => {

@@ -44,7 +44,9 @@ counts as working once a real bill has arrived this way ([TODO.md](../TODO.md)).
 3. **Import** — `importBillEmail` / `placeBill` in `lib/bill-import.ts`: records the email in
    `bill_emails` (unique Message-ID; one live email per provider and month), then fills the
    column named in `BILL_EMAIL_COLUMNS` as `status = 'pending'`, `source = 'email'` inside a
-   savepoint, or leaves the email `unmatched` with the reason.
+   savepoint, or leaves the email `unmatched` with the reason. Filling takes a shared lock on the
+   month first (`fillColumn`), so a close in progress finishes first and the email then finds
+   the month closed ([decisions](../decisions.md), 2026-10-18).
 4. **Review** — `confirmBill`, `discardEmailBill`, `retryBillEmail`, `dismissBillEmail` in
    `app/periods/[year]/[month]/actions.ts`; UI in `components/emailed-bills.tsx`
    (`EmailedNote`, `PendingBillActions`, `BillInbox`).

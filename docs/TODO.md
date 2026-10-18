@@ -63,6 +63,12 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
       - Small or faint text: sidebar group labels, the 10–11px text in the Split Table, the
         scroll chevron.
 
+- [ ] **Removing someone while the next month starts** ([manage](features/manage.md)): if the
+      daily job (or Start next month) starts a month at the very moment the admin removes someone,
+      the start can still put them in the new month (they were active when it read the list), and
+      the removal skips it (it wasn't open yet). They'd stay in it with shares of its equal bills.
+      Rare (older than the month locks of 2026-10-18). A fix: Remove checks the latest month again
+      after its locks.
 - [ ] **Database tests for the riskiest paths** ([testing](testing.md)): starting the next month
       (`lib/month-start.ts`, carry-over), closing a month, bill-email import (`lib/bill-import.ts`,
       dedupe) and the daily job's claim-then-send (`lib/reminder-send.ts`) are checked today only
@@ -111,8 +117,9 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
   - **Sign out everywhere**, for a lost phone: sign-out is `scope: "local"` (this device only).
   - **Security headers** in `next.config.ts` (only `Cache-Control` now): a Content-Security-Policy,
     `frame-ancestors 'none'` (no embedding the site in another page), Referrer-Policy.
-  - **GitHub's free checks for a public repo:** Dependabot security updates, secret scanning with
-    push protection (check they're on).
+  - **GitHub's free checks for a public repo:** Dependabot *security* updates and secret
+    scanning with push protection — switches in the repo's Settings → Code security (check
+    they're on; the weekly version PRs are already set up: operations.md → Dependencies).
   - **Backups** off the laptop and password-protected: Later, above.
   - **Rotate the shared secrets** now and then (`BILL_EMAIL_SECRET`, `CRON_SECRET`; Vercel, plus
     the Gmail script for the first). `BILLER_SECRET_KEY` needs a script that re-encrypts every

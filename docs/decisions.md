@@ -988,3 +988,56 @@ each worktree's dev server, the scripts and `db:studio` (one each locally).
 **Instead of:** Next's `cacheComponents` / `'use cache'` (keeps data across requests, but needs
 tags refreshed by every action: more work for less extra gain at this size), or loading only the
 months a page needs (carry-over needs every earlier month anyway).
+
+## 2026-10-18 — Changes take a shared lock on their month, so closing waits for them
+**Decision:** every way of writing into a month takes `FOR SHARE` on the month's row before
+checking it's open: the month actions' changes (`loadOpenPeriod`: advances, Helper visits, bills,
+columns, payments, receipts), adding or removing someone (`openPeriods`, each open month) and a
+bill email (`fillColumn` in `lib/bill-import.ts`). `closeMonth` and `reopenMonth` take `FOR
+UPDATE` first on the month and the months either side (`lockPeriodAndNeighbours`). All guard-tested.
+**Why:** closing locked the month, but changes only read its status. Something saved in the same
+moment as a close could pass the "is it open?" check, then be written after the close saved
+everyone's Finals: an advance missing from what carries over, a pending bill stuck in a closed
+month, or someone removed so the next month's opening balances no longer sum to ₱0.00. A shared
+lock lets changes save side by side, but a close waits for them and they wait for it. The
+neighbours: closing checks the month before is closed and writes the month after's openings, and
+reopening checks the month after is open, so closing one month and reopening the one before in
+two tabs could otherwise both go through. No deadlock: only close and reopen write a month's row;
+every `FOR UPDATE` on a month comes first in its transaction (nothing upgrades a shared lock);
+months are always locked oldest first; and months, then the Helper lock, come before members'
+rows (adding or removing someone calls `openPeriods`, and removing `lockHelper`, before locking the
+member, since starting a month, "I paid" and Helper changes hold those and then refer to
+members). Cost: a change waits a moment while the admin's page checks whether the next month can
+start (`startBlockReason`).
+**Instead of:** `FOR UPDATE` in every change (housemates saving at once would queue for no
+reason), or the serializable isolation level (every action would need to retry on conflicts).
+
+## 2026-10-18 — The daily job pings a health check, so a failure reaches the admin
+**Decision:** after each run, `/api/reminders` pings a free healthchecks.io check
+(`HEALTHCHECK_URL`), or its `/fail` address when an email couldn't be sent or the run threw. The
+service emails the admin on a failure, or when no ping arrives by the deadline. Only the live site
+pings; the ping is a plain GET with nothing in it.
+**Why:** the job starts each month and sends every reminder, and nothing said when it broke: it
+answered 200 with failures listed in a response nobody reads, and a crash (Supabase paused, a bug)
+was a 500 in Vercel's logs. The only sign was a "sent" line on Settle Up that stopped moving. A
+"no ping" alert also catches the job not running at all, which no error inside it can. It comes
+from outside the household Gmail, since Gmail is one of the things that can break it. Nothing
+personal leaves: the run's outcome lists names, so the ping carries none of it.
+**Instead of:** emailing the admin from the job itself (it can't when Gmail or the database is
+what failed, and can't notice a run that never happened), Sentry (catches errors, not a missing
+run; kept as an idea in TODO.md), or a Vercel log drain or alert (paid plans).
+
+## 2026-10-18 — Dependabot PRs, a build in CI, and Next's notes through `@AGENTS.md`
+**Decision:** Dependabot opens grouped update PRs weekly (`.github/dependabot.yml`; how to handle
+them: operations.md → Dependencies). CI runs `npm run build` after the tests, with placeholder
+settings. `CLAUDE.md` ends with `@AGENTS.md` instead of a copy of Next's agent-rules block.
+**Why:** Next.js, React and nodemailer are pinned to exact versions, so security fixes only
+arrived when someone remembered to bump them; grouping keeps it to a few PRs a week, and major
+updates come alone because they may need code changes. A page that only fails when built showed
+up first as a failed Vercel deploy after merging; the build needs no secrets because every page
+needs a login, so nothing is fetched at build time (the database client connects lazily), which
+keeps the public repo's CI secret-free. Next 16.4's `next dev` writes its notes to `AGENTS.md`
+only and stopped updating `CLAUDE.md`; Claude Code reads `CLAUDE.md`, and an `@` import there
+pulls `AGENTS.md` in, so the notes stay Next's own and current.
+**Instead of:** Renovate (more setup, same result here), real secrets in CI (the Actions logs of
+a public repo), or copying Next's block into `CLAUDE.md` by hand (goes stale with each version).
