@@ -370,7 +370,7 @@ transaction pooler hung every time and the session pooler never did. Turning pip
 (`max_pipeline: 0`) stopped the hang but broke transactions, and prepared statements didn't
 help.
 **Trade-off:** in session mode each connection holds a database connection while it's open.
-The app uses a few per server instance (see "Pages load the history once…", 2026-10-18) and closes
+The app uses one per server instance (3 ran the pool out: "Pages load the history once…", 2026-10-18) and closes
 them after 20 s idle; the free plan's pool (about 15) is far more than a household needs.
 
 ## 2026-10-11 — Worktrees link `.env.local` instead of copying it
@@ -972,19 +972,22 @@ call wrapped in a helper, and the housemate has to remember to retry), or a queu
 while the app is closed (needs storage on the phone and conflict handling; part of offline
 viewing in [TODO.md](TODO.md)).
 
-## 2026-10-18 — Pages load the history once, and the live site uses 3 connections
+## 2026-10-18 — Pages load the history once (and stay at 1 connection per instance)
 **Decision:** a page loads the whole history (`loadPeriods` in `lib/periods.ts`) once, shared
 through React's `cache()` by the month view, the bill banner and the admin's nudge. The month
 layout asks for those notices together with the month view rather than after it, and the Manage
-page runs its queries together. On the live site each server instance keeps up to 3 database
-connections; everywhere else 1 (`db/index.ts`).
+page runs its queries together. ~~On the live site each server instance keeps up to 3 database
+connections~~ — **reverted the same day: 1 everywhere** (`db/index.ts`). With 3, a burst of
+deploys (six Dependabot merges in 20 minutes) ran the session pooler out ("EMAXCONNSESSION: max
+clients reached … pool_size: 15"): Vercel runs several instances per deployment, and old
+deployments' instances still held theirs while new ones started, so pages failed to load for a
+few minutes. One connection still runs a page's queries side by side (postgres.js pipelines
+them); the gain that mattered was loading the history once.
 **Why:** a month page loaded the whole history 2–5 times (once per notice, twice for an older
 month), in 5–6 steps one after another, and it grows every month. React's `cache()` only remembers
 while a page is drawn, so a Server Action or the daily job still reads afresh, and a transaction
-never uses it. One connection per instance made requests served at once (Vercel's Fluid compute)
-queue, and the admin's "why hasn't the next month started" check holds it for a transaction.
-Three, not more: the session pooler holds about 15, shared by the live site, `localhost:3000`,
-each worktree's dev server, the scripts and `db:studio` (one each locally).
+never uses it. (The 3 connections were for requests served at once on one instance; not worth
+running the shared pool dry — see above. Raising it needs Supabase's pool size raised first.)
 **Instead of:** Next's `cacheComponents` / `'use cache'` (keeps data across requests, but needs
 tags refreshed by every action: more work for less extra gain at this size), or loading only the
 months a page needs (carry-over needs every earlier month anyway).

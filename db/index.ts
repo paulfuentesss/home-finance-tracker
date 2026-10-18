@@ -10,11 +10,11 @@ const globalForDb = globalThis as unknown as { pgClient?: postgres.Sql };
 function getClient(): postgres.Sql {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is not set — copy .env.example to .env.local and fill it in.");
-  // A few connections on the live site, so requests served at once (and a page's queries while a
-  // transaction holds one) don't queue behind each other; one everywhere else, since localhost,
-  // every worktree's dev server and the scripts share the session pooler's small pool
-  // (docs/decisions.md, 2026-10-18).
-  return createClient(url, { max: process.env.VERCEL_ENV === "production" ? 3 : 1 });
+  // One connection per server instance, everywhere. The session pooler holds only 15 for
+  // everything (the live site's instances — several at once, more while deploys roll over — plus
+  // localhost, every worktree's dev server and the scripts); 3 per instance ran it out on the live
+  // site (docs/decisions.md, 2026-10-18). A page's queries still share it, pipelined.
+  return createClient(url, { max: 1 });
 }
 
 // Reuse one *connection* across hot reloads in dev (otherwise every reload opens a new one),
