@@ -993,8 +993,9 @@ months a page needs (carry-over needs every earlier month anyway).
 **Decision:** every way of writing into a month takes `FOR SHARE` on the month's row before
 checking it's open: the month actions' changes (`loadOpenPeriod`: advances, Helper visits, bills,
 columns, payments, receipts), adding or removing someone (`openPeriods`, each open month) and a
-bill email (`fillColumn` in `lib/bill-import.ts`). `closeMonth` and `reopenMonth` take `FOR
-UPDATE` first on the month and the months either side (`lockPeriodAndNeighbours`). All guard-tested.
+bill email (`fillColumn` in `lib/bill-import.ts`). Closing (`closeMonthIn` in `lib/month-close.ts`)
+and `reopenMonth` take `FOR UPDATE` first on the month and the months either side
+(`lockPeriodAndNeighbours`). All guard-tested.
 **Why:** closing locked the month, but changes only read its status. Something saved in the same
 moment as a close could pass the "is it open?" check, then be written after the close saved
 everyone's Finals: an advance missing from what carries over, a pending bill stuck in a closed
@@ -1041,3 +1042,20 @@ only and stopped updating `CLAUDE.md`; Claude Code reads `CLAUDE.md`, and an `@`
 pulls `AGENTS.md` in, so the notes stay Next's own and current.
 **Instead of:** Renovate (more setup, same result here), real secrets in CI (the Actions logs of
 a public repo), or copying Next's block into `CLAUDE.md` by hand (goes stale with each version).
+
+## 2026-10-18 — Database tests run the real code on PGlite, through a mocked `@/db`
+**Decision:** closing a month, starting the next, bill-email import and the daily job are tested
+against PGlite (Postgres inside the test, with the real migrations) by swapping what `@/db`
+exports with `vi.mock` (`lib/test-db.ts`, [testing.md → Database tests](testing.md#database-tests)).
+Closing moved out of the Server Action into `lib/month-close.ts` (`closeMonthIn(tx, …)`, like
+`startNextMonthIn`), so a test can call it with its own transaction; the action keeps the login
+check. The August loader moved from `scripts/seed-august.mts` into
+`lib/__fixtures__/load-august.ts`, shared by the seed and the tests.
+**Why:** these four write to the one live database, and a bug there (wrong carry-over, a bill
+stuck pending, a reminder sent twice) would land in real data. The pure tests cover the rules
+around them, but not the queries, locks and unique indexes. PGlite needs no secrets and nothing
+to install, so CI runs them too.
+**Instead of:** a test database (there's none by choice: one database), or passing the database
+into every function (`lib/reminder-send.ts` and friends read `db` directly; a mock swaps it
+without changing them). PGlite has one connection, so races (two crons at once) stay
+guard-tested rather than run.

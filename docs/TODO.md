@@ -69,11 +69,6 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
       the removal skips it (it wasn't open yet). They'd stay in it with shares of its equal bills.
       Rare (older than the month locks of 2026-10-18). A fix: Remove checks the latest month again
       after its locks.
-- [ ] **Database tests for the riskiest paths** ([testing](testing.md)): starting the next month
-      (`lib/month-start.ts`, carry-over), closing a month, bill-email import (`lib/bill-import.ts`,
-      dedupe) and the daily job's claim-then-send (`lib/reminder-send.ts`) are checked today only
-      by the pure tests around them. PGlite (already used in `lib/backup.test.ts`) can run them
-      against a real Postgres with the made-up August fixture, no secrets.
 
 ## Ideas (not decided)
 

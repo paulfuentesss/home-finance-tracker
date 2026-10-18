@@ -2,16 +2,18 @@
 
 ## Automated tests
 
-`npm test` runs every `*.test.ts` with Vitest in a few seconds. Unit tests never touch the
-database or React: the money math and rules are pure code in `lib/`. Three exceptions, all
+`npm test` runs every `*.test.ts` with Vitest in a few seconds. Most tests never touch a
+database or React: the money math and rules are pure code in `lib/`. The exceptions are all
 still offline: `invites.test.ts` runs `lib/invites.ts` against a fake database and a fake
-Supabase, `actions-guard.test.ts` reads the source files, and `backup.test.ts` runs a real
-Postgres in memory (PGlite, the slowest few seconds of the run), never the live database.
+Supabase, `actions-guard.test.ts` reads the source files, and the [database tests](#database-tests)
+(`backup`, `month-close`, `month-start`, `bill-import`, `reminder-send`) run a real Postgres in
+memory (PGlite), never the live database.
 
 **CI:** GitHub Actions runs `npm run typecheck`, `npm run lint`, `npm test` and a production
 build (`npm run build`, with placeholder settings) on every pull request and every push to main
 (`.github/workflows/checks.yml`); a failure shows as a red ✗ on the PR. It needs no secrets
-because no test touches the live database and the build fetches nothing — keep it that way.
+because no test touches the live database or any other service and the build fetches nothing —
+keep it that way.
 
 | Test file | Covers |
 |---|---|
@@ -31,6 +33,10 @@ because no test touches the live database and the build fetches nothing — keep
 | `lib/devices.test.ts` | Who's using it (Manage): telling devices apart, accepting only known values from `/api/seen`, "last seen" labels on Manila's calendar |
 | `lib/receipts.test.ts` | Which receipt files are accepted (real type from the first bytes, size limit), their names in the bucket, resizing long screenshots |
 | `lib/backup.test.ts` | Download backup: the real migrations in PGlite (Postgres inside the test), made-up rows in every table (a new table without sample rows fails the test) backed up and restored exactly, every Storage bucket the code uses covered (a new one fails until it's added to the backup), id counters moved on, a restore into a non-empty database changing nothing; the zip holding the `.sql` and every picture byte for byte, dated on Manila's clock (meaningful under UTC, as in CI), recorded only when complete |
+| `lib/month-close.test.ts` | Closing the made-up August (PGlite): everyone's Final saved as their closing balance (the worked example's, ₱0.02 over from the Ice Maker), the month locked; refused, writing nothing, while a bill is pending, an "I paid" waits or the month before is open; the Finals becoming the next month's openings; refused when someone left out of the next month still has a balance |
+| `lib/month-start.test.ts` | Starting September from August (PGlite): every bill column copied at ₱0 with its split, payer and points (all-zero points → 1 each), only Advances Shared, no view-only login; opening on ₱0 after an open month and on the closing balances after a closed one; refused while an "I paid" waits or someone who moved out has a balance; a dry run writing nothing |
+| `lib/bill-import.test.ts` | Bill emails into pending bills (PGlite): Meralco by points and Water equally with their fees, worked out by hand; the same email or a second one for the same bill doing nothing; never overwriting an amount; staying in the inbox with the reason (month not started, closed, no column, split by hand) and importing on Retry; an unreadable email kept with its snippet |
+| `lib/reminder-send.test.ts` | The daily job (PGlite, emails and pushes caught): each month-end reminder once, not to the collector or someone without an email; a failed one retried the next run; pushes only after the email; nothing recorded off the live site; the next month started (or only checked off the live site), the admin told once when it can't; unpaid follow-ups on their days, the old time put back when one fails, none once paid |
 | `lib/backup-reminder.test.ts` | When the backup reminder shows: a month started or closed after the last backup, none yet, a month reclosed |
 | `lib/invites.test.ts` | Inviting / un-inviting: the order of the database and Supabase calls, rolling back a new login, never reusing a leftover one |
 | `lib/email-domain.test.ts` | Whether an invited email's domain takes mail, with a fake DNS: a missing domain, a null MX, an address-only domain, a timeout. Only a definite "no" blocks the invite |
@@ -39,6 +45,30 @@ Money or rule changes: update the expectations in `lib/settlement.test.ts` (and 
 example in `docs/settlement-rules.md`). Work the new values out by hand from the rules — never
 copy them from the app's output, or the test only checks the app against itself.
 
+## Database tests
+
+The riskiest writes — closing a month, starting the next, a bill email, the daily job — run
+against a real Postgres: PGlite, Postgres inside the test process, with every migration in
+`drizzle/` applied. Nothing can reach the live database, and CI needs no secrets.
+
+- **`lib/test-db.ts`**: `testDatabase()` is the test file's one database (migrated once, the slow
+  part); `resetDb(pg)` empties every table between tests. Money comes back as exact text, as
+  from the live driver (`"1000.50"`). Nested `with:` reads come back through JSON on both
+  drivers (`"0"`, `"1000.5"`), so compare those with `toCentavos`.
+- **`@/db` is swapped** in each test file, so the code under test reads and writes PGlite:
+  `vi.mock("@/db", async () => (await import("./test-db")).dbModule())`, plus
+  `vi.mock("server-only", …)` (it throws outside Next) and stubs for what a file pulls in but
+  doesn't use (`@/lib/auth`; for the daily job `@/lib/email`, `@/lib/push`, `next/server`).
+- **Data:** `loadAugust(tx)` (`lib/__fixtures__/load-august.ts`) writes the made-up August, the
+  same loader `npm run db:seed:august` uses. Each test then changes just what it's about.
+- **Clocks:** the daily job's tests fake JavaScript's `Date` (`vi.useFakeTimers({ toFake:
+  ["Date"] })`) and run it on a Manila date; rows that need a time get it written explicitly.
+- **What they can't show:** two things at the same instant (Vercel calling the cron twice, two
+  starts racing). PGlite has one connection, so everything runs one after the other; the locks
+  and unique indexes that handle races are guard-tested (`actions-guard.test.ts`) instead.
+- A new code path worth one: move the work into `lib/` taking the transaction (`tx`), as
+  `closeMonthIn` and `startNextMonthIn` do, with the action only checking who's asking.
+
 ## Fixtures (test data)
 
 All test data is **made up**: the repo is public, so real names and amounts never go in it
@@ -46,8 +76,9 @@ All test data is **made up**: the repo is public, so real names and amounts neve
 
 | Fixture | What it is | Used by |
 |---|---|---|
-| `lib/__fixtures__/august-2026.ts` | A made-up August 2026 (Ana, Ben, Cara, Dan, PA): members, bills, points, advances, rounded-per-share Month Finals. Keeps the edge cases: a points tie decided by split order, leftover centavos, a column without PA, a Manual column ₱0.02 over | `settlement.test.ts`, `npm run db:seed:august` |
-| `lib/bill-email/__fixtures__/august-2026-emails.ts` | Bill emails for those bills in the providers' real formats, amounts made up | `parse.test.ts`, `npm run bills:import` |
+| `lib/__fixtures__/august-2026.ts` | A made-up August 2026 (Ana, Ben, Cara, Dan, PA): members, bills, points, advances, rounded-per-share Month Finals. Keeps the edge cases: a points tie decided by split order, leftover centavos, a column without PA, a Manual column ₱0.02 over | `settlement.test.ts`, the database tests, `npm run db:seed:august` |
+| `lib/__fixtures__/load-august.ts` | `loadAugust(tx)`: writes that August into a database (members if missing, the month, bills and shares, columns, advances) | the database tests, `npm run db:seed:august` |
+| `lib/bill-email/__fixtures__/august-2026-emails.ts` | Bill emails for those bills in the providers' real formats, amounts made up | `parse.test.ts`, `bill-import.test.ts`, `npm run bills:import` |
 
 **Adding an email fixture:** copy the plain-text body, then replace account and contract
 numbers, names, phone numbers, invoice numbers, tracking links and amounts before saving —
