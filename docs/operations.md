@@ -147,7 +147,18 @@ pre-commit hook runs ESLint on the whole project (`.husky/pre-commit`, root file
 `proxy.ts` included), so lint errors block the commit.
 
 Before a PR: `npm run typecheck`, `npm run lint`, `npm test`. The PR template has a
-checklist for keeping the docs up to date.
+checklist for keeping the docs up to date. CI (`.github/workflows/checks.yml`) runs those three
+and a production build (`npm run build`, with placeholder settings, no secrets) on every PR.
+
+## Dependencies
+
+**Dependabot** (`.github/dependabot.yml`) opens PRs every Saturday for newer versions: Next.js
+with its lint config in one, React with its types in another, every other minor or patch update
+together, and each major update on its own (it may need code changes). GitHub Actions versions
+too. Each PR runs the checks above. **Merging one deploys the live site**, so merge only when
+it's green; for a Next.js or major one, also run it locally (`gh pr checkout <n>` in a worktree,
+`npm install`, `npm run dev`) and click through before merging. Next.js, React and nodemailer
+are pinned to exact versions, so they change only through these PRs.
 
 ## Troubleshooting
 
@@ -186,7 +197,7 @@ app/            Next.js routes: /periods/[year]/[month] (the sidebar's sections)
                 startup check, git-guard.sh and edit-overlap.sh for sessions sharing the folder), and
                 the commands it may run without asking (settings.json → permissions.allow:
                 read-only checks only — typecheck, test, lint, git fetch)
-.github/        Workflows (checks on every PR, keep-alive), PR template
+.github/        Workflows (checks and build on every PR, keep-alive), PR template, Dependabot
 components/     App components (inline-input.tsx = the shared edit-in-place field)
 components/ui/  shadcn/ui components
 db/             Drizzle schema (schema.ts) and database clients

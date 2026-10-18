@@ -49,7 +49,8 @@ Part of every change, in the same PR — not a separate chore.
 - **The repo is public:** no amounts, account numbers, card or payment details, phone numbers
   or credentials in code, docs or commits. Scrub email fixtures. Household specifics go in
   `.private/NOTES.md`.
-- Keep the `BEGIN/END:nextjs-agent-rules` block at the end of this file (`next dev` re-adds it).
+- Keep the `@AGENTS.md` line at the end of this file: it pulls in Next.js's own agent notes,
+  which `next dev` keeps up to date in `AGENTS.md` (committed).
 
 ## Rules
 
@@ -211,19 +212,16 @@ Part of every change, in the same PR — not a separate chore.
 | The app stops offering to install; DevTools → Application → Manifest shows an error or the login page | `/manifest.webmanifest` (or `/sw.js`) got caught by `proxy.ts` — browsers fetch the manifest without cookies, so it gets the `/login` redirect | Keep both in the proxy matcher's skip list, along with the launch screen `/open` (`docs/features/install-app.md`); check with a cookie-less `curl -I localhost:3000/manifest.webmanifest` → 200 (and `/open`) |
 | Signing in on a worktree's site (`localhost:3001`…) ends on the live site | That port isn't in Supabase's Redirect URLs, so Supabase falls back to the Site URL | Add `http://localhost:<port>/**` (`docs/setup.md` step 5). Usually not needed: a sign-in on any localhost port carries to the others |
 | A save or a month switch spins forever, with no error | Next thinks it's offline (`experimental.useOffline`): it holds saves and navigations until a connection check gets through (`docs/features/offline.md`) | Look for the No connection strip and the Network tab (DevTools "Offline" left on?). Test offline behaviour on `npm run build && npx next start`, not `npm run dev` |
-| `CLAUDE.md` shows as modified after `npm run dev` | `next dev` appends the Next.js agent-rules block below | Expected — commit it |
+| `AGENTS.md` shows as new or modified after `npm run dev` | `next dev` (16.4+) writes its agent-rules block there; this file imports it (end of file) | Expected — commit it |
 
 **Fast dev loop:** make the change → `npm run typecheck && npx eslint && npm test` once per chunk (tests run in a few seconds) →
 `curl` only confirms the redirect to `/login` (every page needs a login; no dev bypass) → let Paul check the signed-in
 pages in the browser. Money/settlement changes: update the expectations in
 `lib/settlement.test.ts`, worked out by hand from the rules (the made-up August fixture).
 
-<!-- BEGIN:nextjs-agent-rules -->
+## Next.js notes
 
-# This is NOT the Next.js you know
+Next.js keeps its own notes for coding agents in `AGENTS.md` (written by `next dev`; read them
+before writing Next.js code):
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
-
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
-
-<!-- END:nextjs-agent-rules -->
+@AGENTS.md

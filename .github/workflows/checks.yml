@@ -43,3 +43,13 @@ jobs:
 
       - name: Test
         run: npm test
+
+      # The production build, so a page that only breaks when built shows up here, not first on
+      # Vercel after merging. Placeholders, not secrets: every page needs a login, so the build
+      # never connects to anything (the database client only connects on its first query).
+      - name: Build
+        run: npm run build
+        env:
+          DATABASE_URL: postgres://ci:ci@localhost:5432/ci
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder

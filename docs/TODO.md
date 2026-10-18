@@ -8,11 +8,6 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
 
 ## Next
 
-- [ ] **Turn on the daily job's failure alert** ([reminders](features/reminders.md)) — built,
-      off until `HEALTHCHECK_URL` is set. Paul: a free healthchecks.io check, its ping URL in
-      Vercel, redeploy ([operations → Emails & reminders](operations.md#emails--reminders) step 4).
-      Then check the next morning's run shows "up" there.
-
 - [ ] **Add the worktrees' local sites to Supabase's Redirect URLs** (Paul, in the dashboard):
       `http://localhost:3001/**` up to `http://localhost:3005/**` ([setup.md](setup.md) step 5,
       [commands.md → Working in parallel](commands.md#working-in-parallel)). Until then, signing
@@ -139,8 +134,9 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
   - **Sign out everywhere**, for a lost phone: sign-out is `scope: "local"` (this device only).
   - **Security headers** in `next.config.ts` (only `Cache-Control` now): a Content-Security-Policy,
     `frame-ancestors 'none'` (no embedding the site in another page), Referrer-Policy.
-  - **GitHub's free checks for a public repo:** Dependabot security updates, secret scanning with
-    push protection (check they're on).
+  - **GitHub's free checks for a public repo:** Dependabot *security* updates and secret
+    scanning with push protection — switches in the repo's Settings → Code security (check
+    they're on; the weekly version PRs are already set up: operations.md → Dependencies).
   - **Backups** off the laptop and password-protected: Later, above.
   - **Rotate the shared secrets** now and then (`BILL_EMAIL_SECRET`, `CRON_SECRET`; Vercel, plus
     the Gmail script for the first). `BILLER_SECRET_KEY` needs a script that re-encrypts every
