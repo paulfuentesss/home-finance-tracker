@@ -21,7 +21,7 @@ begins, then it gets a page here.
 | Receipts | ✅ | Proof (screenshots) on each bill and payment, in a private bucket; the admin attaches | [receipts.md](receipts.md) |
 | Install as an app | ✅ | Installs on phones and computers and opens full-screen from the home screen on a launch screen; an Install card (instructions on iPhone); a "No connection" screen ([offline](offline.md)); no pull-to-refresh inside the app; a "My House was updated" reload after a deploy. Not offline viewing yet | [install-app.md](install-app.md) |
 | No connection | ✅ | In a tab or the app: a "No connection" strip; the open page stays; saves and month switches wait and go through by themselves once the connection is back. Not offline viewing yet | [offline.md](offline.md) |
-| Spending Trends | ✅ | The household's spending over the last 1, 3 or 6 months as stacked bars (each bill and advance category), where it went, and insights: the biggest spend, what grew, a bill above its usual, the biggest purchases, per person | [trends.md](trends.md) |
+| Spending Trends | ✅ | The household's spending over the last 1, 3 or 6 months as stacked bars (each bill and advance category), where it went (tap a line to see its purchases or months), and insights: the biggest spend, what grew, a bill above its usual, the biggest purchases, per person | [trends.md](trends.md) |
 | Billers & Accounts | ✅ | Each company the household pays, with account numbers, how it's paid, links and passwords (encrypted, revealed on tap); the admin edits, housemates see what's shared | [billers.md](billers.md) |
 
 Also running, not features of the app itself:

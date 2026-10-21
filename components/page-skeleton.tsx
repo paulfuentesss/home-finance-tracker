@@ -85,7 +85,7 @@ export function BillersSkeleton() {
   );
 }
 
-/** Trends: the chart card, then Insights and Where it went side by side on desktop. */
+/** Trends: the chart card, then Where it went and Insights side by side on desktop. */
 export function TrendsSkeleton() {
   return (
     <Loading className="space-y-6">
@@ -94,8 +94,8 @@ export function TrendsSkeleton() {
         <Block className="h-72 w-full sm:h-80" />
       </div>
       <div className="grid items-start gap-6 lg:grid-cols-2">
-        <CardSkeleton rows={4} />
         <CardSkeleton rows={5} />
+        <CardSkeleton rows={4} />
       </div>
     </Loading>
   );

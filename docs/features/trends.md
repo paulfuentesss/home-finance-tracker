@@ -10,7 +10,8 @@
   range → it shows what there is ("Only 2 months so far"). **1 month** on a month still coming
   in (usually the current one) shows the newest complete month instead, and says so: on its own
   the current month would be nearly empty. 3 and 6 show it faded. Switching range is instant (no
-  reload): the highlight slides (it jumps with reduced motion) and the numbers fade over. The
+  reload): the highlight slides (it jumps with reduced motion) and the numbers fade over; on a
+  phone the switch fills the card's width. The
   range is kept in the address bar (`?range=1|6`, none for 3), so a refresh or link keeps it;
   Back leaves the tab rather than stepping through ranges.
 - **Spending** = the month's confirmed bills (the Helper's included) + its shared advances: the
@@ -19,7 +20,10 @@
 - **Stacked bar chart**: a bar per month, a colour block per bill (by column name) and per
   advance category (Grocery, Food, Service, Misc). Hover a bar for each block's amount and the
   month's total; on a phone (where that box would cover the chart) tap a bar and they show
-  under the chart instead, starting on the newest complete month. At most eight blocks; the
+  under the chart instead, starting on the newest complete month, with the other bars dimmed so
+  it's clear which month the panel is on. A line under the chart says so ("Tap a bar…" on a phone,
+  "Hover over a bar…" wider). Clicking the chart draws no focus outline (Recharts 3 makes its bar
+  layer focusable; `components/ui/chart.tsx` hides that outline). At most eight blocks; the
   smallest of the rest fold into **Other**.
   A series keeps its colour whatever the range. The blocks stack biggest first (at the bottom),
   in the same order as the legend and the Where it went table, worked out from the complete
@@ -32,18 +36,37 @@
 - The page header leaves out the month's two totals here (they're one month's, beside a page
   about several).
 - **Headline**: what was spent and the monthly average, and how an average month compares
-  with the period of the same length before (when it has complete months).
-- **Insights** (worked out by the app, nothing sent anywhere): the biggest spend and its share;
-  what grew most per month vs the period before; a bill well above its usual in the latest
-  complete month; the biggest single purchases (no payer names); spending per person a month.
-  Each one is left out when there isn't enough history for it.
-- **Where it went**: each series with its total, share, monthly average and change. It's also
+  with the period of the same length before (when it has complete months). When the range has a
+  month still coming in, a line under it says that month isn't counted yet, so "Aug–Sep" with
+  3 months picked makes sense.
+- **Where it went** (first of the two cards: it's the page's main answer): each series with its
+  total, share (also drawn as a thin bar under its name), monthly average and change. It's also
   the chart's text version for screen readers. A phone has room for one amount column, so a
-  **Total | Per month** toggle in the card's corner picks which (only with more than one month);
-  that keeps the table inside the card without scrolling sideways. Wider screens show both.
+  **Total | Monthly avg** toggle in the card's corner picks which (only with more than one month);
+  that keeps the table inside the card without scrolling sideways. Wider screens show both. The
+  subtitle names the months counted and how many ("Aug–Sep 2026 · 2 months").
   On a phone the toggle's highlight slides (it jumps with reduced motion) and the amounts shown
   fade in, here and in the chart's panel (only the panel's contents are re-created, so its
   `aria-live` box stays and screen readers still read the change).
+  - **Tap a row to see what's in it**, under the row: an advance category's purchases (biggest
+    first, with their date, or their month without one), a bill's amount each month, or what
+    Other folded in. First five, then "Show all". Close one with its chevron or the Hide under its
+    list, or every open one with Collapse all by the subtitle. Over the counted months only, so they add up
+    to the row's Total; always real amounts, even with Monthly avg picked. A bill over one month
+    has nothing to open. Open rows close when a range switch changes the months.
+  - **So far:** under the counted items, an open row also lists the months shown but not counted
+    ("Oct 2026 so far · not counted yet", with a So far sum): the faded months on 3 or 6 months,
+    or the month 1 month stepped over. Off the totals, so this month's purchases can be looked at
+    before its bills are in. A bill shows a month's line only once that bill is confirmed. Only
+    under rows the table has: something bought only in a month still coming in has no row yet
+    (the Advances tab shows it). Not when the range has no complete month (`partial`): those months
+    are the counted ones then.
+- **Insights** (worked out by the app, nothing sent anywhere): the biggest spend and its share;
+  what grew most per month vs the period before; a bill well above its usual in the latest
+  complete month; the biggest single purchases (no payer names); spending per person a month
+  (to the peso: it's an "about" figure). Each one is left out when there isn't enough history
+  for it. With nothing before the range to compare with, it says comparisons appear once there
+  are months before the range's first month.
 
 ## How it's built
 - Route: `app/periods/[year]/[month]/trends/page.tsx` with its `loading.tsx` (`TrendsSkeleton`
@@ -56,10 +79,12 @@
 - Numbers: `buildTrends` in `lib/trends.ts` (pure, integer centavos; tested in
   `lib/trends.test.ts` with made-up months). The thresholds are named constants there
   (`MAX_SERIES`, `RISING_THRESHOLD_PCT`, `RISING_LOOKBACK`, `RISING_MIN_HISTORY`, `TOP_PURCHASES`).
-  Colours (`slot`) are fixed by the whole loaded history, not the range.
+  Colours (`slot`) are fixed by the whole loaded history, not the range. Each breakdown row
+  carries its `items` (`itemsOf`), built from the basis months.
 - UI: `components/trends.tsx` (client: the range switch, headline, insights),
   `components/trends-chart.tsx` (client: Recharts through shadcn's `components/ui/chart.tsx`),
-  `components/trends-breakdown.tsx` (client, for the phone toggle: the Where it went card),
+  `components/trends-breakdown.tsx` (client, for the phone toggle and the open rows: the Where it
+  went card),
   `components/trends-parts.tsx` (the card frame and change arrow, used by both cards) and
   `components/trends-colors.ts` (the palette, shared by the chart and the table).
 - No tables of its own: it reads `billing_periods`, `bill_items`, `advances`, `period_balances`.

@@ -98,14 +98,24 @@ export function TrendsChart({ months, series, label }: { months: TrendsMonth[]; 
                 maxBarSize={MAX_BAR}
                 radius={i === series.length - 1 ? [4, 4, 0, 0] : 0}
               >
+                {/* On a phone the bars other than the panel's month dim, so it's clear which one
+                    the panel is showing (CSS opacity on top of a month in progress's fainter fill). */}
                 {data.map((d) => (
-                  <Cell key={d.name} fillOpacity={d.complete ? 1 : 0.4} />
+                  <Cell
+                    key={d.name}
+                    fillOpacity={d.complete ? 1 : 0.4}
+                    className={d.name !== shown?.name ? "transition-opacity max-sm:opacity-35" : "transition-opacity"}
+                  />
                 ))}
               </Bar>
             ))}
           </BarChart>
         </ChartContainer>
       </div>
+      <p className="mt-1 text-center text-xs text-muted-foreground">
+        <span className="sm:hidden">Tap a bar to see that month&apos;s amounts.</span>
+        <span className="hidden sm:inline">Hover over a bar to see its amounts.</span>
+      </p>
       {/* Outside the role="img" wrapper, so screen readers can read it too. */}
       {shown && (
         <div aria-live="polite" className="mt-3 rounded-lg bg-zinc-50 p-3 text-sm sm:hidden">

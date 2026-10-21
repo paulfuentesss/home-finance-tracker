@@ -27,7 +27,7 @@ export async function getAllTrends(year: number, month: number): Promise<Record<
     limit: LOOKBACK_MONTHS,
     with: {
       billItems: { columns: { name: true, kind: true, status: true, totalAmount: true } },
-      advances: { columns: { category: true, description: true, amount: true } },
+      advances: { columns: { category: true, description: true, amount: true, spentOn: true } },
       balances: { columns: { memberId: true } },
     },
   });
@@ -36,7 +36,12 @@ export async function getAllTrends(year: number, month: number): Promise<Record<
     month: p.month,
     status: p.status,
     bills: p.billItems.map((b) => ({ name: b.name, kind: b.kind, status: b.status, total: toCentavos(b.totalAmount) })),
-    advances: p.advances.map((a) => ({ category: a.category, description: a.description, amount: toCentavos(a.amount) })),
+    advances: p.advances.map((a) => ({
+      category: a.category,
+      description: a.description,
+      amount: toCentavos(a.amount),
+      spentOn: a.spentOn,
+    })),
     people: p.balances.length,
   }));
   const today = todayInManila();

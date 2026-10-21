@@ -452,10 +452,12 @@ export default async function HowItWorksPage() {
           </p>
           <p>
             Below it, <strong>Where it went</strong> lists what took the most (on a phone, switch between the total
-            and the monthly average in its corner), and <strong>Insights</strong> point out what&apos;s grown, a bill
+            and the monthly average in its corner). Tap a line to see what&apos;s in it: every grocery, food,
+            service or misc purchase, or a bill&apos;s amount each month. <strong>Insights</strong> point out what&apos;s grown, a bill
             that&apos;s higher than usual, and the biggest single purchases, to help us spend wiser. A month whose
             bills aren&apos;t all in yet shows faded and isn&apos;t counted until they are, so it doesn&apos;t look
-            cheaper than it was.
+            cheaper than it was. You can still see what&apos;s been bought in it so far: open a line in Where it went
+            and it&apos;s listed under the rest, marked &ldquo;so far&rdquo;.
           </p>
         </>
       ),

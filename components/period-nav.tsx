@@ -199,9 +199,11 @@ export function MonthPicker({
 
   // On the dark sidebar the ghost buttons' light hover would flash; these keep it dark.
   const arrow = dark ? "text-zinc-300 hover:bg-white/10 hover:text-white aria-expanded:bg-white/10" : undefined;
-  // Keeps the month name in place (centred on the phone bar) when there's no month on one side.
-  // Same size as an arrow (`icon-sm`, larger on touch screens: components/ui/button.tsx).
-  const gap = <span className="size-7 shrink-0 pointer-coarse:size-9" aria-hidden />;
+  // On the sidebar card, an arrow's place stays when there's no month on that side (same size as an
+  // arrow: `icon-sm`, larger on touch screens, components/ui/button.tsx). Not on the phone bar:
+  // there the empty space made the arrow, name and ⇕ that do show look off-centre (on the newest
+  // month, so most of the time); without it, what shows is centred.
+  const gap = dark ? <span className="size-7 shrink-0 pointer-coarse:size-9" aria-hidden /> : null;
 
   return (
     <div
