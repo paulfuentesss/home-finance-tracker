@@ -210,6 +210,8 @@ describe("Route Handlers", () => {
     const handler = source.slice(source.indexOf("export async function POST"));
     expect(handler).toMatch(/^export async function POST[^{]*\{\s*const viewer = await getViewer\(\);\s*if \(!viewer\) return/);
     expect(handler).toMatch(/memberId: viewer\.memberId/);
+    // Marking bill emails seen: only the caller's own.
+    expect(handler).toMatch(/\.update\(reminderSends\)[\s\S]*eq\(reminderSends\.memberId, viewer\.memberId\)/);
     expect(source).not.toMatch(/export async function (GET|PUT|PATCH|DELETE)/);
   });
 

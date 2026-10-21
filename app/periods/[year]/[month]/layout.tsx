@@ -6,6 +6,7 @@ import { BackupReminderBanner } from "@/components/backup-reminder";
 import { AppShell } from "@/components/app-sidebar";
 import { MonthNotices } from "@/components/month-notices";
 import { PeriodHeader, sidebarProps } from "@/components/period-header";
+import { BillSeen } from "@/components/seen-tracker";
 import { getPreview, getPreviewChoices, requireViewer } from "@/lib/auth";
 import { backupReminderText } from "@/lib/backup-reminder";
 import { getBackupReminder } from "@/lib/backup-status";
@@ -54,6 +55,8 @@ export default async function PeriodLayout({ params, children }: Props) {
   const latest = view.periods.at(-1);
   const toStart = admin && latest !== undefined && monthHasEnded(latest.year, latest.month, today);
   const startBlock = toStart ? await startBlockReason() : null;
+  // When this page was drawn: only bill emails sent before it count as seen (BillSeen).
+  const drawnAt = new Date();
 
   return (
     <AppShell viewer={viewer} previewBy={previewBy} sidebar={sidebarProps(view, viewer, previewChoices)}>
@@ -62,6 +65,8 @@ export default async function PeriodLayout({ params, children }: Props) {
         {/* The admin's own reminder: hidden while previewing as a housemate. */}
         {admin && reminder && <BackupReminderBanner text={backupReminderText(reminder)} />}
         <MonthNotices view={view} viewer={viewer} bill={bill} nudge={nudge} startBlock={startBlock} today={today} />
+        {/* Marks the real viewer's bill email seen (the admin's Settle Up shows it); never while previewing. */}
+        {!preview && !isAdmin(real) && <BillSeen drawnAt={drawnAt.getTime()} />}
         {view.period.status === "closed" && (
           <div className="flex items-start gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700">
             <Lock className="mt-0.5 size-4 shrink-0" />

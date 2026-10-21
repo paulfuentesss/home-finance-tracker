@@ -174,7 +174,10 @@ function ViewOnlyList({ viewOnly }: { viewOnly: EmailStatus["viewOnly"] }) {
             {!v.hasEmail ? (
               <span className="text-amber-700">no email address — won&apos;t get it</span>
             ) : v.sentOn ? (
-              <span className="text-xs text-emerald-700">✓ told {v.sentOn}</span>
+              <span className="text-xs text-emerald-700">
+                ✓ told {v.sentOn}
+                <SeenMark seenOn={v.seenOn} />
+              </span>
             ) : (
               <span className="text-muted-foreground">gets a short &ldquo;bills are in&rdquo; note</span>
             )}
@@ -185,15 +188,21 @@ function ViewOnlyList({ viewOnly }: { viewOnly: EmailStatus["viewOnly"] }) {
   );
 }
 
+/** " · seen Nov. 1" once they've opened a month page since the email, or " · not seen yet". */
+function SeenMark({ seenOn }: { seenOn: string | null }) {
+  return seenOn ? <> · seen {seenOn}</> : <span className="text-muted-foreground"> · not seen yet</span>;
+}
+
 /**
- * Whether this person was sent the bill: "✓ sent Oct. 31" (with "· reminded Nov. 3" after a
- * "still unpaid" follow-up), or "not sent" once others have been.
+ * Whether this person was sent the bill: "✓ sent Oct. 31 · seen Nov. 1" (or "· not seen yet"; with
+ * "· reminded Nov. 3" after a "still unpaid" follow-up), or "not sent" once others have been.
  */
 function SentMark({ recipient: r, anySent }: { recipient: EmailStatus["recipients"][number]; anySent: boolean }) {
   if (r.sentOn) {
     return (
       <span className="block text-xs text-emerald-700">
         ✓ sent {r.sentOn}
+        <SeenMark seenOn={r.seenOn} />
         {r.remindedOn && <> · reminded {r.remindedOn}</>}
       </span>
     );
