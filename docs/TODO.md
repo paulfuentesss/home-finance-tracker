@@ -19,6 +19,13 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
       the first one "Not spam" if it lands there. A bill left unpaid now brings a reminder a few
       days later, then weekly. Push is turned on per device: account menu → Turn on notifications.
 
+- [ ] **Check "seen" on the first bill email** ([reminders](features/reminders.md)) — *waiting
+      for October's bill (~Nov. 1).* Right after "Email everyone their bill", every row in the
+      Settle Up box should say "· not seen yet"; as each housemate opens My House it turns into
+      "· seen <date>" (refresh to see it). Previewing as a housemate mustn't mark them; a resend
+      resets everyone to "not seen yet". Also decide whether housemates should be told (How it
+      works) — for now they aren't, like Last seen.
+
 - [ ] **Bills to the My House Gmail** ([email-bills](features/email-bills.md)) — *waiting on the
       billers.* Changed in their apps, and each biller was emailed (2026-10-11) after a PLDT bill
       still went to PA's personal email. Remove this once a bill from each has arrived at the My

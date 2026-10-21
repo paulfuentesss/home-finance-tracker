@@ -32,8 +32,11 @@ banner at the top of the month pages.
   Up. Nobody sees anyone else's amount. Anyone settled, or with everything already sent, gets
   nothing. It's blocked while the numbers can't be calculated or a bill is pending. It can be
   sent again ("Last sent …"). The box lists each housemate with what they owe or get back and
-  whether they were sent it ("✓ sent Oct. 31", or "not sent" when a send to them failed), and
-  who has no email address.
+  whether they were sent it ("✓ sent Oct. 31", or "not sent" when a send to them failed),
+  whether they've **seen** it since ("· seen Nov. 1": they opened a month page after it went out,
+  where the bill banner shows; "· not seen yet" until then, and again after a resend), and who
+  has no email address. "Seen" isn't email-open tracking: it can't tell whether the email itself
+  was opened, only that they've been in My House since.
 - **Still unpaid** (the daily job): a housemate with part of their emailed bill still to pay
   gets a reminder a few days after the bill email, then one a week (the days are
   `UNPAID_REMINDER_DAYS`): what's left, any "I paid" waiting, the same To do and a link to
@@ -46,8 +49,8 @@ banner at the top of the month pages.
 - **View-only logins** (family who only look) get a short, warm "October's bills are in!" note the
   first time the bill email is sent for a month (even if every housemate is settled), with a link
   to the month's Split Table and no amounts. A resend doesn't
-  repeat it. The bill-email box lists them under "View only" ("✓ told Oct. 31"). It's the only
-  email they get.
+  repeat it. The bill-email box lists them under "View only" ("✓ told Oct. 31 · seen Nov. 1").
+  It's the only email they get.
 - **The tone:** housemates' and view-only emails sound happy, with an emoji in the subject,
   "Hi Ben! 👋" and a thank-you before the sign-off (a "take care" line for view-only). The
   amounts, To do and link lines stay exact. The admin's own emails (the nudges, "couldn't
@@ -112,6 +115,14 @@ and nothing is recorded. A test can't stop a real reminder.
   still-unpaid follow-up (`sendAgain`) has one row per month + member whose time moves forward
   each time; a run claims it by moving it from the time it read (to the millisecond), and a
   failed send puts the old time back.
+- Seen: `BillSeen` (`components/seen-tracker.tsx`), rendered by `[month]/layout.tsx` for the
+  real viewer (never the admin or a preview), posts `{ via, platform, drawnAt }` to
+  `/api/seen` once the page is on screen. `drawnAt` is when the server drew that page, so a bill
+  emailed while an old page was open, a prefetch, or a tab coming back into view doesn't count.
+  The route sets `seen_at` on the caller's own `payables` / `bills_in` rows sent before
+  `drawnAt` and not yet seen since their send (`lib/seen-route.test.ts`). `getEmailStatus` shows
+  it only while it's after `sent_at` (`seenAfter` in `lib/reminders.ts`), so a resend needs a new
+  look. Rows sent before this existed were filled in from `member_devices` (migration `0023`).
 - Action: `emailPayables` (admin) in `app/periods/[year]/[month]/actions.ts`. The lock is
   `loadOpenPeriod(tx, id, viewer)` in the same file, passed the viewer by the six advance and
   Helper actions (the guard test checks it).
@@ -119,8 +130,8 @@ and nothing is recorded. A test can't stop a real reminder.
   in `components/settle-up.tsx`; reads in `lib/reminder-status.ts` (`getBillNotice`,
   `getEmailStatus`, admin only); `components/advances-log.tsx` and `components/helper-log.tsx`
   hide housemates' controls through `canLogIn`.
-- Table: `reminder_sends` (month, kind, member, sent at) — migrations `0014`, `0015` (the
-  two nudge kinds), `0020` (`bills_in`) and `0021` (`unpaid`).
+- Table: `reminder_sends` (month, kind, member, sent at, seen at) — migrations `0014`, `0015`
+  (the two nudge kinds), `0020` (`bills_in`), `0021` (`unpaid`) and `0023` (`seen_at`).
 - Setup: [operations.md → Emails & reminders](../operations.md#emails--reminders).
 
 ## Rules

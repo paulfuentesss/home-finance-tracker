@@ -255,6 +255,13 @@ export default async function HowItWorksPage() {
             have edit and delete buttons there until the month ends; for anything else, ask the admin.
             Everyone&apos;s shares are recalculated either way.
           </p>
+          <p>
+            The Advances tab&apos;s totals check each other. <strong>Advances by Category</strong> and{" "}
+            <strong>Out-of-Pocket by Person</strong> add up the same log two ways. With no filters on the log, both
+            totals match the log&apos;s total, and each person&apos;s amount matches the total on their group. Bills
+            someone paid count too: they show in the log marked <strong>Own column</strong>, because each bill is
+            split in its own column on the Split Table rather than in a shared one.
+          </p>
         </>
       ),
     },

@@ -38,12 +38,21 @@ export function isInstalledApp(): boolean {
   return Boolean(standalone) || window.matchMedia("(display-mode: standalone)").matches;
 }
 
-/** What /api/seen accepts; anything else is refused. */
-export function parseSeen(body: unknown): { via: DeviceVia; platform: DevicePlatform } | null {
+/**
+ * What /api/seen accepts; anything else is refused. `drawnAt` (from a month page, BillSeen): when
+ * the server drew that page, so only emails sent before it count as seen — null when it's
+ * missing or not a time.
+ */
+export function parseSeen(body: unknown): { via: DeviceVia; platform: DevicePlatform; drawnAt: Date | null } | null {
   if (typeof body !== "object" || body === null) return null;
-  const { via, platform } = body as Record<string, unknown>;
+  const { via, platform, drawnAt } = body as Record<string, unknown>;
   if (!DEVICE_VIAS.includes(via as DeviceVia) || !DEVICE_PLATFORMS.includes(platform as DevicePlatform)) return null;
-  return { via: via as DeviceVia, platform: platform as DevicePlatform };
+  const drawn = typeof drawnAt === "number" ? new Date(drawnAt) : null;
+  return {
+    via: via as DeviceVia,
+    platform: platform as DevicePlatform,
+    drawnAt: drawn && Number.isFinite(drawn.getTime()) ? drawn : null,
+  };
 }
 
 export interface DeviceRow {

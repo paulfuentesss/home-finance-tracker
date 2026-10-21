@@ -46,12 +46,20 @@ describe("platformOf", () => {
 
 describe("parseSeen", () => {
   it("accepts only the known values", () => {
-    expect(parseSeen({ via: "app", platform: "iphone" })).toEqual({ via: "app", platform: "iphone" });
+    expect(parseSeen({ via: "app", platform: "iphone" })).toEqual({ via: "app", platform: "iphone", drawnAt: null });
     expect(parseSeen({ via: "native", platform: "iphone" })).toBeNull();
     expect(parseSeen({ via: "web", platform: "linux" })).toBeNull();
     expect(parseSeen({ via: "web" })).toBeNull();
     expect(parseSeen(null)).toBeNull();
     expect(parseSeen("app")).toBeNull();
+  });
+
+  it("reads when a month page was drawn, and ignores anything that isn't a time", () => {
+    const drawn = Date.parse("2026-11-01T02:00:00Z");
+    expect(parseSeen({ via: "web", platform: "mac", drawnAt: drawn })?.drawnAt).toEqual(new Date(drawn));
+    expect(parseSeen({ via: "web", platform: "mac", drawnAt: "2026-11-01" })?.drawnAt).toBeNull();
+    expect(parseSeen({ via: "web", platform: "mac", drawnAt: Number.NaN })?.drawnAt).toBeNull();
+    expect(parseSeen({ via: "web", platform: "mac", drawnAt: 1e20 })?.drawnAt).toBeNull();
   });
 });
 

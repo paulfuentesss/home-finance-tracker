@@ -14,7 +14,7 @@ export interface SplitTag {
   columnId?: number;
 }
 
-// Colors for one-off shared columns. Grey (Advances Shared) and violet (Bills) are taken.
+// Colors for one-off shared columns. Grey (Advances Shared) and violet (the Bills category) are taken.
 // Written out in full so Tailwind can find the class names.
 const ONE_OFF_COLORS = [
   "bg-indigo-50 text-indigo-700 ring-indigo-200",
@@ -133,8 +133,8 @@ export function splitForColumn(column: ColumnInfo | undefined): SplitTag {
 
 export const BILL_SPLIT: SplitTag = {
   kind: "bill",
-  label: "Bills",
-  hint: "Paid to the provider — split in the bill's own column, counted here as money this person paid",
+  label: "Own column",
+  hint: "Paid to the provider — split in its own column on the Split Table, counted here as money this person paid",
 };
 
 /**
