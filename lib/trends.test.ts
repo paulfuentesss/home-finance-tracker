@@ -13,11 +13,12 @@ const bill = (name: string, pesos: number, extra: Partial<Bill> = {}): Bill => (
   total: p(pesos),
   ...extra,
 });
-const advance = (category: TrendsMonthInput["advances"][number]["category"], description: string, pesos: number) => ({
-  category,
-  description,
-  amount: p(pesos),
-});
+const advance = (
+  category: TrendsMonthInput["advances"][number]["category"],
+  description: string,
+  pesos: number,
+  spentOn: string | null = null,
+) => ({ category, description, amount: p(pesos), spentOn });
 const month = (
   m: number,
   status: "open" | "closed",
@@ -42,7 +43,11 @@ const HISTORY: TrendsMonthInput[] = [
     8,
     "open",
     [bill("Meralco", 6000), bill("Water", 1000), bill("Helper", 2000)],
-    [advance("grocery", "Market run", 2500), advance("grocery", "Rice sack", 1500), advance("food", "Birthday cake", 1000)],
+    [
+      advance("grocery", "Market run", 2500),
+      advance("grocery", "Rice sack", 1500, "2026-08-03"),
+      advance("food", "Birthday cake", 1000),
+    ],
     4,
   ),
   month(
@@ -146,6 +151,43 @@ describe("buildTrends — three months ending September", () => {
     ]);
   });
 
+  it("lists what makes up each row, from Jul–Aug only (September's Market run isn't in)", () => {
+    const items = (label: string) =>
+      t.breakdown.find((r) => r.label === label)!.items.map((i) => [i.label, i.amount, i.month, i.spentOn]);
+    // Purchases, biggest first, with their own date when they have one.
+    expect(items("Grocery")).toEqual([
+      ["Market run", p(3000), 7, null],
+      ["Market run", p(2500), 8, null],
+      ["Rice sack", p(1500), 8, "2026-08-03"],
+    ]);
+    // A tie keeps the older one first.
+    expect(items("Food")).toEqual([
+      ["Pizza night", p(1000), 7, null],
+      ["Birthday cake", p(1000), 8, null],
+    ]);
+    // A bill: one line per month, oldest first; July's ₱0 Helper has no line.
+    expect(items("Meralco")).toEqual([
+      ["Jul 2026", p(5000), 7, null],
+      ["Aug 2026", p(6000), 8, null],
+    ]);
+    expect(items("Helper")).toEqual([["Aug 2026", p(2000), 8, null]]);
+    for (const row of t.breakdown) expect(row.items.reduce((sum, i) => sum + i.amount, 0)).toBe(row.total);
+  });
+
+  it("lists September, still coming in, as so far: not in the totals", () => {
+    const soFar = (trends: typeof t, label: string) =>
+      trends.breakdown.find((r) => r.label === label)!.soFar.map((i) => [i.label, i.amount, i.month]);
+    expect(soFar(t, "Grocery")).toEqual([["Market run", p(2000), 9]]);
+    // Water's September bill is confirmed; Meralco's is still ₱0, so it has no line.
+    expect(soFar(t, "Water")).toEqual([["Sep 2026", p(1000), 9]]);
+    expect(soFar(t, "Meralco")).toEqual([]);
+    expect(soFar(t, "Food")).toEqual([]);
+    // 1 month shows August and steps over September: the same so far.
+    const one = buildTrends(HISTORY, 1, TODAY);
+    expect(soFar(one, "Grocery")).toEqual([["Market run", p(2000), 9]]);
+    expect(soFar(one, "Water")).toEqual([["Sep 2026", p(1000), 9]]);
+  });
+
   it("gives the insights", () => {
     expect(t.insights).toEqual([
       { kind: "top", label: "Meralco", share: 46, total: p(11000) },
@@ -189,6 +231,8 @@ describe("buildTrends — edges", () => {
       ["Water", 67],
       ["Food", 33],
     ]);
+    // October is counted here (it's all there is), so nothing is left as so far.
+    expect(t.breakdown.every((r) => r.soFar.length === 0)).toBe(true);
     expect(t.insights).toEqual([]);
     expect(t.latestComplete).toBeNull();
   });
@@ -264,6 +308,14 @@ describe("buildTrends — edges", () => {
     ];
     const big = buildTrends([month(8, "closed", many)], 1, TODAY);
     expect(big.breakdown[0]).toMatchObject({ key: "other", total: p(4995) });
+    // Other lists what it folded: Small 1–5 at ₱999 each (a tie keeps their order).
+    expect(big.breakdown[0].items.map((i) => [i.label, i.amount])).toEqual(
+      [1, 2, 3, 4, 5].map((n) => [`Small ${n}`, p(999)]),
+    );
+    expect(t.breakdown.find((r) => r.key === "other")!.items.map((i) => [i.label, i.amount])).toEqual([
+      ["Bill 2", p(2000)],
+      ["Bill 1", p(1000)],
+    ]);
     expect(big.insights[0]).toMatchObject({ kind: "top", label: "Big 1" });
   });
 

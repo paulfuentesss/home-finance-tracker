@@ -1082,3 +1082,27 @@ to install, so CI runs them too.
 into every function (`lib/reminder-send.ts` and friends read `db` directly; a mock swaps it
 without changing them). PGlite has one connection, so races (two crons at once) stay
 guard-tested rather than run.
+
+## 2026-10-21 — Trends: a row opens to what's in it; Where it went comes first
+**Decision:** tapping a row in Where it went opens its items under it
+([features/trends.md](features/trends.md)): the purchases for an advance category, a bill's
+months, what Other folded. They come from the counted (complete) months only, so they add up to
+the row's Total. Where it went now comes before Insights, with each row's share drawn as a thin
+bar. Smaller fixes from the same review with PA: "Per month" became "Monthly avg"; the month
+still coming in is explained under the headline instead of under the chart; on a phone the bars
+other than the panel's month dim, and a line under the chart says the bars can be tapped
+(hovered on a computer); the per-person insight is to the peso; and Recharts 3's focusable bar
+layer (`recharts-zIndex-layer_*`) gets no outline, which had drawn an amber box on every click.
+A month still coming in can be *looked at* but still isn't counted: an open row lists its items
+after the counted ones, as "so far · not counted yet" (`BreakdownRow.soFar`), only under rows the
+table already has (no ₱0 rows). On the phone's top bar the month switcher no longer keeps an empty
+arrow's place on the newest month, so what shows is centred (the sidebar card still keeps it).
+**Why:** "where does our money go" is the page's question, and the table answers it best: it's
+already the chart's text version, a row is easy to tap on a phone, and the totals stay in view
+while a row is open. Items over the counted months only keep the list and the Total in
+agreement; "so far" answers "what did we buy this month?" without letting a half-filled month
+into the totals. Descriptions are what the biggest-purchases insight and the Advances tab already
+show everyone who can open the month.
+**Instead of:** opening the breakdown from the chart (a thin slice of a bar is too small to tap on
+a phone, and a computer's hover box can't be clicked into), or in a dialog (it covers the page and
+hides the totals being explained).

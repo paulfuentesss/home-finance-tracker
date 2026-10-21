@@ -34,7 +34,8 @@ export interface TrendsMonthInput {
   month: number;
   status: "open" | "closed";
   bills: { name: string; kind: "standard" | "helper"; status: "confirmed" | "pending"; total: Centavos }[];
-  advances: { category: AdvanceCategory; description: string; amount: Centavos }[];
+  /** `spentOn`: the advance's own date ("2026-09-14"), when it has one. */
+  advances: { category: AdvanceCategory; description: string; amount: Centavos; spentOn: string | null }[];
   /** People in the month (its period_balances rows; view-only logins are never in one). */
   people: number;
 }
@@ -69,6 +70,27 @@ export interface BreakdownRow extends Series {
   average: Centavos;
   /** Whole % change of the monthly average vs the previous period; null when there's nothing to compare. */
   change: number | null;
+  /**
+   * What makes up the total, over the basis months (so they add up to it): each purchase for an
+   * advance row (biggest first), each month for a bill (oldest first), each folded series for Other
+   * (biggest first). `year`/`month` is the billing month; for Other, the latest one it came from.
+   */
+  items: BreakdownItem[];
+  /**
+   * The same, in the months shown but not counted (oldest month first, grouped by month): the
+   * faded ones still coming in, or the ones 1 month stepped over. Not part of the total; empty
+   * when the basis is partial (those months are counted then).
+   */
+  soFar: BreakdownItem[];
+}
+
+export interface BreakdownItem {
+  label: string;
+  amount: Centavos;
+  year: number;
+  month: number;
+  /** An advance's own date, when it has one (it can fall outside its billing month). */
+  spentOn: string | null;
 }
 
 export type Insight =
@@ -168,6 +190,41 @@ function totalsOf(months: readonly { values: Map<string, Centavos> }[]): Map<str
 }
 
 /**
+ * A breakdown row's items over `basis` (oldest first; see BreakdownRow.items). `folded` says which
+ * raw keys Other collects. Sorts are stable, so equal amounts stay oldest first.
+ */
+function itemsOf(
+  key: string,
+  basis: readonly { input: TrendsMonthInput; values: Map<string, Centavos> }[],
+  folded: (key: string) => boolean,
+): BreakdownItem[] {
+  if (key === OTHER.key) {
+    const items = new Map<string, BreakdownItem>();
+    for (const m of basis) {
+      for (const [k, amount] of m.values) {
+        if (!folded(k)) continue;
+        const sum = (items.get(k)?.amount ?? 0) + amount;
+        items.set(k, { label: seriesOf(k).label, amount: sum, year: m.input.year, month: m.input.month, spentOn: null });
+      }
+    }
+    return [...items.values()].sort((a, b) => b.amount - a.amount);
+  }
+  if (key.startsWith("bill:")) {
+    return basis.flatMap((m) => {
+      const amount = m.values.get(key);
+      return amount ? [{ label: spanLabel([m.input]), amount, year: m.input.year, month: m.input.month, spentOn: null }] : [];
+    });
+  }
+  return basis
+    .flatMap((m) =>
+      m.input.advances
+        .filter((a) => `advance:${a.category}` === key && a.amount > 0)
+        .map((a) => ({ label: a.description, amount: a.amount, year: m.input.year, month: m.input.month, spentOn: a.spentOn })),
+    )
+    .sort((a, b) => b.amount - a.amount);
+}
+
+/**
  * The Trends numbers for the `range` months ending at the newest month in `history` (the month
  * shown). `history` is that month and the ones before it, in any order.
  */
@@ -182,7 +239,8 @@ export function buildTrends(history: readonly TrendsMonthInput[], range: Range, 
   const lastComplete = all.findLastIndex((m) => m.complete);
   const steps = range === 1 && lastComplete !== -1 && lastComplete < all.length - 1;
   const shown = steps ? all.slice(0, lastComplete + 1) : all;
-  const skipped = steps ? all.slice(lastComplete + 1).map((m) => ({ year: m.input.year, month: m.input.month })) : [];
+  const steppedOver = steps ? all.slice(lastComplete + 1) : [];
+  const skipped = steppedOver.map((m) => ({ year: m.input.year, month: m.input.month }));
 
   const inRange = shown.slice(-range);
   const before = shown.slice(0, -range);
@@ -192,6 +250,9 @@ export function buildTrends(history: readonly TrendsMonthInput[], range: Range, 
   const partial = completeInRange.length === 0;
   const basis = partial ? inRange : completeInRange;
   const previousComplete = previous.filter((m) => m.complete);
+  // Shown but not counted: the faded months, or the ones 1 month stepped over (never both: when it
+  // steps, the range is one complete month). Partial: they're the basis already.
+  const notCounted = partial ? [] : [...inRange.filter((m) => !m.complete), ...steppedOver];
 
   // Which series get their own colour: the biggest over the whole loaded history (so switching
   // the range never repaints one); past MAX_SERIES the smallest fold into Other.
@@ -203,6 +264,7 @@ export function buildTrends(history: readonly TrendsMonthInput[], range: Range, 
     ]),
   );
   const shownKey = (key: string) => (slots.has(key) ? key : "other");
+  const folded = (key: string) => !slots.has(key);
   // The range's colour blocks, biggest first (the bottom of the stack); Other last. "Biggest" is
   // over the basis months, like the table, so a month still coming in can't reorder them; what
   // only that month has goes after, by its amount.
@@ -254,6 +316,9 @@ export function buildTrends(history: readonly TrendsMonthInput[], range: Range, 
         share: basisTotal > 0 ? percent(total, basisTotal) : 0,
         average: avg,
         change: !partial && previousComplete.length ? change(avg, prevAvg) : null,
+        items: itemsOf(s.key, basis, folded),
+        // Month by month, so each item stays under its own month.
+        soFar: notCounted.flatMap((m) => itemsOf(s.key, [m], folded)),
       };
     })
     .filter((row) => row.total > 0)

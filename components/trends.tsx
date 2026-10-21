@@ -74,6 +74,14 @@ export function Trends({ byRange }: { byRange: Record<Range, TrendsData> }) {
             {basis.months > 1 && (
               <p className="text-sm text-muted-foreground">{formatPHP(headline.average)} a month on average</p>
             )}
+            {/* Here rather than under the chart, so the months the headline names make sense next
+                to the range picked. */}
+            {inProgress.length > 0 && !basis.partial && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {spanLabel(inProgress)} {inProgress.length === 1 ? "isn't" : "aren't"} counted yet:{" "}
+                {inProgress.length === 1 ? "its" : "their"} bills are still coming in (faded in the chart).
+              </p>
+            )}
             {headline.previous && (
               <p className="mt-1 text-sm">
                 {headline.previous.change === null ? (
@@ -92,7 +100,7 @@ export function Trends({ byRange }: { byRange: Record<Range, TrendsData> }) {
           <div
             role="group"
             aria-label="How many months"
-            className="relative grid grid-cols-3 rounded-lg bg-zinc-100 p-0.5 text-sm"
+            className="relative grid w-full grid-cols-3 rounded-lg bg-zinc-100 p-0.5 text-sm sm:w-auto"
           >
             <span
               aria-hidden
@@ -135,17 +143,19 @@ export function Trends({ byRange }: { byRange: Record<Range, TrendsData> }) {
         ) : (
           <p className="py-8 text-center text-sm text-muted-foreground">Nothing spent yet in {spanLabel(months)}.</p>
         )}
-        {inProgress.length > 0 && !basis.partial && (
-          <p className="text-xs text-muted-foreground">
-            {spanLabel(inProgress)} is still coming in (faded): its bills usually arrive after it ends, so it&apos;s
-            left out of the totals and insights until they&apos;re in.
-          </p>
-        )}
       </section>
 
       {/* grid-cols-1, not the default auto column: that one grows to the table's no-wrap width and
-          pushes both cards off a phone screen. */}
-      <div ref={cardsRef} className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          pushes both cards off a phone screen. Where it went first: it's the page's main answer.
+          items-start, so opening its rows doesn't stretch Insights beside it. */}
+      <div ref={cardsRef} className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
+        <WhereItWent
+          rows={breakdown}
+          basisLabel={basis.label}
+          months={basis.months}
+          previousLabel={headline.previous?.label}
+        />
+
         <Card title="Insights" icon={Lightbulb}>
           {basis.partial ? (
             <p className="mt-3 text-sm text-muted-foreground">
@@ -171,23 +181,21 @@ export function Trends({ byRange }: { byRange: Record<Range, TrendsData> }) {
               ))}
               {!headline.previous && (
                 <li className="text-muted-foreground">
-                  Comparisons appear once there are months before {spanLabel(months)} to compare with.
+                  {/* The period compared with is the one before the range's first month. */}
+                  Comparisons appear once there are months before {monthLabel(months[0].year, months[0].month)} to
+                  compare with.
                 </li>
               )}
             </ul>
           )}
         </Card>
-
-        <WhereItWent
-          rows={breakdown}
-          basisLabel={basis.label}
-          months={basis.months}
-          previousLabel={headline.previous?.label}
-        />
       </div>
     </div>
   );
 }
+
+/** "₱16,122": for an "about" figure, where centavos are noise. Display only. */
+const wholePHP = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 });
 
 function InsightText({ insight, basisLabel }: { insight: Insight; basisLabel: string }) {
   switch (insight.kind) {
@@ -236,7 +244,7 @@ function InsightText({ insight, basisLabel }: { insight: Insight; basisLabel: st
     case "perPerson":
       return (
         <p>
-          About <strong>{formatPHP(insight.average)}</strong> per person a month.
+          About <strong>{wholePHP.format(insight.average / 100)}</strong> per person a month.
         </p>
       );
   }

@@ -5,7 +5,9 @@
 
 ## What it does
 - **Month picker** at the top of the sidebar (on phones and tablets, centred in the top bar
-  between ☰ and the house, with the short name, "SEP 2026"); the home page opens the most recent month. Switching keeps
+  between ☰ and the house, with the short name, "SEP 2026"; on the newest or oldest month the one
+  arrow, name and ⇕ are centred together, with no empty space left for the missing arrow); the home
+  page opens the most recent month. Switching keeps
   the section you're on.
 - **Back to <newest month>:** on an older month, a small link under the month picker (sidebar,
   ☰ menu and the phone's top bar) opens the same section of the newest month. Hidden on the
