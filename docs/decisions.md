@@ -1150,3 +1150,15 @@ split it into shares. The month-to-month carry-over and "what's still owed" (`co
 **Why:** money math had spread to periods, Helper, Trends, advances, reminders and Settle Up,
 and a change to any of them went without a money review. The carry-over decides what the bill
 emails and the "you still owe" banner say, but was only tested on the way to something else.
+
+## 2026-10-22 — A test reviewer before every PR
+**Decision:** a third read-only review agent, `test-keeper`, runs before every PR. It checks
+changed behaviour has a test that checks it, expected values are worked out by hand, and each
+important new test can fail, naming one way to break the code for the main session to try. The
+rule lives in `docs/testing.md` → When a change needs a test.
+**Instead of:** a CI rule failing when `lib/` changes without a test file changing, which
+would flag every rename and refactor until it was ignored. And not folded into `docs-keeper`:
+each reviewer keeps one job.
+**Why:** CI catches a broken test, never a missing one, so changed behaviour with no test went
+green. The carry-over was untested until a reviewer went looking, and breaking the code on
+purpose is what showed the new tests worked.

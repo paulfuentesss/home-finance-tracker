@@ -74,6 +74,17 @@ async function payIn(
   });
 }
 
+/** The House Budget paying `name` back in September. */
+async function payOut(name: MemberName, amount: string) {
+  await db.insert(payments).values({
+    periodId: await septemberId(),
+    fromMemberId: null,
+    toMemberId: august.idOf(name),
+    amount,
+    paidOn: "2026-09-03",
+  });
+}
+
 /** A ₱5,000.00 advance `name` paid in September, through Advances Shared (₱1,000.00 each). */
 async function advanceInSeptember(name: MemberName) {
   const periodId = await septemberId();
@@ -132,11 +143,13 @@ describe("what's still owed from last month (carriedOver)", () => {
   it("takes off what's been paid in since, confirmed only", async () => {
     await startSeptember();
     // Ben carries ₱10,105.83 in from August and pays ₱5,000.00 of it: ₱5,105.83 still unpaid.
-    // September has no costs yet (every bill at ₱0), so that's his whole Final too.
+    // PA's ₱5,000.00 advance adds ₱1,000.00 to his share, so his September Final is
+    // ₱10,105.83 + ₱1,000.00 − ₱5,000.00 = ₱6,105.83: what's carried over isn't the Final.
     await payIn("Ben", "5000.00");
+    await advanceInSeptember("PA");
     expect(await owedInSeptember("Ben")).toEqual({
       carriedOver: 510_583,
-      payables: { kind: "owes", due: 510_583, waiting: 0, left: 510_583 },
+      payables: { kind: "owes", due: 610_583, waiting: 0, left: 610_583 },
     });
 
     // An "I paid" still waiting for PA and a rejected one don't count as paid.
@@ -144,7 +157,7 @@ describe("what's still owed from last month (carriedOver)", () => {
     await payIn("Ben", "2000.00", "rejected");
     expect(await owedInSeptember("Ben")).toEqual({
       carriedOver: 510_583,
-      payables: { kind: "owes", due: 510_583, waiting: 100_000, left: 410_583 },
+      payables: { kind: "owes", due: 610_583, waiting: 100_000, left: 510_583 },
     });
   });
 
@@ -182,6 +195,21 @@ describe("August's bill, paid in September", () => {
     expect(await owedIn(8, "Dan")).toEqual({
       carriedOver: 0,
       payables: { kind: "owes", due: 136_276, waiting: 0, left: 136_276 },
+    });
+  });
+
+  it("takes off the House Budget paying someone back in a later month", async () => {
+    await startSeptember();
+    // Cara is owed ₱15,059.19 for August. In September she pays a ₱5,000.00 advance (her share
+    // ₱1,000.00) and the House Budget pays her ₱5,000.00 back: her September Final is
+    // −₱15,059.19 − ₱4,000.00 + ₱5,000.00 = −₱14,059.19. For August she's still owed
+    // ₱15,059.19 − ₱5,000.00 = ₱10,059.19, under that cap. (Not taking the payback off would
+    // show the cap, ₱14,059.19.)
+    await advanceInSeptember("Cara");
+    await payOut("Cara", "5000.00");
+    expect(await owedIn(8, "Cara")).toEqual({
+      carriedOver: 0,
+      payables: { kind: "owed", amount: 1_005_919 },
     });
   });
 });

@@ -35,7 +35,7 @@ keep it that way.
 | `lib/backup.test.ts` | Download backup: the real migrations in PGlite (Postgres inside the test), made-up rows in every table (a new table without sample rows fails the test) backed up and restored exactly, every Storage bucket the code uses covered (a new one fails until it's added to the backup), id counters moved on, a restore into a non-empty database changing nothing; the zip holding the `.sql` and every picture byte for byte, dated on Manila's clock (meaningful under UTC, as in CI), recorded only when complete |
 | `lib/month-close.test.ts` | Closing the made-up August (PGlite): everyone's Final saved as their closing balance (the worked example's, ₱0.02 over from the Ice Maker), the month locked; refused, writing nothing, while a bill is pending, an "I paid" waits or the month before is open; the Finals becoming the next month's openings; refused when someone left out of the next month still has a balance |
 | `lib/month-start.test.ts` | Starting September from August (PGlite): every bill column copied at ₱0 with its split, payer and points (all-zero points → 1 each), only Advances Shared, no view-only login; opening on ₱0 after an open month and on the closing balances after a closed one; refused while an "I paid" waits or someone who moved out has a balance; a dry run writing nothing |
-| `lib/periods.test.ts` | Carry-over between months (PGlite): a month opening with the open month before's Finals (after its payments), worked out live; the stored openings once the month before is closed; what's still carried over after a partial payment (waiting and rejected "I paid"s not counted), never below ₱0 for someone who's owed; last month's bill paid in a later month, and capped by what they owe overall now |
+| `lib/periods.test.ts` | Carry-over between months (PGlite): a month opening with the open month before's Finals (after its payments), worked out live; the stored openings once the month before is closed; what's still carried over after a partial payment (waiting and rejected "I paid"s not counted), never below ₱0 for someone who's owed; last month's bill paid in a later month (or paid back by the House Budget), and capped by what they owe overall now |
 | `lib/bill-import.test.ts` | Bill emails into pending bills (PGlite): Meralco by points and Water equally with their fees, worked out by hand; the same email or a second one for the same bill doing nothing; never overwriting an amount; staying in the inbox with the reason (month not started, closed, no column, split by hand) and importing on Retry; an unreadable email kept with its snippet |
 | `lib/reminder-send.test.ts` | The daily job (PGlite, emails and pushes caught): each month-end reminder once, not to the collector or someone without an email; a failed one retried the next run; pushes only after the email; nothing recorded off the live site; the next month started (or only checked off the live site), the admin told once when it can't; unpaid follow-ups on their days, the old time put back when one fails, none once paid |
 | `lib/seen-route.test.ts` | `/api/seen` marking bill emails seen (PGlite): only the caller's own bill and "bills are in" emails, only those sent before the page was drawn, none from the every-page ping, the first look kept and a resend marked again, nothing without a login |
@@ -46,6 +46,29 @@ keep it that way.
 Money or rule changes: update the expectations in `lib/settlement.test.ts` (and the worked
 example in `docs/settlement-rules.md`). Work the new values out by hand from the rules — never
 copy them from the app's output, or the test only checks the app against itself.
+
+## When a change needs a test
+
+Part of every change, in the same PR. The **test-keeper** agent (`.claude/agents/test-keeper.md`)
+checks it before every PR. Old tests still passing proves nothing about new behaviour.
+
+- **Logic in `lib/`** (money, who may do what, dates, what a page, email or push says): a new or
+  changed expectation in that file's `*.test.ts`. Logic that's hard to test inside a component
+  moves to `lib/` first.
+- **Database writes** (closing or starting a month, bill imports, the daily job, a route that
+  saves something): a [database test](#database-tests) on PGlite.
+- **Guard lists:** a new Server Action or Route Handler goes in `lib/actions-guard.test.ts`, and
+  a new table or Storage bucket in `lib/backup.test.ts`. Both fail until it's added.
+- **No test needed:** layout and styling, wording-only changes in components, loading that
+  passes values through, renames. Paul checks pages in the browser. Say so in the PR's test
+  plan.
+
+A good test:
+- has expected values worked out by hand from the rules or the feature's page;
+- uses only the made-up August people and amounts, and never reaches the live database or
+  another service;
+- **can fail**: break the code it checks once on purpose, see the test go red, then put the
+  code back.
 
 ## Database tests
 
