@@ -140,8 +140,9 @@ Part of every change, in the same PR — not a separate chore.
   which wipes what was typed.
 - Pre-PR: `npm run typecheck`, `npm run lint`, `npm test` (CI runs the same three on every PR:
   `.github/workflows/checks.yml`). Then the review agents in `.claude/agents/`: **docs-keeper**
-  always, **money-reviewer** when money files or the schema changed. They only report; fix what
-  they find before committing.
+  always, **money-reviewer** when the schema or any file doing money math (`toCentavos` /
+  `fromCentavos` / `sumCentavos` / `Centavos`) changed. They only report; fix what they find
+  before committing.
 - **Parallel sessions: one task, one worktree, one dev server, one PR.** Paul runs several Claude
   sessions at once, each on a different task. Each works in its own worktree (a folder next to
   the main one, on its own branch from GitHub's `main`) and raises its own PR

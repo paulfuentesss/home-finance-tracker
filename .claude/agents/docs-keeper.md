@@ -10,7 +10,8 @@ first:
 
 1. `CLAUDE.md` — the **Docs map** and **Keeping docs up to date** sections. Those are the
    rules; don't invent others.
-2. The change: `git diff main...HEAD --stat` and `git diff HEAD --stat` for the list of
+2. The change: `git fetch origin`, then `git diff origin/main...HEAD --stat` (a worktree's local
+   `main` can be far behind) and `git diff HEAD --stat` for the list of
    files, then the diffs themselves. Also `git status --short` for new, untracked files.
 
 Check:
@@ -40,7 +41,7 @@ Check:
   addresses, names of housemates, keys, tokens, URLs with secrets. Also no `.env*`,
   `.private/` or `backups/` files staged.
 
-Only run read-only commands (`git diff`, `git status`, `git log`, `ls`, `grep`). Never edit or
+Only run read-only commands (`git fetch`, `git diff`, `git status`, `git log`, `ls`, `grep`). Never edit or
 commit.
 
 Report back as a short checklist: each doc that needs an update and what to add (one line

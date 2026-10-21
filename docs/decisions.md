@@ -1138,3 +1138,15 @@ show everyone who can open the month.
 **Instead of:** opening the breakdown from the chart (a thin slice of a bar is too small to tap on
 a phone, and a computer's hover box can't be clicked into), or in a dialog (it covers the page and
 hides the totals being explained).
+
+## 2026-10-22 — The money review follows the money, not a file list
+**Decision:** `money-reviewer` runs whenever the schema or any file doing money math changes (it
+uses `toCentavos`, `fromCentavos`, `sumCentavos` or `Centavos`), and it reads new files too, not
+only the diff. Outside `lib/settlement.ts`, code may add up, average and show money but never
+split it into shares. The month-to-month carry-over and "what's still owed" (`computePeriod`,
+`payablesIn`), including a bill paid in a later month, have their own tests
+(`lib/periods.test.ts`).
+**Instead of:** a fixed list (`settlement.ts`, `money.ts`, the schema, fixtures, how-it-works).
+**Why:** money math had spread to periods, Helper, Trends, advances, reminders and Settle Up,
+and a change to any of them went without a money review. The carry-over decides what the bill
+emails and the "you still owe" banner say, but was only tested on the way to something else.

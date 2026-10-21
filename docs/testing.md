@@ -6,8 +6,8 @@
 database or React: the money math and rules are pure code in `lib/`. The exceptions are all
 still offline: `invites.test.ts` runs `lib/invites.ts` against a fake database and a fake
 Supabase, `actions-guard.test.ts` reads the source files, and the [database tests](#database-tests)
-(`backup`, `month-close`, `month-start`, `bill-import`, `reminder-send`) run a real Postgres in
-memory (PGlite), never the live database.
+(`backup`, `month-close`, `month-start`, `periods`, `bill-import`, `reminder-send`,
+`seen-route`) run a real Postgres in memory (PGlite), never the live database.
 
 **CI:** GitHub Actions runs `npm run typecheck`, `npm run lint`, `npm test` and a production
 build (`npm run build`, with placeholder settings) on every pull request and every push to main
@@ -35,6 +35,7 @@ keep it that way.
 | `lib/backup.test.ts` | Download backup: the real migrations in PGlite (Postgres inside the test), made-up rows in every table (a new table without sample rows fails the test) backed up and restored exactly, every Storage bucket the code uses covered (a new one fails until it's added to the backup), id counters moved on, a restore into a non-empty database changing nothing; the zip holding the `.sql` and every picture byte for byte, dated on Manila's clock (meaningful under UTC, as in CI), recorded only when complete |
 | `lib/month-close.test.ts` | Closing the made-up August (PGlite): everyone's Final saved as their closing balance (the worked example's, ₱0.02 over from the Ice Maker), the month locked; refused, writing nothing, while a bill is pending, an "I paid" waits or the month before is open; the Finals becoming the next month's openings; refused when someone left out of the next month still has a balance |
 | `lib/month-start.test.ts` | Starting September from August (PGlite): every bill column copied at ₱0 with its split, payer and points (all-zero points → 1 each), only Advances Shared, no view-only login; opening on ₱0 after an open month and on the closing balances after a closed one; refused while an "I paid" waits or someone who moved out has a balance; a dry run writing nothing |
+| `lib/periods.test.ts` | Carry-over between months (PGlite): a month opening with the open month before's Finals (after its payments), worked out live; the stored openings once the month before is closed; what's still carried over after a partial payment (waiting and rejected "I paid"s not counted), never below ₱0 for someone who's owed; last month's bill paid in a later month, and capped by what they owe overall now |
 | `lib/bill-import.test.ts` | Bill emails into pending bills (PGlite): Meralco by points and Water equally with their fees, worked out by hand; the same email or a second one for the same bill doing nothing; never overwriting an amount; staying in the inbox with the reason (month not started, closed, no column, split by hand) and importing on Retry; an unreadable email kept with its snippet |
 | `lib/reminder-send.test.ts` | The daily job (PGlite, emails and pushes caught): each month-end reminder once, not to the collector or someone without an email; a failed one retried the next run; pushes only after the email; nothing recorded off the live site; the next month started (or only checked off the live site), the admin told once when it can't; unpaid follow-ups on their days, the old time put back when one fails, none once paid |
 | `lib/seen-route.test.ts` | `/api/seen` marking bill emails seen (PGlite): only the caller's own bill and "bills are in" emails, only those sent before the page was drawn, none from the every-page ping, the first look kept and a resend marked again, nothing without a login |
@@ -48,8 +49,8 @@ copy them from the app's output, or the test only checks the app against itself.
 
 ## Database tests
 
-The riskiest writes — closing a month, starting the next, a bill email, the daily job — run
-against a real Postgres: PGlite, Postgres inside the test process, with every migration in
+The riskiest writes (closing a month, starting the next, a bill email, the daily job) and the
+month-to-month carry-over run against a real Postgres: PGlite, Postgres inside the test process, with every migration in
 `drizzle/` applied. Nothing can reach the live database, and CI needs no secrets.
 
 - **`lib/test-db.ts`**: `testDatabase()` is the test file's one database (migrated once, the slow
