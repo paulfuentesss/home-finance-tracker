@@ -10,15 +10,26 @@
   an id that isn't one of the month's columns is dropped by a redirect).
   Each person's group starts closed; a search or filter opens them all so matches show, and
   they can still be closed (or Expand / Collapse all) until the filters change.
-  Bills paid show as read-only "Bills" rows (they're not stored as advances, so
-  nothing counts twice). The Helper, once its visits are logged, shows one row per person who
-  paid her ([helper.md](helper.md)).
+  Bills paid show as read-only rows in the Bills category (they're not stored as advances, so
+  nothing counts twice); their Column cell reads "Own column" in plain text, since each bill is
+  split in its own column on the Split Table. The bills filter is the Category one.
+  The Helper, once its visits are logged, shows one row per person who paid her
+  ([helper.md](helper.md)).
 - Log, edit (payer, category, description, amount, date, column) and delete advances;
   "Save & add another" for entering many receipts in a row.
 - **Who can log what** ([auth.md](auth.md)): PA logs, edits and deletes any advance. Everyone
   else logs their own into the default column (Advances Shared), and can edit or delete it
   while it's still there — once PA moves it to another column, it's PA's.
-- **Advances Report:** per-person totals.
+- **Advances Report** (`components/advances-report.tsx`): the log added up two ways, both
+  totals equal to the log's total with no filters (bills paid count as advances, as in Own Adv):
+  - *Advances by Category:* Bills (confirmed bills, the header's Total core bills), then each
+    advance category (together the header's Shared advances), and their Total.
+  - *Out-of-Pocket by Person:* each person's advances plus bills paid (Own Adv in the Split
+    Table; greyed at ₱0), and their Total — the same as each person's group total in the log.
+  When the month's numbers can't be computed (no settlement rows), the per-person amounts and
+  their Total show "—" rather than ₱0.
+- Each person's group header in the log shows their total (of the rows shown, so with no
+  filters it's their Out-of-Pocket by Person), and the log's total is labelled "Total".
 - Each advance goes into a **shared column** — usually Advances Shared (everyone); situational
   columns (e.g. "w/o PA", a Manual adjustment) are added in Manage.
 

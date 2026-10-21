@@ -38,7 +38,7 @@ const CATEGORY_PILLS: Record<LogRow["category"], { label: string; className: str
   food: { label: CATEGORY_LABELS.food, className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
   service: { label: CATEGORY_LABELS.service, className: "bg-sky-50 text-sky-700 ring-sky-200" },
   misc: { label: CATEGORY_LABELS.misc, className: "bg-zinc-100 text-zinc-700 ring-zinc-200" },
-  bills: { label: "Bills", className: "bg-violet-50 text-violet-700 ring-violet-200" },
+  bills: { label: "Bills", className: BILLS_COLOR },
 };
 
 /**
@@ -145,12 +145,9 @@ export function AdvancesLog({ view }: { view: PeriodView }) {
   const groups = useMemo(() => groupLogRows(rows, filtered, view.members), [rows, filtered, view.members]);
   const oneOffs = useMemo(() => oneOffColumns(view.columns), [view.columns]);
   const oneOffColors = useMemo(() => oneOffColumnColors(oneOffs), [oneOffs]);
+  // Bill rows have no chip (SplitChip shows them as plain text).
   const chipColor = (tag: LogRow["split"]) =>
-    tag.kind === "bill"
-      ? BILLS_COLOR
-      : tag.kind === "everyone"
-        ? EVERYONE_COLOR
-        : (oneOffColors.get(tag.columnId ?? -1) ?? EVERYONE_COLOR);
+    tag.kind === "everyone" ? EVERYONE_COLOR : (oneOffColors.get(tag.columnId ?? -1) ?? EVERYONE_COLOR);
   const defaultColumn = view.columns.find((c) => c.isDefault);
   const oneOffLegend = oneOffs.map((c) => ({
     id: c.id,
@@ -267,7 +264,7 @@ export function AdvancesLog({ view }: { view: PeriodView }) {
             </Button>
           )}
           <span className="ml-auto text-xs text-muted-foreground">
-            {isFiltered ? `${filtered.length} of ${rows.length}` : `${rows.length} entries`} ·{" "}
+            {isFiltered ? `${filtered.length} of ${rows.length}` : `${rows.length} entries`} · Total{" "}
             <span className="font-mono font-medium text-foreground">{formatPHP(sumCentavos(filtered.map((r) => r.amount)))}</span>
           </span>
         </div>
@@ -275,7 +272,7 @@ export function AdvancesLog({ view }: { view: PeriodView }) {
           <span className="shrink-0 py-0.5 font-medium text-foreground">Column:</span>
           <ul className="grid flex-1 gap-x-6 gap-y-1.5 sm:grid-cols-2">
             <Legend color={EVERYONE_COLOR} label={defaultColumn?.name ?? "Advances Shared"} text="everyday, split by all — every month" />
-            <Legend color={BILLS_COLOR} label="Bills" text="paid to the provider" />
+            <Legend label="Own column" text="bills, each split in its own column on the Split Table" />
             {oneOffLegend.map((c) => (
               <Legend key={c.id} color={oneOffColors.get(c.id) ?? EVERYONE_COLOR} label={c.name} text={c.text} />
             ))}
@@ -369,6 +366,8 @@ function PersonGroup({
             <span className="text-xs text-muted-foreground">
               {group.rows.length} item{group.rows.length === 1 ? "" : "s"}
             </span>
+            {/* What's shown, so with no filters it's their Out-of-Pocket by Person. */}
+            <span className="ml-auto font-mono font-semibold tabular-nums">{formatPHP(group.subtotal)}</span>
           </button>
         </th>
       </tr>
@@ -436,7 +435,15 @@ function PersonGroup({
   );
 }
 
+// A bill isn't in an advance column, so it gets plain text rather than a second "Bills" pill.
 function SplitChip({ tag, color }: { tag: LogRow["split"]; color: string }) {
+  if (tag.kind === "bill") {
+    return (
+      <span title={tag.hint} className="text-xs whitespace-nowrap text-muted-foreground">
+        {tag.label}
+      </span>
+    );
+  }
   return (
     <span
       title={tag.hint}
@@ -447,10 +454,16 @@ function SplitChip({ tag, color }: { tag: LogRow["split"]; color: string }) {
   );
 }
 
-function Legend({ color, label, text }: { color: string; label: string; text: string }) {
+/** Without a color, the label is plain text (how bill rows show their column). */
+function Legend({ color, label, text }: { color?: string; label: string; text: string }) {
   return (
     <li className="flex items-baseline gap-1.5">
-      <span className={cn("shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset", color)}>
+      <span
+        className={cn(
+          "shrink-0 py-0.5",
+          color ? cn("rounded-md px-1.5 text-[11px] font-medium ring-1 ring-inset", color) : "font-medium",
+        )}
+      >
         {label}
       </span>
       <span>{text}</span>

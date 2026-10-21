@@ -1082,3 +1082,17 @@ to install, so CI runs them too.
 into every function (`lib/reminder-send.ts` and friends read `db` directly; a mock swaps it
 without changing them). PGlite has one connection, so races (two crons at once) stay
 guard-tested rather than run.
+
+## 2026-10-21 — The Advances tab's totals tie out
+**Decision:** the Advances Report adds up the log two ways: the "Advances Shared Report" became
+"Advances by Category" with Bills as a row (bills paid count as advances, as in Own Adv), and
+Out-of-Pocket by Person got a Total; both equal the log's total. Each person's group in the log
+shows their total. Bill rows keep the "Bills" category pill, but their Column cell reads
+"Own column" in plain text, and the bills filter is the Category one (the Column filter lists
+only advance columns).
+**Why:** so housemates can see everything adds up without doing the math. Bill rows said
+"Bills" twice, and a bill isn't in an advance column: each has its own on the Split Table.
+The advances-only figure isn't lost: it's the header's "Shared advances", and with "Total core
+bills" beside it they make the same total.
+**Instead of:** a shared-advances-only card with "+ Bills paid / = Out-of-pocket" lines under it
+(tried first: it explained the gap, but treated bills as something other than an advance).
