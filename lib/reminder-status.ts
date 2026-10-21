@@ -13,7 +13,14 @@ import { toCentavos, type Centavos } from "@/lib/money";
 import { closeCheck, monthHasEnded, payablesCheck, type LockCheck } from "@/lib/month-lock";
 import { isAdmin, type Viewer } from "@/lib/permissions";
 import { computeForPayables, loadPeriods, payablesIn, pendingBillNames, waitingPaymentLabels } from "@/lib/periods";
-import { adminNudge, REMINDER_DAYS, type AdminNudge, type MonthEndReminder, type Payables } from "@/lib/reminders";
+import {
+  adminNudge,
+  REMINDER_DAYS,
+  seenAfter,
+  type AdminNudge,
+  type MonthEndReminder,
+  type Payables,
+} from "@/lib/reminders";
 
 export interface BillNotice {
   year: number;
@@ -131,6 +138,8 @@ export interface EmailStatus {
     sentOn: string | null;
     /** When they last got the "still unpaid" follow-up since that bill email ("Nov. 3"), or null. */
     remindedOn: string | null;
+    /** When they first opened a month page after that bill email ("Nov. 1"), or null. */
+    seenOn: string | null;
   }[];
   /** View-only logins, who get a "the bills are in" note with the first bill email. */
   viewOnly: {
@@ -139,6 +148,8 @@ export interface EmailStatus {
     hasEmail: boolean;
     /** When they were sent this month's note ("Oct. 31"), or null if never. */
     sentOn: string | null;
+    /** When they first opened a month page after that note ("Nov. 1"), or null. */
+    seenOn: string | null;
   }[];
   /** When the bill was last emailed for this month ("Oct. 31, 2026, 9:14 AM"). */
   payablesSentAt: string | null;
@@ -157,7 +168,12 @@ export async function getEmailStatus(viewer: Viewer, year: number, month: number
   const computed = await computeForPayables(db, year, month);
   if (!computed) return null;
   const sends = await db
-    .select({ kind: reminderSends.kind, memberId: reminderSends.memberId, sentAt: reminderSends.sentAt })
+    .select({
+      kind: reminderSends.kind,
+      memberId: reminderSends.memberId,
+      sentAt: reminderSends.sentAt,
+      seenAt: reminderSends.seenAt,
+    })
     .from(reminderSends)
     .where(
       and(
@@ -168,14 +184,17 @@ export async function getEmailStatus(viewer: Viewer, year: number, month: number
     .orderBy(desc(reminderSends.sentAt));
   const payables = sends.find((s) => s.kind === "payables");
   const reminder = sends.find((s) => s.kind in REMINDER_DAYS);
-  const sendOf = (kind: "payables" | "unpaid", memberId: number) =>
-    sends.find((s) => s.kind === kind && s.memberId === memberId)?.sentAt;
+  const sendOf = (kind: "payables" | "unpaid" | "bills_in", memberId: number) =>
+    sends.find((s) => s.kind === kind && s.memberId === memberId);
   // A follow-up from before the bill was sent again belongs to the old send: not shown.
   const remindedOn = (memberId: number) => {
-    const bill = sendOf("payables", memberId);
-    const reminded = sendOf("unpaid", memberId);
+    const bill = sendOf("payables", memberId)?.sentAt;
+    const reminded = sendOf("unpaid", memberId)?.sentAt;
     return bill && reminded && reminded > bill ? billSentOn(reminded) : null;
   };
+  // Likewise, a "seen" from before a resend.
+  const seenOn = (send: (typeof sends)[number] | undefined) =>
+    send ? billSentOn(seenAfter(send.sentAt, send.seenAt) ?? undefined) : null;
   const housemates = computed.period.balances
     .map((b) => b.member)
     .filter((m) => !m.isCollector && sharesCosts(m))
@@ -192,14 +211,16 @@ export async function getEmailStatus(viewer: Viewer, year: number, month: number
       name: m.name,
       hasEmail: Boolean(m.email),
       payables: payablesIn(computed, m.id)?.payables ?? null,
-      sentOn: billSentOn(sendOf("payables", m.id)),
+      sentOn: billSentOn(sendOf("payables", m.id)?.sentAt),
       remindedOn: remindedOn(m.id),
+      seenOn: seenOn(sendOf("payables", m.id)),
     })),
     viewOnly: viewOnly.map((m) => ({
       memberId: m.id,
       name: m.name,
       hasEmail: Boolean(m.email),
-      sentOn: billSentOn(sends.find((s) => s.kind === "bills_in" && s.memberId === m.id)?.sentAt),
+      sentOn: billSentOn(sendOf("bills_in", m.id)?.sentAt),
+      seenOn: seenOn(sendOf("bills_in", m.id)),
     })),
     payablesSentAt: payables ? momentLabel(payables.sentAt) : null,
     lastReminder: reminder ? { kind: reminder.kind as MonthEndReminder, sentAt: momentLabel(reminder.sentAt) } : null,

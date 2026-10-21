@@ -162,6 +162,13 @@
       "when": 1792156902477,
       "tag": "0022_push-subscriptions",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1792595493789,
+      "tag": "0023_bill-seen",
+      "breakpoints": true
     }
   ]
 }

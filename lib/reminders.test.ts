@@ -7,6 +7,7 @@ import {
   lastDayOf,
   payablesOf,
   reminderDue,
+  seenAfter,
   unpaidReminderDue,
 } from "@/lib/reminders";
 
@@ -106,6 +107,21 @@ describe("unpaidReminderDue", () => {
     const morning = new Date("2026-10-31T23:30:00Z");
     expect(unpaidReminderDue({ billSentAt: morning, lastReminderAt: null, today: "2026-11-03" })).toBe(false);
     expect(unpaidReminderDue({ billSentAt: morning, lastReminderAt: null, today: "2026-11-04" })).toBe(true);
+  });
+});
+
+describe("seenAfter", () => {
+  const sent = new Date("2026-10-31T01:00:00Z");
+
+  it("is the seen time only once it's at or after the send", () => {
+    expect(seenAfter(sent, null)).toBeNull();
+    const after = new Date("2026-11-01T02:00:00Z");
+    expect(seenAfter(sent, after)).toBe(after);
+    expect(seenAfter(sent, sent)).toBe(sent);
+  });
+
+  it("drops a seen from before the bill was sent again", () => {
+    expect(seenAfter(sent, new Date("2026-10-30T12:00:00Z"))).toBeNull();
   });
 });
 

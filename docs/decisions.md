@@ -1083,6 +1083,24 @@ into every function (`lib/reminder-send.ts` and friends read `db` directly; a mo
 without changing them). PGlite has one connection, so races (two crons at once) stay
 guard-tested rather than run.
 
+## 2026-10-21 — "Seen" on the bill-email box means "opened a month page since"
+**Decision:** the bill-email box on Settle Up shows "· seen Nov. 1" once a housemate (or view-only
+login) has opened a My House month page after their bill email, or "· not seen yet"
+([reminders.md](features/reminders.md)). The month page reports it from the browser once it's on
+screen (`BillSeen` → `/api/seen`), with the time the server drew it (`drawnAt`); only emails sent
+before that count. Bills already sent when this shipped were filled in from each member's latest
+`member_devices` visit, so their date is the latest visit, not the first. Housemates aren't told
+on screen, like Last seen (PA's choice, 2026-10-12).
+**Why:** PA wants to know whether the bill reached them. Every month page shows "Your bill is
+ready: ₱X to pay" while they owe, and a login is needed, so a month page opened after the send
+means they've seen it. Reporting from the browser counts only a page actually shown; `drawnAt`
+leaves out a page from before the send (an old tab coming back, back/forward).
+**Instead of:** email open tracking (a hidden image: Apple Mail "opens" everything itself, others
+block images, and it's spying on housemates); writing it while the server draws the page (a link
+prefetch draws it without anyone seeing it); the every-page Last seen ping (an old tab coming back
+into view may show a page from before the bill); flagging bounced emails (they land in the
+household Gmail; not worth it for a handful of fixed addresses).
+
 ## 2026-10-21 — The Advances tab's totals tie out
 **Decision:** the Advances Report adds up the log two ways: the "Advances Shared Report" became
 "Advances by Category" with Bills as a row (bills paid count as advances, as in Own Adv), and
