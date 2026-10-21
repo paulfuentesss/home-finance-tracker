@@ -116,11 +116,14 @@ export function ReceiptsSkeleton() {
   );
 }
 
-/** Helper: the summary card (two totals: rows on phones, side by side from sm up), then the visits. */
+/** Helper: the two totals (one card of two rows on phones, two cards from sm up), then the visits. */
 export function HelperSkeleton() {
   return (
     <Loading className="space-y-6">
-      <Block className="h-30 rounded-xl" />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Block className="h-30 rounded-xl sm:h-36" />
+        <Block className="hidden h-36 rounded-xl sm:block" />
+      </div>
       <CardSkeleton rows={6} />
     </Loading>
   );
