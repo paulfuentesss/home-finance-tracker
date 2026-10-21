@@ -443,7 +443,10 @@ export const householdSettings = pgTable(
 // next day's run retries it. A payables row is rewritten on each resend, and tells the
 // housemate's pages their bill is out. Written only by the live site (lib/email.ts), so a test
 // on localhost — same database — never marks a real reminder as sent. Only a log: deleting a
-// month or a member deletes their rows.
+// month or a member deletes their rows. `seen_at` (a payables / bills_in row only): when that
+// member first opened a month page after it was sent, written by /api/seen for the caller's own
+// rows; it counts only while it's after `sent_at` (lib/reminders.ts → seenAfter), so a resend
+// shows "not seen yet" again.
 export const reminderSends = pgTable(
   "reminder_sends",
   {
@@ -456,6 +459,7 @@ export const reminderSends = pgTable(
       .notNull()
       .references(() => members.id, { onDelete: "cascade" }),
     sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
+    seenAt: timestamp("seen_at", { withTimezone: true }),
   },
   (t) => [
     uniqueIndex("reminder_sends_period_kind_member").on(t.periodId, t.kind, t.memberId),

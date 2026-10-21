@@ -116,7 +116,8 @@ Part of every change, in the same PR — not a separate chore.
     anything else, and each the only reader of it: `/api/bill-email` (the Gmail script,
     `BILL_EMAIL_SECRET`) and `/api/reminders` (Vercel's daily cron, `CRON_SECRET`).
   - `/api/seen` (who's using My House) checks the login first and writes only the caller's own
-    `member_devices` row — the real viewer, never a preview's housemate (guard-tested).
+    `member_devices` row, and from a month page the caller's own bill emails' `seen_at` — the real
+    viewer, never a preview's housemate (guard-tested).
   - **Emails** go out only through `lib/email.ts` (the only reader of `GMAIL_SMTP_APP_PASSWORD`).
     Only the live site emails housemates and writes `reminder_sends`; localhost redirects every
     email to `EMAIL_TEST_TO` — keep it that way (one database: `docs/features/reminders.md`).

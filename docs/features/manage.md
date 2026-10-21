@@ -85,6 +85,8 @@
   route checks the real login first (never a preview's housemate; view-only logins count), writes
   only the caller's row, and updates `last_seen_at` only if it's over 5 minutes old. The Manage
   page summarizes the rows (`summarizeDevices`, `seenLabel`, Manila time) and sends only text.
+  The same route marks bill emails seen, for the bill-email box on Settle Up
+  ([reminders.md](reminders.md), "Seen").
 - Tables: `members`, `bill_items`, `bill_item_shares`, `shared_columns`,
   `shared_column_members`, `period_balances`, `member_devices`, `household_settings`.
 

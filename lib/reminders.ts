@@ -70,6 +70,15 @@ export function unpaidReminderDue({
   return daysBetween(dateInManila(billSentAt), today) >= UNPAID_REMINDER_DAYS.first;
 }
 
+/**
+ * When a housemate (or view-only login) saw the email sent at `sentAt` — opened a month page
+ * after it — or null if they haven't yet. A "seen" from before a resend belongs to the old send,
+ * so it stops counting without being cleared.
+ */
+export function seenAfter(sentAt: Date, seenAt: Date | null): Date | null {
+  return seenAt && seenAt >= sentAt ? seenAt : null;
+}
+
 /** A housemate's payment with the House Budget, in the bill's month or a later one. */
 export interface PaymentSince {
   amount: Centavos;
