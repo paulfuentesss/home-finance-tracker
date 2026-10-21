@@ -214,8 +214,9 @@ export function WhereItWent({
 
 /**
  * An open row's items, then those of each month shown but not counted ("so far", outside the
- * totals). Always real amounts (a purchase, a month's bill), even with Monthly avg picked. Hide
- * closes it from the bottom, handy once a long list has pushed the row's chevron off screen.
+ * totals; a bill's are just its month lines, tagged). Always real amounts (a purchase, a month's
+ * bill), even with Monthly avg picked. Hide closes it from the bottom, handy once a long list has
+ * pushed the row's chevron off screen.
  */
 function RowItems({ row, onHide }: { row: BreakdownRow; onHide: () => void }) {
   const dated = row.kind === "advance";
@@ -229,7 +230,21 @@ function RowItems({ row, onHide }: { row: BreakdownRow; onHide: () => void }) {
   return (
     <div className="rounded-lg bg-zinc-50 p-3 text-xs animate-in fade-in duration-200">
       <ItemList items={row.items} dated={dated} />
-      {soFarMonths.map((items) => (
+      {/* A bill's lines are its months already, so a heading would only repeat the month. */}
+      {row.kind === "bill" && row.soFar.length > 0 && (
+        <ul className="mt-3 grid gap-1.5 border-t pt-3">
+          {row.soFar.map((item) => (
+            <li key={`${item.year}-${item.month}`} className="flex items-baseline gap-3">
+              <span className="min-w-0 flex-1">
+                {item.label}
+                <span className="text-muted-foreground"> · not counted yet</span>
+              </span>
+              <span className="font-mono tabular-nums">{formatPHP(item.amount)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {row.kind !== "bill" && soFarMonths.map((items) => (
         <div key={`${items[0].year}-${items[0].month}`} className="mt-3 border-t pt-3">
           <p className="mb-1.5">
             <span className="font-medium">{spanLabel([items[0]])} so far</span>
@@ -238,7 +253,7 @@ function RowItems({ row, onHide }: { row: BreakdownRow; onHide: () => void }) {
           <ItemList items={items} dated={dated} />
           {items.length > 1 && (
             <div className="mt-1.5 flex items-baseline justify-between gap-3 font-medium">
-              So far
+              Total
               <span className="font-mono tabular-nums">{formatPHP(sumCentavos(items.map((i) => i.amount)))}</span>
             </div>
           )}
