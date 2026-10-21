@@ -55,8 +55,9 @@
     to the row's Total; always real amounts, even with Monthly avg picked. A bill over one month
     has nothing to open. Open rows close when a range switch changes the months.
   - **So far:** under the counted items, an open row also lists the months shown but not counted
-    ("Oct 2026 so far · not counted yet", with a So far sum): the faded months on 3 or 6 months,
-    or the month 1 month stepped over. Off the totals, so this month's purchases can be looked at
+    ("Oct 2026 so far · not counted yet", with a Total under two or more; a bill, whose lines
+    are already months, just adds "Oct 2026 · not counted yet"): the faded months on 3 or 6
+    months, or the month 1 month stepped over. Off the totals, so this month's purchases can be looked at
     before its bills are in. A bill shows a month's line only once that bill is confirmed. Only
     under rows the table has: something bought only in a month still coming in has no row yet
     (the Advances tab shows it). Not when the range has no complete month (`partial`): those months

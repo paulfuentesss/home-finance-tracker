@@ -457,7 +457,7 @@ export default async function HowItWorksPage() {
             that&apos;s higher than usual, and the biggest single purchases, to help us spend wiser. A month whose
             bills aren&apos;t all in yet shows faded and isn&apos;t counted until they are, so it doesn&apos;t look
             cheaper than it was. You can still see what&apos;s been bought in it so far: open a line in Where it went
-            and it&apos;s listed under the rest, marked &ldquo;so far&rdquo;.
+            and it&apos;s listed under the rest, marked &ldquo;not counted yet&rdquo;.
           </p>
         </>
       ),
