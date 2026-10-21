@@ -1,16 +1,17 @@
 "use client";
 
 import { Pencil } from "lucide-react";
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { deleteHelperEntry } from "@/app/periods/[year]/[month]/actions";
 import { ConfirmDeleteButton } from "@/components/confirm-button";
 import { EmptyState } from "@/components/empty-state";
 import { AddHelperEntryDialog, EditHelperEntryDialog } from "@/components/entry-dialogs";
+import { InfoPopover } from "@/components/info-popover";
 import { Button } from "@/components/ui/button";
 import { useViewer } from "@/components/viewer-context";
 import { dayLabel } from "@/lib/format";
 import { countsInBill } from "@/lib/helper";
-import { formatPHP } from "@/lib/money";
+import { formatPHP, type Centavos } from "@/lib/money";
 import { canLogIn, canManageHelperEntry, isAdmin, isViewOnly } from "@/lib/permissions";
 import type { PeriodView, ViewHelperEntry } from "@/lib/periods";
 import { cn } from "@/lib/utils";
@@ -20,6 +21,35 @@ const KIND_PILLS: Record<ViewHelperEntry["kind"], { label: string; className: st
   early_pay: { label: "Early pay", className: "bg-amber-50 text-amber-700 ring-amber-200" },
   opening: { label: "From the sheet", className: "bg-zinc-100 text-zinc-700 ring-zinc-200" },
 };
+
+/**
+ * One figure of the summary card. On phones it's a row (label and caption left, amount right), so the
+ * card doesn't repeat the header's two chips just above it; from `sm` up the two sit side by side.
+ */
+function HelperFigure({
+  label,
+  value,
+  caption,
+  info,
+}: {
+  label: string;
+  value: Centavos;
+  caption: string;
+  info: ReactNode;
+}) {
+  return (
+    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 px-4 py-3 sm:block sm:p-5">
+      <div className="flex items-center gap-1 text-muted-foreground">
+        <h2 className="text-sm font-medium">{label}</h2>
+        {info}
+      </div>
+      <p className="col-start-2 row-span-2 row-start-1 font-mono text-xl font-semibold whitespace-nowrap tabular-nums sm:mt-1 sm:text-2xl">
+        {formatPHP(value)}
+      </p>
+      <p className="mt-0.5 text-xs text-muted-foreground sm:mt-1 sm:text-sm">{caption}</p>
+    </div>
+  );
+}
 
 // The Helper tab (docs/features/helper.md): her visits and early pay, like the sheet's two
 // tables in one list, with what she owes after each.
@@ -47,32 +77,50 @@ export function HelperLog({ view }: { view: PeriodView }) {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <section className="rounded-xl border bg-white p-5 shadow-xs">
-          <h2 className="text-sm font-medium text-muted-foreground">She owes</h2>
-          <p className="mt-1 font-mono text-3xl font-semibold tabular-nums">{formatPHP(helper.owesNow)}</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Early pay not yet taken off her daily pay. {formatPHP(helper.owesAtStart)} at the start of this month.
-          </p>
-          {canAdd && admin && !helper.hasOpening && (
-            <div className="mt-3 flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
-              Moving over from the sheet?
-              <AddHelperEntryDialog view={view} kind="opening" />
-            </div>
-          )}
-        </section>
-        <section className="rounded-xl border bg-white p-5 shadow-xs">
-          <h2 className="text-sm font-medium text-muted-foreground">This month&apos;s Helper bill</h2>
-          <p className="mt-1 font-mono text-3xl font-semibold tabular-nums">
-            {formatPHP(typedTotal ?? helper.summary.handedOver)}
-          </p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {typedTotal !== null
-              ? "Typed in on the Split Table — no visits logged here yet."
-              : `Daily pay ${formatPHP(helper.summary.dailyPay)} + early pay ${formatPHP(helper.summary.earlyPay)} − taken off ${formatPHP(helper.summary.takenOff)}: what was handed to her, split equally. Whoever paid her gets it back.`}
-          </p>
-        </section>
-      </div>
+      {/* One compact card: two rows on phones, side by side from sm up; the breakdowns are in the ⓘ. */}
+      <section className="rounded-xl border bg-white shadow-xs">
+        <div className="grid divide-y sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+          <HelperFigure
+            label="She owes"
+            value={helper.owesNow}
+            caption={`${formatPHP(helper.owesAtStart)} at the start of the month`}
+            info={
+              <InfoPopover
+                label="She owes"
+                ariaLabel="About what she owes"
+                description="Early pay not yet taken off her daily pay, across all months."
+              />
+            }
+          />
+          <HelperFigure
+            label="Helper bill"
+            value={typedTotal ?? helper.summary.handedOver}
+            caption={typedTotal !== null ? "Typed in on the Split Table" : "This month, split equally"}
+            info={
+              typedTotal !== null ? (
+                <InfoPopover label="Helper bill" description="Typed in on the Split Table — no visits logged here yet." />
+              ) : (
+                <InfoPopover
+                  label="Helper bill"
+                  description="What was handed to her this month, split equally. Whoever paid her gets it back."
+                  lines={[
+                    { key: "daily", label: "Daily pay", value: formatPHP(helper.summary.dailyPay) },
+                    { key: "early", label: "Early pay", value: formatPHP(helper.summary.earlyPay) },
+                    { key: "off", label: "Taken off", value: `−${formatPHP(helper.summary.takenOff)}` },
+                  ]}
+                  total={formatPHP(helper.summary.handedOver)}
+                />
+              )
+            }
+          />
+        </div>
+        {canAdd && admin && !helper.hasOpening && (
+          <div className="flex flex-wrap items-center gap-x-2 border-t px-4 py-3 text-sm text-muted-foreground sm:px-5">
+            Moving over from the sheet?
+            <AddHelperEntryDialog view={view} kind="opening" />
+          </div>
+        )}
+      </section>
 
       <section className="overflow-hidden rounded-xl border bg-white shadow-xs">
         <div className="flex flex-wrap items-start justify-between gap-4 border-b p-5">

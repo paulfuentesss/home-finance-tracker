@@ -8,14 +8,16 @@ Replaces the Google Sheet's two Helper tables: her daily pay per visit, and her 
 ("Advanced Pay / Deducted / Remaining").
 
 - **Helper tab:** this month's visits and early pay in one list (date, amount, taken off,
-  handed over, who paid her, note, what she owes after each). Above it:
+  handed over, who paid her, note, what she owes after each). Above it, one summary card with
+  two figures, each with an ⓘ for the breakdown: side by side on wider screens, as two rows on
+  phones (so it doesn't repeat the header's two chips just above):
   - **She owes:** her debt now, across all months.
-  - **This month's Helper bill:** what was handed to her this month
+  - **Helper bill:** what was handed to her this month
     ([the rule](../settlement-rules.md#the-helper)).
 - **Log a visit:** date (optional: some have none, and a visit can be logged late, in another
   month), her daily pay, how much was taken off her debt (₱0 if none), and who paid her.
 - **Give early pay:** date, amount, and who gave it.
-- **Set starting debt** (PA, once — a link in the "She owes" card until it's set): the sheet's
+- **Set starting debt** (PA, once — a link under the summary card until it's set): the sheet's
   Remaining when the household moved over. It's added to her debt only, not split, because the
   sheet already settled it.
 - **Who can log what** ([auth.md](auth.md)): PA logs, edits and deletes anything. Everyone else

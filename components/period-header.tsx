@@ -1,9 +1,8 @@
-import { Info } from "lucide-react";
 import type { SidebarProps } from "@/components/app-sidebar";
+import { InfoPopover } from "@/components/info-popover";
 import { MonthStatsSlot, SectionTitle } from "@/components/period-nav";
 import type { PreviewChoice } from "@/lib/preview";
 import { monthLabel } from "@/lib/format";
-import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { formatPHP, type Centavos } from "@/lib/money";
 import { isAdmin, type Viewer } from "@/lib/permissions";
 import type { PeriodView } from "@/lib/periods";
@@ -92,35 +91,13 @@ function Stat({
     >
       <div className={cn("flex items-center gap-1 text-xs", accent ? "text-amber-700" : "text-muted-foreground")}>
         {label}
-        <Popover>
-          <PopoverTrigger
-            openOnHover
-            aria-label={`What's in ${label.toLowerCase()}`}
-            // The after: box is an invisible, larger tap area on touch screens; the icon looks the same.
-            className="relative rounded-full opacity-70 transition-opacity outline-none hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:after:absolute pointer-coarse:after:-inset-3 pointer-coarse:after:content-['']"
-          >
-            <Info className="size-3.5" />
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-64">
-            <div>
-              <PopoverTitle>{label}</PopoverTitle>
-              <PopoverDescription className="text-xs">{description}</PopoverDescription>
-            </div>
-            <ul className="divide-y text-xs">
-              {lines.map((line) => (
-                <li key={line.id} className="flex justify-between gap-3 py-1.5">
-                  <span>{line.label}</span>
-                  <span className="font-mono tabular-nums">{formatPHP(line.amount)}</span>
-                </li>
-              ))}
-              <li className="flex justify-between gap-3 py-1.5 font-semibold">
-                <span>Total</span>
-                <span className="font-mono tabular-nums">{formatPHP(value)}</span>
-              </li>
-            </ul>
-            {note && <p className="text-xs text-muted-foreground">{note}</p>}
-          </PopoverContent>
-        </Popover>
+        <InfoPopover
+          label={label}
+          description={description}
+          lines={lines.map((line) => ({ key: line.id, label: line.label, value: formatPHP(line.amount) }))}
+          total={formatPHP(value)}
+          note={note}
+        />
       </div>
       <div className="font-mono text-sm font-semibold tabular-nums">{formatPHP(value)}</div>
     </div>
