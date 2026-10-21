@@ -23,31 +23,43 @@ const KIND_PILLS: Record<ViewHelperEntry["kind"], { label: string; className: st
 };
 
 /**
- * One figure of the summary card. On phones it's a row (label and caption left, amount right), so the
- * card doesn't repeat the header's two chips just above it; from `sm` up the two sit side by side.
+ * One of the two totals. On phones it's a row of one shared card (label and short caption left,
+ * amount right, the breakdown in the ⓘ), so it doesn't repeat the header's two chips just above
+ * it. From `sm` up it's a card of its own with the full explanation in view, and no ⓘ.
  */
 function HelperFigure({
   label,
+  wideLabel = label,
   value,
   caption,
+  description,
   info,
+  children,
 }: {
   label: string;
+  wideLabel?: string;
   value: Centavos;
   caption: string;
+  description: string;
   info: ReactNode;
+  children?: ReactNode;
 }) {
   return (
-    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 px-4 py-3 sm:block sm:p-5">
+    <section className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 px-4 py-3 sm:block sm:rounded-xl sm:border sm:bg-white sm:p-5 sm:shadow-xs">
       <div className="flex items-center gap-1 text-muted-foreground">
-        <h2 className="text-sm font-medium">{label}</h2>
-        {info}
+        <h2 className="text-sm font-medium">
+          <span className="sm:hidden">{label}</span>
+          <span className="hidden sm:inline">{wideLabel}</span>
+        </h2>
+        <span className="flex sm:hidden">{info}</span>
       </div>
       <p className="col-start-2 row-span-2 row-start-1 font-mono text-xl font-semibold whitespace-nowrap tabular-nums sm:mt-1 sm:text-2xl">
         {formatPHP(value)}
       </p>
-      <p className="mt-0.5 text-xs text-muted-foreground sm:mt-1 sm:text-sm">{caption}</p>
-    </div>
+      <p className="mt-0.5 text-xs text-muted-foreground sm:hidden">{caption}</p>
+      <p className="mt-2 hidden text-sm text-muted-foreground sm:block">{description}</p>
+      {children && <div className="col-span-2 mt-2 sm:mt-3">{children}</div>}
+    </section>
   );
 }
 
@@ -77,50 +89,56 @@ export function HelperLog({ view }: { view: PeriodView }) {
 
   return (
     <div className="space-y-6">
-      {/* One compact card: two rows on phones, side by side from sm up; the breakdowns are in the ⓘ. */}
-      <section className="rounded-xl border bg-white shadow-xs">
-        <div className="grid divide-y sm:grid-cols-2 sm:divide-x sm:divide-y-0">
-          <HelperFigure
-            label="She owes"
-            value={helper.owesNow}
-            caption={`${formatPHP(helper.owesAtStart)} at the start of the month`}
-            info={
+      {/* Phones: one card, two rows. From sm up: two cards side by side (HelperFigure). */}
+      <div className="divide-y rounded-xl border bg-white shadow-xs sm:grid sm:grid-cols-2 sm:gap-4 sm:divide-y-0 sm:rounded-none sm:border-0 sm:bg-transparent sm:shadow-none">
+        <HelperFigure
+          label="She owes"
+          value={helper.owesNow}
+          caption={`${formatPHP(helper.owesAtStart)} at the start of the month`}
+          description={`Early pay not yet taken off her daily pay. ${formatPHP(helper.owesAtStart)} at the start of this month.`}
+          info={
+            <InfoPopover
+              label="She owes"
+              ariaLabel="About what she owes"
+              description="Early pay not yet taken off her daily pay, across all months."
+            />
+          }
+        >
+          {canAdd && admin && !helper.hasOpening && (
+            <div className="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
+              Moving over from the sheet?
+              <AddHelperEntryDialog view={view} kind="opening" />
+            </div>
+          )}
+        </HelperFigure>
+        <HelperFigure
+          label="Helper bill"
+          wideLabel="This month's Helper bill"
+          value={typedTotal ?? helper.summary.handedOver}
+          caption={typedTotal !== null ? "Typed in on the Split Table" : "This month, split equally"}
+          description={
+            typedTotal !== null
+              ? "Typed in on the Split Table — no visits logged here yet."
+              : `Daily pay ${formatPHP(helper.summary.dailyPay)} + early pay ${formatPHP(helper.summary.earlyPay)} − taken off ${formatPHP(helper.summary.takenOff)}: what was handed to her, split equally. Whoever paid her gets it back.`
+          }
+          info={
+            typedTotal !== null ? (
+              <InfoPopover label="Helper bill" description="Typed in on the Split Table — no visits logged here yet." />
+            ) : (
               <InfoPopover
-                label="She owes"
-                ariaLabel="About what she owes"
-                description="Early pay not yet taken off her daily pay, across all months."
+                label="Helper bill"
+                description="What was handed to her this month, split equally. Whoever paid her gets it back."
+                lines={[
+                  { key: "daily", label: "Daily pay", value: formatPHP(helper.summary.dailyPay) },
+                  { key: "early", label: "Early pay", value: formatPHP(helper.summary.earlyPay) },
+                  { key: "off", label: "Taken off", value: `−${formatPHP(helper.summary.takenOff)}` },
+                ]}
+                total={formatPHP(helper.summary.handedOver)}
               />
-            }
-          />
-          <HelperFigure
-            label="Helper bill"
-            value={typedTotal ?? helper.summary.handedOver}
-            caption={typedTotal !== null ? "Typed in on the Split Table" : "This month, split equally"}
-            info={
-              typedTotal !== null ? (
-                <InfoPopover label="Helper bill" description="Typed in on the Split Table — no visits logged here yet." />
-              ) : (
-                <InfoPopover
-                  label="Helper bill"
-                  description="What was handed to her this month, split equally. Whoever paid her gets it back."
-                  lines={[
-                    { key: "daily", label: "Daily pay", value: formatPHP(helper.summary.dailyPay) },
-                    { key: "early", label: "Early pay", value: formatPHP(helper.summary.earlyPay) },
-                    { key: "off", label: "Taken off", value: `−${formatPHP(helper.summary.takenOff)}` },
-                  ]}
-                  total={formatPHP(helper.summary.handedOver)}
-                />
-              )
-            }
-          />
-        </div>
-        {canAdd && admin && !helper.hasOpening && (
-          <div className="flex flex-wrap items-center gap-x-2 border-t px-4 py-3 text-sm text-muted-foreground sm:px-5">
-            Moving over from the sheet?
-            <AddHelperEntryDialog view={view} kind="opening" />
-          </div>
-        )}
-      </section>
+            )
+          }
+        />
+      </div>
 
       <section className="overflow-hidden rounded-xl border bg-white shadow-xs">
         <div className="flex flex-wrap items-start justify-between gap-4 border-b p-5">

@@ -335,7 +335,7 @@ const HELPER_FORMS: Record<
 
 /**
  * "Log a visit", "Give early pay" or (PA) "Set starting debt" on the Helper tab. The starting
- * debt is set once, so it's a link under the Helper tab's summary card rather than a button.
+ * debt is set once, so it's a link under "She owes" on the Helper tab rather than a button.
  */
 export function AddHelperEntryDialog({ view, kind }: Props & { kind: HelperKind }) {
   const [open, setOpen] = useState(false);
