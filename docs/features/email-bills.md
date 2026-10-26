@@ -38,7 +38,9 @@ counts as working once a real bill has arrived this way ([TODO.md](../TODO.md)).
    (`lib/bill-email/intake.ts`, tested in `intake.test.ts`; `lib/actions-guard.test.ts` checks
    the secret comes first). Only then `importBillEmail`.
 1. **Parse** — `lib/bill-email/parse.ts` (pure, tested in `parse.test.ts`): sender-domain
-   allow-list, the amount line per provider, dates, the bill month.
+   allow-list, the amount line per provider, dates, the bill month. Each value is read from
+   after its label (`field()`), whether it's plain, in a table cell or in `*bold*` (Manila
+   Water's layout since October 2026, which the parser didn't read before).
 2. **Fee** — `lib/bill-email/fees.ts` reads `BILL_PAYMENT_FEES` (`lib/household-config.ts`);
    the fee is stored on the email row so later setting changes don't touch old bills.
 3. **Import** — `importBillEmail` / `placeBill` in `lib/bill-import.ts`: records the email in

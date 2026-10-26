@@ -4,7 +4,7 @@ import {
   PLDT_AUGUST_2026,
   WATER_AUGUST_2026,
 } from "@/lib/bill-email/__fixtures__/august-2026-emails";
-import { billMonth, parseBillEmail, parseDate, providerOf, type BillEmail } from "@/lib/bill-email/parse";
+import { billMonth, field, parseBillEmail, parseDate, providerOf, type BillEmail } from "@/lib/bill-email/parse";
 
 describe("parseBillEmail — the August 2026 sample emails", () => {
   it("reads Meralco", () => {
@@ -57,6 +57,60 @@ describe("parseBillEmail — the August 2026 sample emails", () => {
       const result = parseBillEmail(email);
       expect(result.ok && [result.bill.year, result.bill.month]).toEqual([2026, 8]);
     }
+  });
+});
+
+describe("parseBillEmail — Manila Water's bold layout (since October 2026)", () => {
+  // Made-up values in the real layout: no table, every value in *bold*.
+  const WATER_BOLD: BillEmail = {
+    messageId: "<fixture-water-bold@example.test>",
+    from: "Manila Water <etaxforms@manilawater.com>",
+    subject: "Manila Water Invoice for the Month of October 2026",
+    receivedAt: "2026-10-25T22:14:00Z",
+    text: `*Dear Katubig,*
+
+We are pleased to share your official *Manila Water Invoice for October 2026*.
+Below is a summary of your monthly billing for your reference.
+
+Billing Date: *25 Oct 2026*
+Billing Period: *26 Sep 2026 to 25 Oct 2026*
+Contract Account Number (CAN): *00000000*
+Invoice Number: *XXX0000-0000000000*
+Consumption (cu.m.): *40*
+Total Amount Due: *PHP 1,234.56*
+Due Date: *02 Nov 2026*
+
+Please settle your account on or before the due date to avoid possible service disruptions.`,
+  };
+  const expected = {
+    ok: true,
+    bill: {
+      provider: "water",
+      amount: 123_456,
+      dueDate: "2026-11-02",
+      periodStart: "2026-09-26",
+      periodEnd: "2026-10-25",
+      year: 2026,
+      month: 10,
+    },
+  };
+
+  it("reads it", () => {
+    expect(parseBillEmail(WATER_BOLD)).toEqual(expected);
+  });
+
+  it("reads it with every row on one line", () => {
+    expect(parseBillEmail({ ...WATER_BOLD, text: WATER_BOLD.text.replace(/\s+/g, " ") })).toEqual(expected);
+  });
+});
+
+describe("field", () => {
+  it("reads plain, table and bold values", () => {
+    expect(field("Current Amount Due: PHP 12.00\nDue Date: x", "Current Amount Due")).toBe("PHP 12.00");
+    expect(field("| Total Amount Due: | PHP 12.00 |", "Total Amount Due")).toBe("PHP 12.00");
+    expect(field("| Current Charges | : | 12.00 |", "Current Charges")).toBe("12.00");
+    expect(field("Total Amount Due: *PHP 12.00* Due Date: *x*", "Total Amount Due")).toBe("PHP 12.00");
+    expect(field("*Total Amount Due:* PHP 12.00", "Total Amount Due")).toBe("PHP 12.00");
   });
 });
 
