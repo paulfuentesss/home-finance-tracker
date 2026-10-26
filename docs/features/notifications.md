@@ -5,15 +5,16 @@
 iPhone.
 
 ## What it does
-A short notification on the phone (or computer) when something is due soon, opening the right
-page when tapped. **Alongside email, never instead:** the emails still all go out and stay the
-full record; a push is a heads-up. Each person turns it on per device.
+A short notification on the phone (or computer) with each reminder, opening the right page when
+tapped. **Alongside email, never instead:** the emails still all go out and stay the full record;
+a push is a heads-up. Each person turns it on per device.
 
-**Only when something is due soon**, so phones don't buzz twice for everything:
+**Every email a housemate gets also pushes**, so it isn't missed in an inbox (only the view-only
+note doesn't: view-only logins get no pushes):
 
 | Moment | Email | Push |
 |---|---|---|
-| Month-end, a week before / a few days before | ✅ | — (too early to need a buzz) |
+| Month-end, a week before / a few days before | ✅ | ✅ |
 | Month-end, **the last day** | ✅ | ✅ |
 | **Your bill is ready** (or you get money back) | ✅ | ✅ |
 | **Still unpaid** follow-up | ✅ | ✅ |
@@ -23,7 +24,9 @@ full record; a push is a heads-up. Each person turns it on per device.
 | Admin: **a bill email came in** (to confirm) or couldn't be added (Bill inbox) | — | ✅ |
 | Admin: ready to email the bill / ready to close / couldn't start the month | ✅ | ✅ |
 
-That's about 3–4 a month for a housemate who pays on time.
+That's about 5–6 a month for a housemate who pays on time, more while a bill stays unpaid (a
+follow-up every few days, `UNPAID_REMINDER_DAYS`). The month-end ones share a tag, as do the bill
+and its follow-ups, so the phone shows the latest of each, not a pile.
 
 - **No amounts, ever** — a notification shows on the lock screen, where anyone near the phone can
   read it. "Your October bill is ready — tap to see your share". A rejection doesn't show the

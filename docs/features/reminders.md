@@ -38,7 +38,7 @@ banner at the top of the month pages.
   has no email address. "Seen" isn't email-open tracking: it can't tell whether the email itself
   was opened, only that they've been in My House since.
 - **Still unpaid** (the daily job): a housemate with part of their emailed bill still to pay
-  gets a reminder a few days after the bill email, then one a week (the days are
+  gets a reminder a few days after the bill email, then one every few days (the days are
   `UNPAID_REMINDER_DAYS`): what's left, any "I paid" waiting, the same To do and a link to
   Settle Up. It's about the month their banner shows (the latest bill emailed to them), and
   stops once that's paid or all sent with "I paid". Sending the bill again starts the count
@@ -65,8 +65,8 @@ banner at the top of the month pages.
   the still-unpaid reminder) and two questions: "What happens when the month ends?" and "What
   emails will I get?".
 
-**Notifications too:** on devices that turned them on, some of these also come as a short push,
-sent once the email has gone — which ones: [notifications.md](notifications.md).
+**Notifications too:** on devices that turned them on, each of these also comes as a short push
+(not the view-only note), sent once the email has gone — [notifications.md](notifications.md).
 
 **Safety switch:** localhost and the live site share one database, so only the live site
 (Vercel production) emails housemates and records what it sent. Anywhere else, every email goes

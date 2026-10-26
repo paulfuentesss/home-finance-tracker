@@ -10,7 +10,7 @@ import { formatPHP, type Centavos } from "@/lib/money";
 export const REMINDER_DAYS = { week: 7, three_days: 3, last_day: 0 } as const;
 
 /** A bill still unpaid: the first follow-up this many days after the bill email, then every `then` days. */
-export const UNPAID_REMINDER_DAYS = { first: 3, then: 7 } as const;
+export const UNPAID_REMINDER_DAYS = { first: 3, then: 4 } as const;
 
 export type MonthEndReminder = keyof typeof REMINDER_DAYS;
 
