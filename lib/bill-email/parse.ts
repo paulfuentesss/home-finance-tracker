@@ -116,11 +116,15 @@ export function billMonth(
 
 /**
  * The value after "Label:" on the same line. Handles "Label: value", "| Label: | value |"
- * and "| Label | : | value |" (the plain-text versions of the providers' tables).
+ * and "| Label | : | value |" (the plain-text versions of the providers' tables), and bold
+ * "Label: *value*" or "*Label:* value" (Manila Water since October 2026). The value stops at a
+ * "*", so bold values are read right even when every row runs together on one line.
  */
-function field(text: string, label: string): string | null {
+export function field(text: string, label: string): string | null {
   const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = text.match(new RegExp(`${escaped}[ \\t]*\\|?[ \\t]*:[ \\t]*\\|?[ \\t]*([^|\\n]+)`, "i"));
+  const match = text.match(
+    new RegExp(`${escaped}\\*?[ \\t]*\\|?[ \\t]*:\\*?[ \\t]*\\|?[ \\t]*\\*?([^|\\n*]+)`, "i"),
+  );
   const value = match?.[1].trim();
   return value ? value : null;
 }
