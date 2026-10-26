@@ -17,7 +17,8 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
       ([reminders](features/reminders.md), [notifications](features/notifications.md)) — emails
       live since 2026-10-13, push since 2026-10-18. The emails come from the household Gmail; mark
       the first one "Not spam" if it lands there. A bill left unpaid now brings a reminder a few
-      days later, then weekly. Push is turned on per device: account menu → Turn on notifications.
+      days later, then every few days. Every reminder also comes as a push, turned on per device:
+      account menu → Turn on notifications.
 
 - [ ] **Check "seen" on the first bill email** ([reminders](features/reminders.md)) — *waiting
       for October's bill (~Nov. 1).* Right after "Email everyone their bill", every row in the

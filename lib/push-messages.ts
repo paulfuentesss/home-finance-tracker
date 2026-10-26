@@ -3,15 +3,15 @@
 // is one) stays the full record.
 //
 // Rules: **no amounts** — a notification shows on the lock screen, where anyone near the phone can
-// read it — and nothing anyone typed (a rejection's reason). Only moments where something is due
-// soon push; the rest stay email-only (PUSHES). `tag` makes a newer push about the same thing
-// replace the older one on the phone instead of piling up. `url` is a path in the app.
+// read it — and nothing anyone typed (a rejection's reason). Every email a housemate gets also
+// pushes, so it isn't missed (PUSHES). `tag` makes a newer push about the same thing replace the
+// older one on the phone instead of piling up. `url` is a path in the app.
 
 import type { reminderKind } from "@/db/schema";
 import { monthLabel } from "@/lib/format";
 import { HOUSE_BUDGET_LABEL } from "@/lib/household-config";
 import { monthAfter } from "@/lib/month-lock";
-import type { MonthEndReminder, Payables } from "@/lib/reminders";
+import { lastDayName, type MonthEndReminder, type Payables } from "@/lib/reminders";
 
 export interface Push {
   title: string;
@@ -24,12 +24,12 @@ export interface Push {
 type ReminderKind = (typeof reminderKind.enumValues)[number];
 
 /**
- * Which emailed reminders also push. The early month-end reminders and the view-only "bills are
- * in" note stay email-only, so a phone buzzes only when something is due soon.
+ * Which emailed reminders also push: all of them, so an email gets noticed, except the view-only
+ * "bills are in" note (view-only logins get no pushes).
  */
 export const PUSHES: Record<ReminderKind, boolean> = {
-  week: false,
-  three_days: false,
+  week: true,
+  three_days: true,
   last_day: true,
   start_next: true,
   payables: true,
@@ -46,14 +46,31 @@ function monthName(year: number, month: number): string {
 
 const settle = (year: number, month: number) => `/periods/${year}/${month}/settle`;
 
-/** To a housemate, on the month's last day (the earlier reminders are email-only). */
-export function monthEndPush(kind: MonthEndReminder, { year, month }: { year: number; month: number }): Push | null {
-  if (!PUSHES[kind]) return null;
+/**
+ * To a housemate before the month ends: a week before, a few days before and on its last day.
+ * `daysLeft`, not the kind, so a day the job caught up reads right. One tag, so each replaces the
+ * one before on the phone.
+ */
+export function monthEndPush(
+  kind: MonthEndReminder,
+  { year, month, daysLeft }: { year: number; month: number; daysLeft: number },
+): Push {
+  const label = monthName(year, month);
+  const url = `/periods/${year}/${month}/advances`;
+  const tag = `month-end-${year}-${month}`;
+  if (kind === "last_day") {
+    return {
+      title: `⏰ Last day to log your ${label} expenses`,
+      body: "Add anything you paid for the house this month before it locks tonight.",
+      url,
+      tag,
+    };
+  }
   return {
-    title: `⏰ Last day to log your ${monthName(year, month)} expenses`,
-    body: "Add anything you paid for the house this month before it locks tonight.",
-    url: `/periods/${year}/${month}/advances`,
-    tag: `month-end-${year}-${month}`,
+    title: `⏳ ${daysLeft} day${daysLeft === 1 ? "" : "s"} left to log your ${label} expenses`,
+    body: `Add anything you paid for the house before it locks after ${lastDayName(year, month)}.`,
+    url,
+    tag,
   };
 }
 

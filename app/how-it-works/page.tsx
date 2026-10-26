@@ -529,15 +529,17 @@ export default async function HowItWorksPage() {
       a: (
         <>
           <p>
-            Yes — a short notification when something needs you soon. Tapping it opens the right page. It only
-            buzzes a few times a month:
+            Yes — a short notification with each reminder email, so you don&apos;t miss it. Tapping it opens the
+            right page:
           </p>
           <ul className="list-disc space-y-1 pl-5">
             <li>
-              <strong>The month&apos;s last day</strong> — to log what you&apos;ve paid for the house.
+              <strong>Before the month ends</strong> — {REMINDER_DAYS.week} days before, {REMINDER_DAYS.three_days}{" "}
+              days before and on its last day, to log what you&apos;ve paid for the house.
             </li>
             <li>
-              <strong>Your bill is ready</strong>, and <strong>if it&apos;s still unpaid</strong> a few days later.
+              <strong>Your bill is ready</strong>, and <strong>if it&apos;s still unpaid</strong>{" "}
+              {UNPAID_REMINDER_DAYS.first} days later, then every {UNPAID_REMINDER_DAYS.then} days until you&apos;ve paid or tapped I paid.
             </li>
             <li>
               <strong>Your I paid was confirmed</strong> by the admin — or needs a look (tap to see why).

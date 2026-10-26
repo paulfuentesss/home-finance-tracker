@@ -82,10 +82,10 @@ describe("unpaidReminderDue", () => {
     expect(unpaidReminderDue({ billSentAt, lastReminderAt: null, today: "2026-11-05" })).toBe(true);
   });
 
-  it("then sends one a week after the last, not 6 days", () => {
+  it("then sends one 4 days after the last, not 3", () => {
     expect(unpaidReminderDue({ billSentAt, lastReminderAt: firstReminder, today: "2026-11-03" })).toBe(false);
-    expect(unpaidReminderDue({ billSentAt, lastReminderAt: firstReminder, today: "2026-11-09" })).toBe(false);
-    expect(unpaidReminderDue({ billSentAt, lastReminderAt: firstReminder, today: "2026-11-10" })).toBe(true);
+    expect(unpaidReminderDue({ billSentAt, lastReminderAt: firstReminder, today: "2026-11-06" })).toBe(false);
+    expect(unpaidReminderDue({ billSentAt, lastReminderAt: firstReminder, today: "2026-11-07" })).toBe(true);
   });
 
   it("starts the count again when the bill is sent again", () => {
