@@ -151,6 +151,14 @@ describe("Server Actions check who's calling", () => {
     expect(close, "closeMonth").toMatch(/await db\.transaction\(\(tx\) => closeMonthIn\(tx, periodId\)\);/);
     const closeIn = exportedFunctions(read(join(ROOT, "lib/month-close.ts"))).find((f) => f.name === "closeMonthIn");
     expect(closeIn?.body ?? "", "closeMonthIn").toMatch(locksFirst);
+    // Every cash drawer change takes the drawer's lock before anything else, so two saves can't
+    // each pass the "nobody paid back more than they borrowed" check (lib/cash-drawer-data.ts).
+    const drawerWrites = exportedFunctions(read(join(ROOT, "lib/cash-drawer-data.ts")));
+    for (const name of ["addDrawerEntryIn", "updateDrawerEntryIn", "deleteDrawerEntryIn"]) {
+      const body = drawerWrites.find((f) => f.name === name)?.body ?? "";
+      expect(body, name).toMatch(/^[^{]*\{\s*await lockDrawer\(tx\);/);
+      expect(body, name).toMatch(/await checkLoans\(tx\);\s*\}\s*$/);
+    }
   });
 
   it("Server Action files export only async functions (and types)", () => {

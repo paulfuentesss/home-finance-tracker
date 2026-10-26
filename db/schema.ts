@@ -75,6 +75,10 @@ export const reminderKind = pgEnum("reminder_kind", [
 // by lib/devices.test.ts): app = the installed app, web = a browser tab; the device type is coarse.
 export const deviceVia = pgEnum("device_via", ["app", "web"]);
 export const devicePlatform = pgEnum("device_platform", ["iphone", "ipad", "android", "mac", "windows", "other"]);
+// A line in the admin's cash drawer (docs/features/cash-drawer.md): cash_in = money put in (from
+// the bank, or the starting cash) · spent = paid out for something not logged elsewhere in My
+// House · lent = borrowed by someone · paid_back = what they returned.
+export const cashDrawerKind = pgEnum("cash_drawer_kind", ["cash_in", "spent", "lent", "paid_back"]);
 
 // ---------- Shared column helpers ----------
 
@@ -254,10 +258,17 @@ export const advances = pgTable(
     amount: money("amount").notNull(),
     // Optional: some sheet entries were logged without a date.
     spentOn: date("spent_on", { mode: "string" }),
+    // The admin paid it from the cash drawer (docs/features/cash-drawer.md). Only a record: the
+    // split is the same either way.
+    fromDrawer: boolean("from_drawer").notNull().default(false),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [check("advances_amount_positive", sql`${t.amount} > 0`)],
+  (t) => [
+    check("advances_amount_positive", sql`${t.amount} > 0`),
+    // The drawer orders its lines by date.
+    check("advances_drawer_dated", sql`NOT ${t.fromDrawer} OR ${t.spentOn} IS NOT NULL`),
+  ],
 ).enableRLS();
 
 // The Helper's visits and early pay (docs/features/helper.md), replacing the sheet's two
@@ -282,11 +293,16 @@ export const helperEntries = pgTable(
     // Visits only: the part of her daily pay taken off her debt instead of handed over.
     deduction: money("deduction").notNull().default("0"),
     note: text("note"),
+    // The admin handed it over from the cash drawer (docs/features/cash-drawer.md). Only a record.
+    fromDrawer: boolean("from_drawer").notNull().default(false),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (t) => [
     check("helper_entries_amount_positive", sql`${t.amount} > 0`),
+    check("helper_entries_opening_not_drawer", sql`${t.kind} <> 'opening' OR NOT ${t.fromDrawer}`),
+    // The drawer orders its lines by date.
+    check("helper_entries_drawer_dated", sql`NOT ${t.fromDrawer} OR ${t.onDate} IS NOT NULL`),
     check("helper_entries_deduction_range", sql`${t.deduction} >= 0 AND ${t.deduction} <= ${t.amount}`),
     check("helper_entries_deduction_visit_only", sql`${t.kind} = 'visit' OR ${t.deduction} = 0`),
     check("helper_entries_payer", sql`(${t.kind} = 'opening') = (${t.payerId} IS NULL)`),
@@ -553,6 +569,29 @@ export const billerFields = pgTable(
     check("biller_fields_secret_not_plain", sql`${t.kind} <> 'secret' OR ${t.value} IS NULL`),
     check("biller_fields_only_secret_encrypted", sql`${t.kind} = 'secret' OR ${t.secretValue} IS NULL`),
     index("biller_fields_biller_id").on(t.billerId),
+  ],
+).enableRLS();
+
+// The admin's cash drawer (docs/features/cash-drawer.md): cash he keeps at home to pay the Helper
+// and house costs from, and that someone may borrow from. Not tied to a month, and never part of
+// the split — it's his own money. Helper entries and advances paid from it are flagged
+// (`from_drawer`) rather than copied here, so the drawer always matches them.
+export const cashDrawerEntries = pgTable(
+  "cash_drawer_entries",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    kind: cashDrawerKind("kind").notNull(),
+    onDate: date("on_date", { mode: "string" }).notNull(),
+    amount: money("amount").notNull(),
+    // Who borrowed or paid back, as typed (they needn't be a member); lent / paid_back only.
+    person: text("person"),
+    note: text("note"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    check("cash_drawer_entries_amount_positive", sql`${t.amount} > 0`),
+    check("cash_drawer_entries_person", sql`(${t.kind} IN ('lent', 'paid_back')) = (${t.person} IS NOT NULL)`),
   ],
 ).enableRLS();
 

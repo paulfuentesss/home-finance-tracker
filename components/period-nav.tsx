@@ -16,6 +16,7 @@ import {
   Settings,
   Sparkles,
   Undo2,
+  Wallet,
 } from "lucide-react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -40,7 +41,15 @@ import { cn } from "@/lib/utils";
 
 // Each month's sections. `nav` is the sidebar's name for it; `label` is the full name, shown
 // as the page title (and used in banner copy like "Fix it in Manage Columns & People").
-const TABS = [
+// `adminOnly`: left out of housemates' sidebar (the page itself redirects anyone else).
+const TABS: readonly {
+  href: string;
+  label: string;
+  nav: string;
+  group: "month" | "household";
+  icon: typeof Layers;
+  adminOnly?: boolean;
+}[] = [
   { href: "", label: "Monthly Split Table", nav: "Split Table", group: "month", icon: Layers },
   { href: "/advances", label: "Advances Log & Report", nav: "Advances", group: "month", icon: PhilippinePeso },
   { href: "/helper", label: "Helper Visits", nav: "Helper Visits", group: "month", icon: Sparkles },
@@ -48,8 +57,9 @@ const TABS = [
   { href: "/settle", label: "Settle Up", nav: "Settle Up", group: "month", icon: HandCoins },
   { href: "/trends", label: "Spending Trends", nav: "Trends", group: "household", icon: ChartColumn },
   { href: "/billers", label: "Billers & Accounts", nav: "Billers & Accounts", group: "household", icon: KeyRound },
-  { href: "/manage", label: "Manage Columns & People", nav: "Manage", group: "household", icon: Settings },
-] as const;
+  { href: "/drawer", label: "Cash Drawer", nav: "Cash Drawer", group: "household", icon: Wallet, adminOnly: true },
+  { href: "/manage", label: "Manage Columns & People", nav: "Manage", group: "household", icon: Settings, adminOnly: true },
+];
 
 const GROUPS = [
   { id: "month", label: "This month" },
@@ -98,11 +108,12 @@ export function SectionTitle({ month }: { month: string }) {
 }
 
 /**
- * The month's two totals in the page header, left out on Trends: it covers several months, so
- * one month's totals beside it would read as its own.
+ * The month's two totals in the page header, left out on Trends (it covers several months, so
+ * one month's totals beside it would read as its own) and the Cash Drawer (not about a month).
  */
 export function MonthStatsSlot({ children }: { children: ReactNode }) {
-  return useCurrentTab()?.href === "/trends" ? null : children;
+  const href = useCurrentTab()?.href;
+  return href === "/trends" || href === "/drawer" ? null : children;
 }
 
 /**
@@ -121,8 +132,8 @@ export function SidebarNav({
 }) {
   const suffix = useTabSuffix();
   const admin = isAdmin(useViewer());
-  // Manage is PA's (the page itself redirects anyone else).
-  const tabs = admin ? TABS : TABS.filter((t) => t.href !== "/manage");
+  // Manage and the Cash Drawer are PA's.
+  const tabs = admin ? TABS : TABS.filter((t) => !t.adminOnly);
   return (
     <nav aria-label="Sections" className="space-y-5">
       {GROUPS.map((group) => (

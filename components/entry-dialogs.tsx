@@ -8,6 +8,7 @@ import {
   addBill,
   addBiller,
   addBillerField,
+  addDrawerEntry,
   addHelperEntry,
   addMember,
   addPayment,
@@ -15,6 +16,7 @@ import {
   setBillerSecret,
   submitPayment,
   updateAdvance,
+  updateDrawerEntry,
   updateHelperEntry,
   updatePayment,
   type ActionState,
@@ -35,6 +37,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useIsPreviewing, useViewer } from "@/components/viewer-context";
+import { DRAWER_KIND_LABELS, type DrawerKind } from "@/lib/cash-drawer";
+import type { DrawerLine } from "@/lib/cash-drawer-data";
 import { CATEGORY_LABELS, todayInManila } from "@/lib/format";
 import { HOUSE_BUDGET_LABEL } from "@/lib/household-config";
 import { formatPHP, fromCentavos, parseMoneyInput, type Centavos } from "@/lib/money";
@@ -258,6 +262,7 @@ function AdvanceForm({ view, advance, onDone }: Props & { advance?: ViewAdvance;
             <input type="hidden" name="columnId" value="0" />
           </p>
         )}
+        {admin && <DrawerCheckbox defaultChecked={advance?.fromDrawer ?? false} />}
         {state?.ok === false && (
           <p role="alert" className="text-sm text-destructive">
             {state.error}
@@ -472,6 +477,7 @@ function HelperEntryForm({
             maxLength={120}
           />
         </Field>
+        {admin && kind !== "opening" && <DrawerCheckbox defaultChecked={entry?.fromDrawer ?? false} />}
         {state?.ok === false && (
           <p role="alert" className="text-sm text-destructive">
             {state.error}
@@ -1147,6 +1153,148 @@ function ChangeBillerSecretForm({ fieldId, label, onDone }: { fieldId: number; l
   );
 }
 
+type DrawerEntry = Extract<DrawerLine, { source: "drawer" }>;
+
+const DRAWER_KIND_ITEMS = (Object.entries(DRAWER_KIND_LABELS) as [DrawerKind, string][]).map(([value, label]) => ({
+  value,
+  label,
+}));
+
+const DRAWER_KIND_HINTS: Record<DrawerKind, string> = {
+  cash_in: "Money put in: taken out of the bank, or what's in the drawer when you start.",
+  spent: "Paid out for something not logged in My House. A Helper visit or an advance? Tick “Paid from the cash drawer” on it instead.",
+  lent: "Someone borrowed from the drawer. It shows under Owed until it's paid back.",
+  paid_back: "Someone returned what they borrowed.",
+};
+
+/** "Add entry" on the Cash Drawer tab (docs/features/cash-drawer.md). `people`: names typed before. */
+export function AddDrawerEntryDialog({ people }: { people: string[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={<Button />}>
+        <Plus />
+        Add entry
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DrawerEntryForm people={people} onDone={() => setOpen(false)} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Edits one of the drawer's own entries (open while `entry` is set). */
+export function EditDrawerEntryDialog({
+  entry,
+  people,
+  onClose,
+}: {
+  entry: DrawerEntry | null;
+  people: string[];
+  onClose: () => void;
+}) {
+  return (
+    <Dialog open={entry !== null} onOpenChange={(next) => !next && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        {entry && <DrawerEntryForm key={entry.id} entry={entry} people={people} onDone={onClose} />}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DrawerEntryForm({ entry, people, onDone }: { entry?: DrawerEntry; people: string[]; onDone: () => void }) {
+  const { state, pending, previewing, onSubmit } = useDialogForm(entry ? updateDrawerEntry : addDrawerEntry, onDone, {
+    saved: entry ? "Changes saved" : "Entry added",
+  });
+  const [kind, setKind] = useState<DrawerKind>(entry?.kind ?? "cash_in");
+  const loan = kind === "lent" || kind === "paid_back";
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>{entry ? "Edit entry" : "Add to the cash drawer"}</DialogTitle>
+        <DialogDescription>{DRAWER_KIND_HINTS[kind]}</DialogDescription>
+      </DialogHeader>
+      <form onSubmit={onSubmit} className="grid gap-4" autoComplete="off">
+        {entry && <input type="hidden" name="entryId" value={entry.id} />}
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="What" htmlFor="kind">
+            <Select
+              name="kind"
+              items={DRAWER_KIND_ITEMS}
+              value={kind}
+              onValueChange={(v) => setKind((v as DrawerKind) ?? "cash_in")}
+            >
+              <SelectTrigger id="kind" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DRAWER_KIND_ITEMS.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label="Date" htmlFor="onDate">
+            <Input id="onDate" name="onDate" type="date" defaultValue={entry?.onDate ?? todayInManila()} required />
+          </Field>
+        </div>
+        <div className="grid grid-cols-2 items-start gap-3">
+          <Field label="Amount (₱)" htmlFor="amount">
+            <Input
+              id="amount"
+              name="amount"
+              inputMode="decimal"
+              placeholder="0.00"
+              defaultValue={entry ? fromCentavos(entry.amount) : undefined}
+              required
+            />
+          </Field>
+          {loan && (
+            <Field label={kind === "lent" ? "Who borrowed" : "Who paid back"} htmlFor="person">
+              <Input
+                id="person"
+                name="person"
+                list="drawer-people"
+                defaultValue={entry?.person ?? undefined}
+                required
+                maxLength={60}
+              />
+              <datalist id="drawer-people">
+                {people.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+            </Field>
+          )}
+        </div>
+        <Field label="Note (optional)" htmlFor="note">
+          <Input
+            id="note"
+            name="note"
+            placeholder={kind === "cash_in" ? "From the bank" : ""}
+            defaultValue={entry?.note ?? undefined}
+            maxLength={120}
+          />
+        </Field>
+        {state?.ok === false && (
+          <p role="alert" className="text-sm text-destructive">
+            {state.error}
+          </p>
+        )}
+        {previewing && <p className="text-sm text-sky-800">You&apos;re previewing, so saving is off.</p>}
+        <DialogFooter>
+          <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
+          <Button type="submit" disabled={pending || previewing}>
+            {pending ? "Saving…" : entry ? "Save changes" : "Add entry"}
+          </Button>
+        </DialogFooter>
+      </form>
+    </>
+  );
+}
+
 function SelectField({
   id,
   items,
@@ -1203,6 +1351,19 @@ function ModeChoice({
       </div>
       <p className="text-xs text-muted-foreground">{value === "equal" ? equalHint : manualHint}</p>
     </fieldset>
+  );
+}
+
+/**
+ * The admin's "Paid from the cash drawer" on a Helper entry or an advance
+ * (docs/features/cash-drawer.md). The server checks it's what he paid himself, with a date.
+ */
+function DrawerCheckbox({ defaultChecked }: { defaultChecked: boolean }) {
+  return (
+    <label className="flex items-center gap-2 text-sm">
+      <input type="checkbox" name="fromDrawer" defaultChecked={defaultChecked} className="accent-amber-600" />
+      Paid from the cash drawer
+    </label>
   );
 }
 

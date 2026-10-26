@@ -169,6 +169,13 @@
       "when": 1792595493789,
       "tag": "0023_bill-seen",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793010763467,
+      "tag": "0024_cash-drawer",
+      "breakpoints": true
     }
   ]
 }

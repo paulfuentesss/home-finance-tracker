@@ -10,7 +10,7 @@ begins, then it gets a page here.
 |---|---|---|---|
 | Monthly Split Table | ✅ | Every bill and shared column split per person, Month Final, carry-over, Final, a House Budget row; "Who owes what" cards; a greeting with your own number, and "You" on your row | [split-table.md](split-table.md) |
 | Advances | ✅ | Log household purchases into shared columns; filter by column (linked from the Split Table); report cards whose totals match the log's | [advances.md](advances.md) |
-| Helper | ✅ | Her visits and early pay: whoever paid her gets it back, the Helper column fills in by itself, and what she owes carries across months | [helper.md](helper.md) |
+| Helper | ✅ | Her visits and early pay: whoever paid her gets it back, the Helper column fills in by itself, and what she owes carries across months; a Total row under the list | [helper.md](helper.md) |
 | Settle Up | ✅ | Who owes whom, settled through the House Budget; PA records a payment in one tap, a housemate sends theirs with “I paid” and a screenshot for PA to confirm | [settle-up.md](settle-up.md) |
 | Months | ✅ | Month picker (with a Back to the newest month link on older months), the next month starting by itself (or by hand), live carry-over, locked for housemates once it ends, closing / reopening, the backup reminder | [months.md](months.md) |
 | Reminders & bill emails | ✅ | Emails housemates before the month ends and on its last day to log their expenses; starts the next month by itself; the admin emails everyone their own bill from Settle Up and sees who has seen it since (view-only logins get a "the bills are in" note) and is nudged when it's time to email or close; a reminder a few days after a bill that's still unpaid, then weekly; matching banners | [reminders.md](reminders.md) |
@@ -23,6 +23,7 @@ begins, then it gets a page here.
 | No connection | ✅ | In a tab or the app: a "No connection" strip; the open page stays; saves and month switches wait and go through by themselves once the connection is back. Not offline viewing yet | [offline.md](offline.md) |
 | Spending Trends | ✅ | The household's spending over the last 1, 3 or 6 months as stacked bars (each bill and advance category), where it went (tap a line to see its purchases or months), and insights: the biggest spend, what grew, a bill above its usual, the biggest purchases, per person | [trends.md](trends.md) |
 | Billers & Accounts | ✅ | Each company the household pays, with account numbers, how it's paid, links and passwords (encrypted, revealed on tap); the admin edits, housemates see what's shared | [billers.md](billers.md) |
+| Cash Drawer | ✅ | The admin's cash at home, admin only and outside the split: cash on hand, who owes the drawer, every line in and out with what was left. Helper entries and advances ticked "Paid from the cash drawer" show up there by themselves | [cash-drawer.md](cash-drawer.md) |
 
 Also running, not features of the app itself:
 - **How it works page** (`/how-it-works`) — the household-facing explanation of the rules and

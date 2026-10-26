@@ -7,7 +7,8 @@ database or React: the money math and rules are pure code in `lib/`. The excepti
 still offline: `invites.test.ts` runs `lib/invites.ts` against a fake database and a fake
 Supabase, `actions-guard.test.ts` reads the source files, and the [database tests](#database-tests)
 (`backup`, `month-close`, `month-start`, `periods`, `bill-import`, `reminder-send`,
-`seen-route`) run a real Postgres in memory (PGlite), never the live database.
+`seen-route`, `cash-drawer-data`, `drawer-flag-actions`) run a real Postgres in memory (PGlite),
+never the live database.
 
 **CI:** GitHub Actions runs `npm run typecheck`, `npm run lint`, `npm test` and a production
 build (`npm run build`, with placeholder settings) on every pull request and every push to main
@@ -26,7 +27,7 @@ keep it that way.
 | `lib/bill-email/fees.test.ts` | The payment fee setting turns the sample emails into the fixture's bills |
 | `lib/local-database.test.ts` | Test-data scripts recognise only a database on this machine as local |
 | `lib/permissions.test.ts` | Who may change which advance; who may log in an ended month (`canLogIn`); who may send / cancel a payment and see its proof; `safeNext` blocking open redirects after sign-in |
-| `lib/actions-guard.test.ts` | Every Server Action goes through `run("admin" \| "member", …)`; only the advance, Helper and "I paid" actions (`submitPayment`, `cancelPayment`) are open to members, and the advance and Helper ones refuse an ended month; `/receipts/[id]` checks `canSeePaymentProof` before signing a link; no unknown Route Handlers; `/receipts/[id]` and `/backup` check the login first, and `/backup` the admin; `/api/reminders` checks `CRON_SECRET` first; the secret key, `CRON_SECRET` and the Gmail app password are each read in one place, and the admin client stays out of the browser |
+| `lib/actions-guard.test.ts` | Every Server Action goes through `run("admin" \| "member", …)`; only the advance, Helper and "I paid" actions (`submitPayment`, `cancelPayment`) are open to members, and the advance and Helper ones refuse an ended month; `/receipts/[id]` checks `canSeePaymentProof` before signing a link; no unknown Route Handlers; `/receipts/[id]` and `/backup` check the login first, and `/backup` the admin; `/api/reminders` checks `CRON_SECRET` first; every cash drawer change takes the drawer's lock first; the secret key, `CRON_SECRET` and the Gmail app password are each read in one place, and the admin client stays out of the browser |
 | `lib/reminders.test.ts` | Reminder days (31/30/28-day months, a missed day caught up); what's still owed after a bill email (waiting and later payments, rejected ones, capped by the latest Final); the admin's nudges; the housemate banner; a "seen" from before a resend not counting |
 | `lib/reminder-emails.test.ts` | The wording of every email: reminders, the bill (carry-over, waiting I paid, money back, nobody settled emailed), "couldn't start", the nudges |
 | `lib/bearer-secret.test.ts` | The shared-secret check for `/api/bill-email` and `/api/reminders`: right, wrong, missing, or no secret set |
@@ -39,6 +40,9 @@ keep it that way.
 | `lib/bill-import.test.ts` | Bill emails into pending bills (PGlite): Meralco by points and Water equally with their fees, worked out by hand; the same email or a second one for the same bill doing nothing; never overwriting an amount; staying in the inbox with the reason (month not started, closed, no column, split by hand) and importing on Retry; an unreadable email kept with its snippet |
 | `lib/reminder-send.test.ts` | The daily job (PGlite, emails and pushes caught): each month-end reminder once, not to the collector or someone without an email; a failed one retried the next run; pushes only after the email; nothing recorded off the live site; the next month started (or only checked off the live site), the admin told once when it can't; unpaid follow-ups on their days, the old time put back when one fails, none once paid |
 | `lib/seen-route.test.ts` | `/api/seen` marking bill emails seen (PGlite): only the caller's own bill and "bills are in" emails, only those sent before the page was drawn, none from the every-page ping, the first look kept and a resend marked again, nothing without a login |
+| `lib/cash-drawer.test.ts` | The Cash Drawer's ledger: the order (money in before money out on a day), what's left after each line, cash on hand, where it first went below ₱0, what each person owes (names matched regardless of capitals or spaces), paying back too much; the "Paid from the cash drawer" rule (admin, own payment, a date; a housemate's save leaves it); a typed entry's person only on a loan |
+| `lib/cash-drawer-data.test.ts` | The Cash Drawer's database side (PGlite): saving, editing and deleting its own entries; refused, writing nothing, when someone would have paid back more than they borrowed (too big, a loan shrunk or deleted, moved to another name); the tab reading flagged Helper entries (what was handed over) and advances into one ledger with links to their months, and only for the admin; the checks on dates, the starting debt and loans' names |
+| `lib/drawer-flag-actions.test.ts` | "Paid from the cash drawer" through the real Server Actions (PGlite; login, refreshes and redirects stubbed): the admin ticking and unticking it on a Helper visit, early pay and an advance he paid; refused on someone else's payment or without a date, saving nothing; never set by a housemate, and a housemate's edit leaving it alone; a plain visit saved as before; the split (Finals, Helper bill) identical flagged or not; the month pages carrying it for the admin, never for a housemate |
 | `lib/backup-reminder.test.ts` | When the backup reminder shows: a month started or closed after the last backup, none yet, a month reclosed |
 | `lib/invites.test.ts` | Inviting / un-inviting: the order of the database and Supabase calls, rolling back a new login, never reusing a leftover one |
 | `lib/email-domain.test.ts` | Whether an invited email's domain takes mail, with a fake DNS: a missing domain, a null MX, an address-only domain, a timeout. Only a definite "no" blocks the invite |
@@ -93,6 +97,11 @@ month-to-month carry-over run against a real Postgres: PGlite, Postgres inside t
   and unique indexes that handle races are guard-tested (`actions-guard.test.ts`) instead.
 - A new code path worth one: move the work into `lib/` taking the transaction (`tx`), as
   `closeMonthIn` and `startNextMonthIn` do, with the action only checking who's asking.
+- **Server Actions themselves** can run too, when what's being tested is the action's own
+  handling of the form (`lib/drawer-flag-actions.test.ts`): stub `@/lib/auth` (`getViewer`,
+  `previewFor`), `next/cache`, `next/navigation` and `next/server`, then call the action with a
+  `FormData`. Fake `Date` to a day inside the month if a housemate's save is part of the test
+  (an ended month refuses them).
 
 ## Fixtures (test data)
 

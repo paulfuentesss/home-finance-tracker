@@ -17,6 +17,9 @@
   ([helper.md](helper.md)).
 - Log, edit (payer, category, description, amount, date, column) and delete advances;
   "Save & add another" for entering many receipts in a row.
+- **Paid from the cash drawer** (PA only): a checkbox on an advance he paid himself. It puts the
+  advance in his [Cash Drawer](cash-drawer.md) and marks it with a Drawer pill in the log. It
+  changes nothing in the split.
 - **Who can log what** ([auth.md](auth.md)): PA logs, edits and deletes any advance. Everyone
   else logs their own into the default column (Advances Shared), and can edit or delete it
   while it's still there — once PA moves it to another column, it's PA's.

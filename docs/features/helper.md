@@ -31,6 +31,15 @@ Replaces the Google Sheet's two Helper tables: her daily pay per visit, and her 
   first visit or early pay replaces that typed total, and the tab warns PA about it.
 - The list runs in ledger order: her starting debt first, then by date (no date last), early
   pay before a visit on the same day.
+- **Total row** under the list, once the month has a visit or early pay. On wider screens it
+  shows Amount (daily pay + early pay), Taken off and Handed over. On phones it's one line,
+  "Total handed over". It uses the same numbers as the Helper bill card (`helperMonthSummary`),
+  so her starting debt isn't in it. On phones each row's amount is likewise what was handed
+  over (like desktop's bold column), with the pay and anything taken off in the line under it,
+  so the rows add up to the total. Her starting debt's amount is greyed out.
+- **Paid from the cash drawer** (PA only): a checkbox on a visit or early pay he paid himself.
+  It puts the entry in his [Cash Drawer](cash-drawer.md) and marks it with a Drawer pill here.
+  It changes nothing in the split.
 
 ## How it's built
 - Route: `app/periods/[year]/[month]/helper/page.tsx`. UI: `components/helper-log.tsx`, plus

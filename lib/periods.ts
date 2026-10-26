@@ -10,7 +10,7 @@ import { getPreview, requireViewer } from "@/lib/auth";
 import { dateInManila, todayInManila } from "@/lib/format";
 import { lastPaidOf, type LastPaid } from "@/lib/last-paid";
 import { dotClassOf } from "@/lib/members";
-import { canOpenReceipt } from "@/lib/permissions";
+import { canOpenReceipt, isAdmin } from "@/lib/permissions";
 import { closeCheck, monthHasEnded, reopenCheck, type LockCheck } from "@/lib/month-lock";
 import { payablesOf, type Payables } from "@/lib/reminders";
 import {
@@ -120,6 +120,8 @@ export interface ViewAdvance {
   columnId: number;
   /** The column's name when it isn't the month's default column. */
   columnTag: string | null;
+  /** Paid from the admin's cash drawer; always false for anyone else. */
+  fromDrawer: boolean;
 }
 
 export interface ViewColumn {
@@ -149,6 +151,8 @@ export interface ViewHelperEntry {
   handedOver: Centavos;
   /** Her debt after this entry (all months, in order), like the sheet's "Remaining". */
   owesAfter: Centavos;
+  /** Handed over from the admin's cash drawer; always false for anyone else. */
+  fromDrawer: boolean;
 }
 
 export interface ViewHelper {
@@ -366,7 +370,9 @@ function paymentsOf(period: LoadedPeriod) {
  * share a single database round trip per request.
  */
 export const getPeriodView = cache(async (year: number, month: number): Promise<PeriodView | null> => {
-  await requireViewer();
+  const viewer = await requireViewer();
+  // Whether an entry was paid from the cash drawer is the admin's alone (docs/features/cash-drawer.md).
+  const admin = isAdmin(viewer);
   // With the latest month's Finals too, so the greeting's "still to pay" (payables below) is
   // capped the same way as the bill banner's. Viewing the latest month costs nothing extra.
   const [computed, settings] = await Promise.all([
@@ -480,6 +486,7 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
       spentOn: a.spentOn,
       columnId: a.columnId,
       columnTag: columnById.get(a.columnId)?.isDefault === false ? columnById.get(a.columnId)!.name : null,
+      fromDrawer: admin && a.fromDrawer,
     })),
     payments: period.payments.map((p) => ({
       id: p.id,
@@ -491,7 +498,7 @@ export const getPeriodView = cache(async (year: number, month: number): Promise<
       status: p.status,
       rejectedReason: p.rejectedReason,
     })),
-    helper: helperViewOf(all, index),
+    helper: helperViewOf(all, index, admin),
     stats: {
       coreBills: sumCentavos(bills.filter((b) => b.status === "confirmed").map((b) => b.total)),
       sharedAdvances: sumCentavos(period.advances.map((a) => toCentavos(a.amount))),
@@ -650,7 +657,8 @@ function helperPayersOf(period: LoadedPeriod): { memberId: number; amount: strin
   return [...helperPaidBy(entries)].map(([memberId, amount]) => ({ memberId, amount: fromCentavos(amount) }));
 }
 
-function helperViewOf(all: LoadedPeriod[], index: number): ViewHelper {
+/** `admin`: whether the viewer may see which entries came from the cash drawer. */
+function helperViewOf(all: LoadedPeriod[], index: number, admin: boolean): ViewHelper {
   const period = all[index];
   const months = all.map((p) => p.helperEntries.toSorted(ledgerCompare));
   const ledger = months.flat();
@@ -669,6 +677,7 @@ function helperViewOf(all: LoadedPeriod[], index: number): ViewHelper {
       note: e.note,
       handedOver: handedOver(e),
       owesAfter: after.get(e.id)!,
+      fromDrawer: admin && e.fromDrawer,
     })),
     summary: helperMonthSummary(period.helperEntries),
     owesAtStart: lastBefore ? after.get(lastBefore.id)! : 0,
