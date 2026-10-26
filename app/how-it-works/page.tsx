@@ -277,7 +277,7 @@ export default async function HowItWorksPage() {
           <p>
             Sometimes she gets money <strong>before</strong> she works — <strong>early pay</strong>. She then owes it,
             and part of her later daily pay is taken off what she owes instead of being handed to her. The Helper
-            Visits tab keeps track of what she still owes.
+            Visits tab keeps track of what she still owes. The Total row under its list adds up the month.
           </p>
           <p>
             <strong>Whoever hands her money gets it back.</strong> The month&apos;s Helper bill is everything handed

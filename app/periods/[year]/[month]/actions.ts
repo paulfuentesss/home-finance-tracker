@@ -35,6 +35,8 @@ import {
 import { getViewer, previewFor } from "@/lib/auth";
 import { placeBill } from "@/lib/bill-import";
 import { encryptSecret } from "@/lib/biller-secrets";
+import { drawerEntryValues, drawerFlagFor } from "@/lib/cash-drawer";
+import { addDrawerEntryIn, deleteDrawerEntryIn, updateDrawerEntryIn } from "@/lib/cash-drawer-data";
 import { pointsFor, pointsOf, writeShares, type Tx } from "@/lib/bill-shares";
 import { domainTakesMail } from "@/lib/email-domain";
 import { ActionError, isUniqueViolation } from "@/lib/errors";
@@ -111,6 +113,11 @@ const optionalDate = z
   .string()
   .regex(/^(\d{4}-\d{2}-\d{2})?$/, "Choose a valid date")
   .transform((v) => v || null);
+// A checkbox: sent as "on" when ticked, left out when not.
+const checkbox = z
+  .string()
+  .optional()
+  .transform((v) => v === "on");
 // Bills and shared columns pick Equal or Manual; Points is only Meralco's (set by the seed).
 const userSplitMode = z.enum(["equal", "manual"]);
 
@@ -329,6 +336,7 @@ const addAdvanceSchema = z.object({
   description: z.string().trim().min(1, "Enter a description").max(120),
   amount: moneyField(false),
   spentOn: optionalDate,
+  fromDrawer: checkbox,
 });
 
 // Members may add, edit and delete their own advances in the default column; PA, any advance
@@ -343,6 +351,7 @@ function forMember<T extends { payerId: number; columnId: number }>(data: T, vie
 export async function addAdvance(_prev: ActionState, formData: FormData): Promise<ActionState> {
   return run("member", addAdvanceSchema, formData, async (input, viewer) => {
     const data = forMember(input, viewer);
+    const fromDrawer = drawerFlagFor(data.fromDrawer, data.payerId, data.spentOn, viewer);
     await db.transaction(async (tx) => {
       const { order } = await loadOpenPeriod(tx, data.periodId, viewer);
       if (!order.includes(data.payerId)) {
@@ -357,6 +366,7 @@ export async function addAdvance(_prev: ActionState, formData: FormData): Promis
         description: data.description,
         amount: fromCentavos(data.amount),
         spentOn: data.spentOn,
+        fromDrawer: fromDrawer ?? false,
       });
     });
   });
@@ -368,6 +378,7 @@ const updateAdvanceSchema = addAdvanceSchema.omit({ periodId: true }).extend({ a
 export async function updateAdvance(_prev: ActionState, formData: FormData): Promise<ActionState> {
   return run("member", updateAdvanceSchema, formData, async ({ advanceId, ...input }, viewer) => {
     const data = forMember(input, viewer);
+    const fromDrawer = drawerFlagFor(data.fromDrawer, data.payerId, data.spentOn, viewer);
     await db.transaction(async (tx) => {
       const advance = await loadAdvanceFor(tx, advanceId, viewer, "That advance was deleted.");
       const { order } = await loadOpenPeriod(tx, advance.periodId, viewer);
@@ -382,6 +393,7 @@ export async function updateAdvance(_prev: ActionState, formData: FormData): Pro
           description: data.description,
           amount: fromCentavos(data.amount),
           spentOn: data.spentOn,
+          ...(fromDrawer === undefined ? {} : { fromDrawer }),
         })
         .where(and(eq(advances.id, advanceId), unchangedFor(viewer, advance)))
         .returning({ id: advances.id });
@@ -450,6 +462,7 @@ const helperEntryFields = z.object({
     .max(120, "Keep the note under 120 characters")
     .default("")
     .transform((v) => v || null),
+  fromDrawer: checkbox,
 });
 const helperKind = z.enum(["visit", "early_pay", "opening"], { message: "Choose visit or early pay" });
 type HelperKind = z.output<typeof helperKind>;
@@ -458,13 +471,14 @@ type HelperKind = z.output<typeof helperKind>;
 function helperEntryFor(input: z.output<typeof helperEntryFields>, kind: HelperKind, viewer: Viewer) {
   if (kind === "opening") {
     if (!isAdmin(viewer)) throw new ActionError("Only the admin can set her starting debt.");
-    return { ...input, kind, payerId: null, deduction: 0 };
+    return { ...input, kind, payerId: null, deduction: 0, fromDrawer: false };
   }
   const payerId = isAdmin(viewer) ? input.payerId : viewer.memberId;
   if (payerId === 0) throw new ActionError("Choose who paid her.");
-  if (kind === "early_pay") return { ...input, kind, payerId, deduction: 0 };
+  const fromDrawer = drawerFlagFor(input.fromDrawer, payerId, input.onDate, viewer);
+  if (kind === "early_pay") return { ...input, kind, payerId, deduction: 0, fromDrawer };
   if (input.deduction > input.amount) throw new ActionError("Taken off can't be more than her daily pay.");
-  return { ...input, kind, payerId };
+  return { ...input, kind, payerId, fromDrawer };
 }
 
 export async function addHelperEntry(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -493,6 +507,7 @@ export async function addHelperEntry(_prev: ActionState, formData: FormData): Pr
         amount: fromCentavos(data.amount),
         deduction: fromCentavos(data.deduction),
         note: data.note,
+        fromDrawer: data.fromDrawer ?? false,
       });
       await syncHelperBill(tx, periodId, order, data.kind);
     });
@@ -517,6 +532,7 @@ export async function updateHelperEntry(_prev: ActionState, formData: FormData):
           amount: fromCentavos(data.amount),
           deduction: fromCentavos(data.deduction),
           note: data.note,
+          ...(data.fromDrawer === undefined ? {} : { fromDrawer: data.fromDrawer }),
         })
         .where(eq(helperEntries.id, entryId));
       await syncHelperBill(tx, entry.periodId, order, entry.kind);
@@ -1557,6 +1573,44 @@ export async function moveBillerField(fieldId: number, direction: "up" | "down")
 export async function deleteBillerField(fieldId: number): Promise<ActionState> {
   return run("admin", z.object({ fieldId: id }), { fieldId }, async ({ fieldId }) => {
     await db.delete(billerFields).where(eq(billerFields.id, fieldId));
+  });
+}
+
+// ---------- Cash drawer (docs/features/cash-drawer.md) ----------
+// The admin's own cash: not tied to a month and never part of the split. Its own entries live
+// here; Helper entries and advances paid from it are flagged on themselves (drawerFlagFor).
+// Every change checks nobody has paid back more than they borrowed.
+
+const drawerEntryFields = z.object({
+  kind: z.enum(["cash_in", "spent", "lent", "paid_back"], { message: "Choose what kind of entry it is" }),
+  onDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a date"),
+  amount: moneyField(false),
+  person: z.string().max(60, "Keep the name under 60 characters").default(""),
+  note: z
+    .string()
+    .trim()
+    .max(120, "Keep the note under 120 characters")
+    .default("")
+    .transform((v) => v || null),
+});
+
+export async function addDrawerEntry(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  return run("admin", drawerEntryFields, formData, async (input) => {
+    const values = drawerEntryValues(input);
+    await db.transaction((tx) => addDrawerEntryIn(tx, values));
+  });
+}
+
+export async function updateDrawerEntry(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  return run("admin", drawerEntryFields.extend({ entryId: id }), formData, async ({ entryId, ...input }) => {
+    const values = drawerEntryValues(input);
+    await db.transaction((tx) => updateDrawerEntryIn(tx, entryId, values));
+  });
+}
+
+export async function deleteDrawerEntry(entryId: number): Promise<ActionState> {
+  return run("admin", z.object({ entryId: id }), { entryId }, async ({ entryId }) => {
+    await db.transaction((tx) => deleteDrawerEntryIn(tx, entryId));
   });
 }
 

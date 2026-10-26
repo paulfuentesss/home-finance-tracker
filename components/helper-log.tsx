@@ -187,9 +187,17 @@ export function HelperLog({ view }: { view: PeriodView }) {
               {helper.entries.map((e) => {
                 const pill = KIND_PILLS[e.kind];
                 const kindPill = (
-                  <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset", pill.className)}>
-                    {pill.label}
-                  </span>
+                  <>
+                    <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset", pill.className)}>
+                      {pill.label}
+                    </span>
+                    {/* PA's own record (docs/features/cash-drawer.md); hidden while he previews. */}
+                    {admin && e.fromDrawer && (
+                      <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700 ring-1 ring-violet-200 ring-inset">
+                        Drawer
+                      </span>
+                    )}
+                  </>
                 );
                 const date = e.onDate ? dayLabel(e.onDate) : "No date";
                 const payer = e.payerId === null ? "—" : (nameOf.get(e.payerId) ?? "—");
@@ -216,7 +224,9 @@ export function HelperLog({ view }: { view: PeriodView }) {
                 );
                 return (
                   <Fragment key={e.id}>
-                    {/* Phone: what and amount, then date, payer, note and buttons. */}
+                    {/* Phone: what and what was handed over (like desktop's bold column, so the rows
+                        add up to the Total), then date, payer, the pay before anything taken off,
+                        note and buttons. Her starting debt wasn't handed over: muted. */}
                     <tr className="border-t border-zinc-100 md:hidden">
                       <td colSpan={columnCount} className="px-5 py-2.5">
                         <div className="flex items-baseline justify-between gap-3">
@@ -224,12 +234,23 @@ export function HelperLog({ view }: { view: PeriodView }) {
                             {kindPill}
                             <span className="text-muted-foreground tabular-nums">{date}</span>
                           </span>
-                          <span className="shrink-0 font-mono font-semibold tabular-nums">{formatPHP(e.amount)}</span>
+                          <span
+                            className={cn(
+                              "shrink-0 font-mono tabular-nums",
+                              e.kind === "opening" ? "text-muted-foreground" : "font-semibold",
+                            )}
+                          >
+                            {formatPHP(e.kind === "opening" ? e.amount : e.handedOver)}
+                          </span>
                         </div>
                         <div className="mt-1.5 flex items-center justify-between gap-2">
                           <div className="text-xs text-muted-foreground">
                             {e.payerId !== null && <>{payer} · </>}
-                            {e.kind === "visit" && e.deduction > 0 && <>{takenOff} taken off · </>}
+                            {e.kind === "visit" && e.deduction > 0 && (
+                              <>
+                                {formatPHP(e.amount)} pay {takenOff} taken off ·{" "}
+                              </>
+                            )}
                             owes {formatPHP(e.owesAfter)} after
                             {e.note && <> · {e.note}</>}
                           </div>
@@ -263,6 +284,33 @@ export function HelperLog({ view }: { view: PeriodView }) {
                 </tr>
               )}
             </tbody>
+            {/* The month's totals, the same as the Helper bill card (her starting debt isn't in them). */}
+            {helper.entries.some(countsInBill) && (
+              <tfoot className="font-mono tabular-nums">
+                <tr className="border-t border-amber-300 bg-amber-50 font-semibold md:hidden">
+                  <td colSpan={columnCount} className="px-5 py-2.5">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="font-sans">Total handed over</span>
+                      <span>{formatPHP(helper.summary.handedOver)}</span>
+                    </div>
+                  </td>
+                </tr>
+                <tr className="hidden border-t border-amber-300 bg-amber-50 font-semibold md:table-row">
+                  <th scope="row" colSpan={2} className="px-5 py-2.5 text-left font-sans">
+                    Total
+                    {helper.entries.some((e) => e.kind === "opening") && (
+                      <span className="ml-1.5 text-xs font-normal text-muted-foreground">(not her starting debt)</span>
+                    )}
+                  </th>
+                  <td className="px-3 py-2.5 text-right">{formatPHP(helper.summary.dailyPay + helper.summary.earlyPay)}</td>
+                  <td className="px-3 py-2.5 text-right text-muted-foreground">
+                    {helper.summary.takenOff > 0 ? `−${formatPHP(helper.summary.takenOff)}` : "—"}
+                  </td>
+                  <td className="px-3 py-2.5 text-right">{formatPHP(helper.summary.handedOver)}</td>
+                  <td colSpan={editable ? 3 : 2} />
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </section>

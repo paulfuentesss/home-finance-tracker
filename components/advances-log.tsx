@@ -309,6 +309,8 @@ export function AdvancesLog({ view }: { view: PeriodView }) {
                 const advance = advanceOf.get(advanceId);
                 return advance !== undefined && canManage(advance);
               }}
+              // PA's own record (docs/features/cash-drawer.md); hidden while he previews.
+              fromDrawer={(advanceId) => isAdmin(viewer) && advanceOf.get(advanceId)?.fromDrawer === true}
               columnCount={columnCount}
               onEdit={(advanceId) => setEditing(advanceOf.get(advanceId) ?? null)}
             />
@@ -336,6 +338,7 @@ function PersonGroup({
   onToggle,
   editable,
   canManage,
+  fromDrawer,
   columnCount,
   onEdit,
 }: {
@@ -347,6 +350,8 @@ function PersonGroup({
   editable: boolean;
   /** Whether this advance's edit/delete buttons are shown. */
   canManage: (advanceId: number) => boolean;
+  /** Whether to mark this advance as paid from the cash drawer. */
+  fromDrawer: (advanceId: number) => boolean;
   columnCount: number;
   onEdit: (advanceId: number) => void;
 }) {
@@ -377,6 +382,11 @@ function PersonGroup({
           const category = (
             <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset", pill.className)}>
               {pill.label}
+            </span>
+          );
+          const drawerPill = row.advanceId !== null && fromDrawer(row.advanceId) && (
+            <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700 ring-1 ring-violet-200 ring-inset">
+              Drawer
             </span>
           );
           const date = row.date ? dayLabel(row.date) : "—";
@@ -412,6 +422,7 @@ function PersonGroup({
                     <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                       {category}
                       <SplitChip tag={row.split} color={chipColor(row.split)} />
+                      {drawerPill}
                       <span className="tabular-nums">{date}</span>
                     </div>
                     {actions && <div className="-my-1 flex shrink-0">{actions}</div>}
@@ -420,7 +431,12 @@ function PersonGroup({
               </tr>
               <tr className="hidden border-t border-zinc-100 hover:bg-zinc-50/60 md:table-row">
                 <td className="py-2.5 pr-3 pl-11">{category}</td>
-                <td className="px-3 py-2.5">{row.description}</td>
+                <td className="px-3 py-2.5">
+                  <span className="flex flex-wrap items-center gap-2">
+                    {row.description}
+                    {drawerPill}
+                  </span>
+                </td>
                 <td className="px-3 py-2.5">
                   <SplitChip tag={row.split} color={chipColor(row.split)} />
                 </td>

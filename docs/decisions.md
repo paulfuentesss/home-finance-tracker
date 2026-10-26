@@ -1184,3 +1184,27 @@ decision.
 **Why:** a week between nudges let a bill sit. With a push on each one now, every 4 days (twice a
 week) is noticed without nagging, and each push replaces the last on the phone.
 **Instead of:** weekly (too slow once it's a push), or every day or two (nagging).
+
+## 2026-10-26 — The cash drawer is the admin's own, flagged rather than copied, outside the split
+**Decision:** a Cash Drawer tab, admin only and the same in every month, replaces PA's notebook
+for the cash he keeps at home ([cash-drawer.md](features/cash-drawer.md)).
+- **Its own lines:** a `cash_drawer_entries` table holds cash in, spent, lent and paid back.
+- **Linked lines:** Helper entries and advances paid from the drawer aren't copied into it.
+  They carry a `from_drawer` flag, and the drawer reads them live.
+- **Only the admin sets the flag,** only on his own payments, and only with a date. A
+  housemate's save never changes it.
+- **Borrowers are typed names,** not members.
+- **The drawer may go below ₱0,** and shows where. But nobody may pay back more than they
+  borrowed: every drawer save checks that, under its own lock.
+
+**Instead of:**
+- copying a drawer row when a Helper entry or advance is saved, and keeping it in step on every
+  edit and delete;
+- a "paid by the drawer" party in the split (it's PA's money, so the split must not change);
+- a per-month tab (cash carries over);
+- borrowers picked from the members list (someone who borrows needn't be a housemate).
+
+**Why:** the flag can't fall out of step: editing or deleting the Helper entry or advance is the
+drawer's edit. Keeping the drawer out of the split means none of the money rules, Finals or bill
+emails change. Blocking a Helper save over the drawer's balance would get in the way of the
+household's real records for the sake of PA's private one, so the drawer only warns.
