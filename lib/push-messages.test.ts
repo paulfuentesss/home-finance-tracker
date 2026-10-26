@@ -25,23 +25,38 @@ describe("which reminders push", () => {
     expect(Object.keys(PUSHES).sort()).toEqual([...reminderKind.enumValues].sort());
   });
 
-  it("only when something is due soon: the early month-end reminders and the view-only note stay email-only", () => {
+  it("every housemate email pushes; only the view-only note doesn't (view-only logins get no pushes)", () => {
     const emailOnly = Object.entries(PUSHES)
       .filter(([, pushes]) => !pushes)
       .map(([kind]) => kind)
       .sort();
-    expect(emailOnly).toEqual(["bills_in", "three_days", "week"]);
+    expect(emailOnly).toEqual(["bills_in"]);
   });
 
-  it("month-end: only the last day", () => {
-    expect(monthEndPush("week", OCT)).toBeNull();
-    expect(monthEndPush("three_days", OCT)).toBeNull();
-    expect(monthEndPush("last_day", OCT)).toEqual({
+  it("month-end: a week before, a few days before and the last day, each replacing the last", () => {
+    expect(monthEndPush("week", { ...OCT, daysLeft: 7 })).toEqual({
+      title: "⏳ 7 days left to log your October expenses",
+      body: "Add anything you paid for the house before it locks after the 31st.",
+      url: "/periods/2026/10/advances",
+      tag: "month-end-2026-10",
+    });
+    expect(monthEndPush("three_days", { ...OCT, daysLeft: 3 })).toEqual({
+      title: "⏳ 3 days left to log your October expenses",
+      body: "Add anything you paid for the house before it locks after the 31st.",
+      url: "/periods/2026/10/advances",
+      tag: "month-end-2026-10",
+    });
+    expect(monthEndPush("last_day", { ...OCT, daysLeft: 0 })).toEqual({
       title: "⏰ Last day to log your October expenses",
       body: "Add anything you paid for the house this month before it locks tonight.",
       url: "/periods/2026/10/advances",
       tag: "month-end-2026-10",
     });
+  });
+
+  it("month-end: a caught-up day says the days actually left", () => {
+    expect(monthEndPush("week", { ...OCT, daysLeft: 5 }).title).toBe("⏳ 5 days left to log your October expenses");
+    expect(monthEndPush("three_days", { ...OCT, daysLeft: 1 }).title).toBe("⏳ 1 day left to log your October expenses");
   });
 });
 
@@ -122,7 +137,8 @@ it("a test push says who it was for", () => {
 
 it("no push shows an amount or links outside the app (the lock screen is public)", () => {
   const all: (Push | null)[] = [
-    monthEndPush("last_day", OCT),
+    monthEndPush("week", { ...OCT, daysLeft: 7 }),
+    monthEndPush("last_day", { ...OCT, daysLeft: 0 }),
     billReadyPush({ ...OCT, payables: { kind: "owes", due: c(123456), waiting: c(0), left: c(123456) }, path: SETTLE }),
     billReadyPush({ ...OCT, payables: { kind: "owed", amount: c(123456) }, path: SETTLE }),
     unpaidPush({ ...OCT, path: SETTLE }),

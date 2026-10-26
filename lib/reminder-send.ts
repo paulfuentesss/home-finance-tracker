@@ -70,7 +70,7 @@ export async function runDailyReminders(today: string): Promise<ReminderOutcome>
     const link = appLink(`/periods/${year}/${month}/advances`);
     for (const member of recipientsOf(current.balances.map((b) => b.member))) {
       const email = monthEndEmail(due, { name: member.name, year, month, daysLeft, link });
-      await sendOnce(current.id, due, member, email, outcome, monthEndPush(due, { year, month }));
+      await sendOnce(current.id, due, member, email, outcome, monthEndPush(due, { year, month, daysLeft }));
     }
   }
 
@@ -102,7 +102,7 @@ export async function runDailyReminders(today: string): Promise<ReminderOutcome>
     }
   }
 
-  // Housemates whose emailed bill is still unpaid: a follow-up a few days on, then weekly. After
+  // Housemates whose emailed bill is still unpaid: a follow-up a few days on, then every few days. After
   // the next month has started, so the link goes where "I paid" now goes.
   await sendUnpaidReminders(today, outcome);
 

@@ -104,14 +104,15 @@ describe("month-end reminders", () => {
     expect(await namesOf(await claims("week"))).toEqual(["Ana", "Ben", "Dan"]);
   });
 
-  it("pushes only after the email went (the last-day reminder pushes; a week's doesn't)", async () => {
+  it("pushes each reminder, only after its email went", async () => {
+    const pushedTo = () => mail.sendPush.mock.calls.map((call) => (call as unknown as [{ name: MemberName }[]])[0][0].name);
     await runOn("2026-08-24");
-    expect(mail.sendPush).not.toHaveBeenCalled();
+    expect(pushedTo().sort()).toEqual(["Ana", "Ben", "Dan"]);
 
+    mail.sendPush.mockClear();
     mail.failFor.add("Dan");
     await runOn("2026-08-31");
-    const pushedTo = mail.sendPush.mock.calls.map((call) => (call as unknown as [{ name: MemberName }[]])[0][0].name);
-    expect(pushedTo.sort()).toEqual(["Ana", "Ben"]);
+    expect(pushedTo().sort()).toEqual(["Ana", "Ben"]);
   });
 
   it("off the live site, sends (to the test address) but records nothing", async () => {
@@ -175,13 +176,13 @@ describe("unpaid follow-ups", () => {
     expect(unpaidSent(await runOn("2026-09-04"))).toEqual([]);
     expect(unpaidSent(await runOn("2026-09-05"))).toEqual(["unpaid → Ben"]);
     expect(unpaidSent(await runOn("2026-09-06"))).toEqual([]);
-    expect(unpaidSent(await runOn("2026-09-11"))).toEqual([]);
-    expect(unpaidSent(await runOn("2026-09-12"))).toEqual(["unpaid → Ben"]);
+    expect(unpaidSent(await runOn("2026-09-08"))).toEqual([]);
+    expect(unpaidSent(await runOn("2026-09-09"))).toEqual(["unpaid → Ben"]);
 
     // One row for it, its time moved to the latest follow-up.
     const rows = await claims("unpaid");
     expect(rows).toHaveLength(1);
-    expect(rows[0].sentAt.toISOString().slice(0, 10)).toBe("2026-09-12");
+    expect(rows[0].sentAt.toISOString().slice(0, 10)).toBe("2026-09-09");
   });
 
   it("puts the old time back when a follow-up fails, so the next day retries it", async () => {
@@ -190,11 +191,11 @@ describe("unpaid follow-ups", () => {
     const [before] = await claims("unpaid");
 
     mail.failFor.add("Ben");
-    expect((await runOn("2026-09-12")).failed).toEqual(["unpaid → Ben"]);
+    expect((await runOn("2026-09-09")).failed).toEqual(["unpaid → Ben"]);
     const [after] = await claims("unpaid");
     expect(after.sentAt.getTime()).toBe(before.sentAt.getTime());
 
-    expect(unpaidSent(await runOn("2026-09-13"))).toEqual(["unpaid → Ben"]);
+    expect(unpaidSent(await runOn("2026-09-10"))).toEqual(["unpaid → Ben"]);
   });
 
   it("stops once they've paid", async () => {

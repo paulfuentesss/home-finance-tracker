@@ -763,6 +763,7 @@ on every load), or a member setting in the database (a migration and backup cove
 preference, and one choice for both phone and laptop).
 
 ## 2026-10-13 — Unpaid bills get a reminder after a few days, then weekly, until paid
+*Updated 2026-10-26: every 4 days, not weekly (below).*
 **Decision:** a housemate with part of their emailed bill still unpaid is emailed a reminder a few
 days after the bill email, then weekly (`UNPAID_REMINDER_DAYS`), by the daily job
 ([reminders](features/reminders.md)). It's counted from their latest bill email, so sending it again
@@ -935,6 +936,7 @@ a still picture), or streaming the month layout (a big rework). Cost: iPhones th
 before keep opening `/` until they re-add it.
 
 ## 2026-10-16 — Push notifications: Web Push, alongside email, only when something's due
+*Updated 2026-10-26: every housemate email now pushes, the early month-end reminders too (below).*
 **Decision:** the installed app (and browsers) can get push notifications, sent with the
 `web-push` library and our own VAPID keys (`lib/push.ts`), opt-in per device. They go out
 **alongside** the emails, never instead, and only where something is due soon: the last-day
@@ -1162,3 +1164,23 @@ each reviewer keeps one job.
 **Why:** CI catches a broken test, never a missing one, so changed behaviour with no test went
 green. The carry-over was untested until a reviewer went looking, and breaking the code on
 purpose is what showed the new tests worked.
+
+## 2026-10-26 — Every housemate email also pushes
+**Decision:** the week-before and few-days-before month-end reminders push too, so every email a
+housemate gets also comes as a push (`PUSHES` in `lib/push-messages.ts`); only the view-only note
+stays email-only, since view-only logins get no pushes. The three month-end pushes share a tag,
+so each replaces the one before on the phone. This replaces "only when something's due soon"
+from the 2026-10-16 push decision.
+**Why:** Paul worried housemates miss emails. An inbox is easy to skip; a buzz on the lock screen
+isn't. It's about 5–6 pushes a month for someone who pays on time, still few, and the shared tag
+keeps them from piling up.
+**Instead of:** keeping the early reminders email-only (the ones most likely to be missed, since
+nothing is urgent yet).
+
+## 2026-10-26 — The still-unpaid follow-up repeats every 4 days, not weekly
+**Decision:** `UNPAID_REMINDER_DAYS` goes from 3-then-7 to 3-then-4: a reminder 3 days after the
+bill email, then every 4 days until it's paid or "I paid" covers it. Updates the 2026-10-13
+decision.
+**Why:** a week between nudges let a bill sit. With a push on each one now, every 4 days (twice a
+week) is noticed without nagging, and each push replaces the last on the phone.
+**Instead of:** weekly (too slow once it's a push), or every day or two (nagging).

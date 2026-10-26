@@ -101,7 +101,7 @@ describe("unpaidEmail", () => {
     expect(email.text).toContain("Just a friendly nudge: your October bill isn't fully paid yet.");
     expect(email.text).toContain("Left to pay: ₱2,345.50\n\nTo do:");
     expect(email.text).toContain('To do: send ₱2,345.50 to the House Budget, then open Settle Up, tap "I paid"');
-    expect(email.text).toContain("one comes every 7 days");
+    expect(email.text).toContain("one comes every 4 days");
     expect(email.text).toContain(`Settle Up: ${link}`);
     expect(email.text).not.toContain("waiting");
   });
