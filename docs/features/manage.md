@@ -9,7 +9,8 @@
 - **Shared columns:** add, rename, delete (only when empty), switch Auto equal ↔ Manual, choose
   who shares an Auto equal column. Its **Shared by** ticks sit on one line when they fit and
   one per line when they don't (no half-wrapped row).
-- **Meralco points:** each member's points for the month.
+- **Meralco points:** each member's points for the month. Locked until the admin taps **Edit
+  points** (then **Done**), so a stray tap can't re-split the bill.
 - **Housemates:** add (joins every open month) and remove (deactivated, never deleted; stays in
   months where they have records or an unsettled balance). Removing someone also takes their
   login away.

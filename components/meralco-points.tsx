@@ -1,8 +1,11 @@
 "use client";
 
+import { Check, Pencil } from "lucide-react";
+import { useState } from "react";
 import { updateBillPoints } from "@/app/periods/[year]/[month]/actions";
 import { InlineInput } from "@/components/inline-input";
 import { MemberMark } from "@/components/member-mark";
+import { Button } from "@/components/ui/button";
 import { formatPHP } from "@/lib/money";
 import type { PeriodView, ViewBill } from "@/lib/periods";
 import { useCanEdit } from "@/components/viewer-context";
@@ -11,12 +14,22 @@ import { useCanEdit } from "@/components/viewer-context";
 export function MeralcoPoints({ view }: { view: PeriodView }) {
   // PA in an open month; everyone else sees plain values.
   const editable = useCanEdit(view.period.status);
+  // Locked until PA taps Edit points: a save re-splits the bill, so a stray tap mustn't change it.
+  const [editing, setEditing] = useState(false);
   const bills = view.bills.filter((b) => b.splitMode === "points");
   if (bills.length === 0) return null;
 
   return (
     <section className="rounded-xl border bg-white p-5 shadow-xs">
-      <h2 className="text-base font-semibold">Meralco Points</h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-base font-semibold">Meralco Points</h2>
+        {editable && (
+          <Button size="sm" variant={editing ? "default" : "outline"} onClick={() => setEditing(!editing)}>
+            {editing ? <Check /> : <Pencil />}
+            {editing ? "Done" : "Edit points"}
+          </Button>
+        )}
+      </div>
       <p className="mt-1 text-sm text-muted-foreground">
         Change when the allocation changes (new aircon, PC, someone moving rooms). Saving re-splits the bill.
       </p>
@@ -31,7 +44,7 @@ export function MeralcoPoints({ view }: { view: PeriodView }) {
                 name={m.name}
                 dotClass={m.dotClass}
                 emoji={m.emoji}
-                editable={editable}
+                editable={editable && editing}
               />
             ))}
           </ul>

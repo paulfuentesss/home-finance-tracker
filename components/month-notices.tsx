@@ -1,13 +1,13 @@
 import { CalendarClock, CalendarPlus, Hourglass, Lock, Mail, Receipt, ReceiptText } from "lucide-react";
 import Link from "next/link";
-import { BillsDueList } from "@/components/bills-due";
+import { BillsDue } from "@/components/bills-due";
 import { buttonVariants } from "@/components/ui/button";
 import { monthLabel } from "@/lib/format";
 import { monthAfter, monthHasEnded } from "@/lib/month-lock";
 import { isAdmin, isViewOnly, type Viewer } from "@/lib/permissions";
 import type { PeriodView } from "@/lib/periods";
 import type { BillNotice } from "@/lib/reminder-status";
-import { BILL_DUE_DAYS, comingUpText, housemateNotice, type AdminNudge, type BillDue } from "@/lib/reminders";
+import { comingUpText, housemateNotice, type AdminNudge, type BillDue } from "@/lib/reminders";
 import { cn } from "@/lib/utils";
 
 // The month pages' notices about month ends and bills (docs/features/reminders.md): the in-app
@@ -60,15 +60,9 @@ export function MonthNotices({
         </Notice>
       )}
       {/* The admin's bills still to pay the billers, from any month (lib/reminders.ts → billsDue):
-          amber once one is a few days away. */}
+          folded to one line, amber once one is a few days away. */}
       {admin && billsDue.length > 0 && latest && (
-        <Notice
-          icon={<Receipt />}
-          tone={billsDue.some((b) => b.daysLeft <= BILL_DUE_DAYS.soon) ? "amber" : "zinc"}
-          block
-        >
-          <BillsDueList bills={billsDue} inboxHref={`/periods/${latest.year}/${latest.month}/manage#bill-inbox`} />
-        </Notice>
+        <BillsDue bills={billsDue} inboxHref={`/periods/${latest.year}/${latest.month}/manage#bill-inbox`} />
       )}
       {/* The admin's next step for the month that just ended (lib/reminders.ts → adminNudge). */}
       {nudge && (
@@ -152,28 +146,24 @@ function Notice({
   icon,
   tone,
   action,
-  block,
   children,
 }: {
   icon: React.ReactNode;
   tone: "amber" | "zinc";
   action?: React.ReactNode;
-  /** Children are blocks (a list), not a sentence: a div instead of a p, the icon at the top. */
-  block?: boolean;
   children: React.ReactNode;
 }) {
-  const Body = block ? "div" : "p";
   return (
     <div
       role="status"
       className={cn(
         "flex flex-wrap items-center gap-3 rounded-xl border p-4 text-sm [&>svg]:size-4 [&>svg]:shrink-0",
-        block && "items-start [&>svg]:mt-0.5",
+        // The bills-to-pay banner (components/bills-due.tsx) uses these two looks too.
         tone === "amber" ? "border-amber-300 bg-amber-50 text-amber-900" : "border-zinc-200 bg-zinc-50 text-zinc-700",
       )}
     >
       {icon}
-      <Body className="min-w-48 flex-1">{children}</Body>
+      <p className="min-w-48 flex-1">{children}</p>
       {action}
     </div>
   );
