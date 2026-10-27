@@ -45,6 +45,9 @@
   Once scrolled, it also slides narrower to make room: names and their tags fold away to just
   the emojis, the month in the corner ("OCT 2026") becomes "OCT", "Due date" / "Date paid" become "Due" / "Paid". Back
   at the start, they slide back. Phones only (narrower than 640px); wider screens have the room.
+- Four short explainer cards under the table (equal split, Meralco points, shared columns,
+  Month Final), each linking to its part of How it works. On a phone they're one row that
+  swipes sideways, the next card peeking in; wider screens show them as a grid.
 - Pending (emailed) bills are shown greyed out with Confirm / Discard ([email-bills.md](email-bills.md)).
 
 ## How it's built
