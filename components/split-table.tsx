@@ -586,13 +586,15 @@ function ExplainerCards() {
       href: "#month-final",
     },
   ];
+  // On a phone: one row that swipes sideways, edge to edge (-mx-4 undoes <main>'s px-4), with the
+  // next card peeking in to show there's more. py-1 keeps the cards' shadow from being clipped.
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 py-1 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-4 sm:overflow-visible sm:p-0 lg:grid-cols-4 [&::-webkit-scrollbar]:hidden">
       {cards.map(({ icon: Icon, title, body, href }) => (
         <Link
           key={title}
           href={`/how-it-works${href}`}
-          className="rounded-xl border bg-white p-4 shadow-xs transition-colors hover:border-amber-300"
+          className="w-[85%] shrink-0 snap-start rounded-xl border bg-white p-4 shadow-xs transition-colors hover:border-amber-300 sm:w-auto"
         >
           <p className="flex items-center gap-2 text-sm font-semibold">
             <Icon className="size-4 text-amber-600" />
