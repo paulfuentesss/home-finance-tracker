@@ -46,6 +46,22 @@ banner at the top of the month pages.
   over). Closing the month doesn't stop it: closing doesn't settle anyone. Paused while that
   month's bill email would be blocked (a bill pending, numbers that don't work out). The admin
   gets no copy: the bill-email box shows "· reminded Nov. 3" after the "✓ sent" date.
+- **Biller due dates** (the admin's): the admin pays the billers, so My House tells him when a
+  bill is coming due. A bill counts while it has a **Due date** (bill emails fill it in) and no
+  **Date paid**, has an amount, and isn't the Helper; from any month, closed ones too, since a
+  month's bills fall due after it ends. A **"Bills to pay"** banner on every month
+  page lists each one due within a week or overdue ("Meralco (October) due in 3 days (Nov. 14)"),
+  amber once one is a few days away (the days are `BILL_DUE_DAYS`), with a **Paid today**
+  button that sets its Date paid. A pending bill says to confirm it; a Bill inbox email with a
+  due date shows too (with a Bill inbox button) unless its column already has a Due date or a
+  Date paid. The daily job emails and pushes the admin a month's list 3 days before a bill is
+  due, on the day and the day after (once each, a missed day caught up; a bill added after
+  that month's last email can miss a step already past, but still gets the later ones). Marking it paid stops
+  both. Date paid can be set on a closed month
+  ([Closing](../settlement-rules.md#closing-and-reopening-a-month)). **Housemates and view-only
+  logins** see a slim grey line (no box) under their own banners, "Coming up: PLDT Wifi Oct. 30 ·
+  Water Nov. 2. PA pays these billers, nothing for you to do": bills due today or later only (an
+  overdue one stays on the admin's banner), no Bill inbox lines, no buttons, no email or push.
 - **View-only logins** (family who only look) get a short, warm "October's bills are in!" note the
   first time the bill email is sent for a month (even if every housemate is settled), with a link
   to the month's Split Table and no amounts. A resend doesn't
@@ -101,6 +117,14 @@ and nothing is recorded. A test can't stop a real reminder.
   (`lib/reminder-status.ts`, which the banner's `getBillNotice` uses too, so both talk about
   the same month), checks `payablesCheck` and `payablesIn`, then `unpaidReminderDue`; the words
   are `unpaidEmail`.
+- Biller due dates: `billsDue`, `billsComingUp`, `comingUpText`, `billDueReminderDue`,
+  `dueWhen`, `dueIn` and `BILL_DUE_DAYS` (pure, tested) in `lib/reminders.ts`; `loadBillsDue` /
+  `getBillsDue` (the admin's list or `billsComingUp`, for the drawn viewer so a preview shows the
+  housemate's) in `lib/reminder-status.ts`; the list and its Paid today button in
+  `components/bills-due.tsx`; `markBillPaid` and `updateBillDates` (Date paid through
+  `loadBillForDatePaid`, which skips the open-month check) in the month actions;
+  `sendBillDueReminders` in `lib/reminder-send.ts` with `billDueEmail` / `billDuePush` (kind
+  `bill_due`, one row per month like the unpaid follow-up).
 - Daily job: `vercel.json` → `crons` calls `GET /api/reminders` once a day, in the morning
   Manila time (Hobby runs it any time within the scheduled hour). The route
   (`app/api/reminders/route.ts`) checks `CRON_SECRET` first and is public in `proxy.ts`. Off
@@ -112,7 +136,7 @@ and nothing is recorded. A test can't stop a real reminder.
 - No double sends: each reminder is claimed in `reminder_sends` (unique month + kind + member)
   before it's sent, so a second call of the same cron sends nothing. A failed send removes its
   claim, so the next day retries just that person. A bill email rewrites its row's time. The
-  still-unpaid follow-up (`sendAgain`) has one row per month + member whose time moves forward
+  still-unpaid follow-up and the bills to pay (`sendAgain`) have one row per month + member whose time moves forward
   each time; a run claims it by moving it from the time it read (to the millisecond), and a
   failed send puts the old time back.
 - Seen: `BillSeen` (`components/seen-tracker.tsx`), rendered by `[month]/layout.tsx` for the
@@ -131,7 +155,8 @@ and nothing is recorded. A test can't stop a real reminder.
   `getEmailStatus`, admin only); `components/advances-log.tsx` and `components/helper-log.tsx`
   hide housemates' controls through `canLogIn`.
 - Table: `reminder_sends` (month, kind, member, sent at, seen at) — migrations `0014`, `0015`
-  (the two nudge kinds), `0020` (`bills_in`), `0021` (`unpaid`) and `0023` (`seen_at`).
+  (the two nudge kinds), `0020` (`bills_in`), `0021` (`unpaid`), `0023` (`seen_at`) and `0025`
+  (`bill_due`).
 - Setup: [operations.md → Emails & reminders](../operations.md#emails--reminders).
 
 ## Rules
@@ -139,8 +164,8 @@ and nothing is recorded. A test can't stop a real reminder.
 [Closing and reopening a month](../settlement-rules.md#closing-and-reopening-a-month)
 
 ## Open items
-[TODO.md](../TODO.md): telling the housemates; setting up the failure alert; a biller's due
-date reminder (Ideas).
+[TODO.md](../TODO.md): telling the housemates; setting up the failure alert; filling Date paid
+from payment-confirmation emails (Ideas).
 
 ## Built in
 #38 (`feat/install-app`); fixes after review in `test/backup-coverage`.

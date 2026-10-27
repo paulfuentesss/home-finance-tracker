@@ -5,6 +5,7 @@ import { useViewer } from "@/components/viewer-context";
 import type { PartOfDay } from "@/lib/format";
 import { HOUSE_BUDGET_LABEL } from "@/lib/household-config";
 import { formatPHP } from "@/lib/money";
+import { isViewOnly } from "@/lib/permissions";
 import type { PeriodView } from "@/lib/periods";
 import { cn } from "@/lib/utils";
 import { collectorNetOf } from "@/lib/who-owes";
@@ -118,7 +119,12 @@ export function Greeting({ view, partOfDay }: { view: PeriodView; partOfDay: Par
             </span>
           </span>
         </p>
-        <YourNumber view={view} memberId={me?.id ?? null} theme={theme} />
+        {isViewOnly(viewer) ? (
+          // Family who only look have no number: a warm line instead.
+          <p className={cn("text-sm leading-relaxed", theme.text)}>Hope you&apos;re doing well wherever you are! 💛</p>
+        ) : (
+          <YourNumber view={view} memberId={me?.id ?? null} theme={theme} />
+        )}
       </div>
     </section>
   );

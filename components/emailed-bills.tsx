@@ -110,7 +110,8 @@ export interface InboxEmail {
 /** Emails that didn't land in a Split Table, with why and what to do. */
 export function BillInbox({ emails }: { emails: InboxEmail[] }) {
   return (
-    <section className="rounded-xl border bg-white p-5 shadow-xs">
+    // The admin's bills-to-pay banner links here (#bill-inbox).
+    <section id="bill-inbox" className="scroll-mt-20 rounded-xl border bg-white p-5 shadow-xs">
       <div className="flex items-center gap-2">
         <Inbox className="size-5 text-muted-foreground" />
         <h2 className="text-base font-semibold">Bill Inbox</h2>

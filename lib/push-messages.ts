@@ -11,7 +11,7 @@ import type { reminderKind } from "@/db/schema";
 import { monthLabel } from "@/lib/format";
 import { HOUSE_BUDGET_LABEL } from "@/lib/household-config";
 import { monthAfter } from "@/lib/month-lock";
-import { lastDayName, type MonthEndReminder, type Payables } from "@/lib/reminders";
+import { dueWhen, lastDayName, type MonthEndReminder, type Payables } from "@/lib/reminders";
 
 export interface Push {
   title: string;
@@ -37,6 +37,7 @@ export const PUSHES: Record<ReminderKind, boolean> = {
   ready_close: true,
   bills_in: false,
   unpaid: true,
+  bill_due: true,
 };
 
 /** "October" (the year is in the tag and the link, not needed on a phone's lock screen). */
@@ -202,6 +203,31 @@ export function readyPush({ kind, year, month }: { kind: "email_bill" | "close";
         url: settle(year, month),
         tag: `ready-${year}-${month}`,
       };
+}
+
+/**
+ * To the admin: a month's bills are nearing their due date (lib/reminders.ts → billDueReminderDue).
+ * Bill names and when, never amounts. One tag per month, so the next step replaces this one.
+ */
+export function billDuePush({
+  year,
+  month,
+  bills,
+}: {
+  year: number;
+  month: number;
+  bills: readonly { name: string; dueDate: string; daysLeft: number }[];
+}): Push {
+  const [first] = bills;
+  return {
+    title: bills.length === 1 ? `🧾 ${first.name} is ${dueWhen(first)}` : `🧾 ${bills.length} bills to pay the billers`,
+    body:
+      bills.length === 1
+        ? 'Pay the biller, then tap "Paid today" in My House.'
+        : bills.map((b) => `${b.name}: ${dueWhen(b)}`).join(" · "),
+    url: `/periods/${year}/${month}`,
+    tag: `bill-due-${year}-${month}`,
+  };
 }
 
 /** "[test → Ben] …": a push sent off the live site to the admin's devices instead (lib/push.ts). */

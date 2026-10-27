@@ -23,6 +23,7 @@ note doesn't: view-only logins get no pushes):
 | Admin: **a housemate tapped "I paid"** | — | ✅ |
 | Admin: **a bill email came in** (to confirm) or couldn't be added (Bill inbox) | — | ✅ |
 | Admin: ready to email the bill / ready to close / couldn't start the month | ✅ | ✅ |
+| Admin: **bills to pay the billers** (3 days before a due date, the day, the day after) | ✅ | ✅ |
 
 That's about 5–6 a month for a housemate who pays on time, more while a bill stays unpaid (a
 follow-up every few days, `UNPAID_REMINDER_DAYS`). The month-end ones share a tag, as do the bill

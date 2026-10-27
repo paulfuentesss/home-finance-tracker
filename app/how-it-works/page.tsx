@@ -348,6 +348,11 @@ export default async function HowItWorksPage() {
             bill is ready&rdquo; stays there, with a button to Settle Up, until you&apos;re settled.
           </p>
           <p>
+            A small grey line there also shows the household&apos;s bills <strong>coming up</strong> in the next week
+            (&ldquo;Coming up: PLDT Wifi Oct. 30&rdquo;), so you know what&apos;s due. The admin pays the billers, so
+            there&apos;s nothing for you to do, and it never emails you about them.
+          </p>
+          <p>
             Amount looks wrong, or a question about an email? Message the admin before paying — they can fix the month
             and send the bill again.
           </p>

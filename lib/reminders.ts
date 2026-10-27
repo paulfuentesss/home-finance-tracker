@@ -3,7 +3,7 @@
 // lib/reminders.test.ts. The daily job (lib/reminder-send.ts), the month pages and the "How it
 // works" page all read these, so the days are written down once.
 
-import { dateInManila, daysBetween, monthLabel } from "@/lib/format";
+import { addDays, dateInManila, dayLabel, daysBetween, monthLabel } from "@/lib/format";
 import { formatPHP, type Centavos } from "@/lib/money";
 
 /** Days left in the month when each reminder goes out (0 = the month's last day). */
@@ -11,6 +11,12 @@ export const REMINDER_DAYS = { week: 7, three_days: 3, last_day: 0 } as const;
 
 /** A bill still unpaid: the first follow-up this many days after the bill email, then every `then` days. */
 export const UNPAID_REMINDER_DAYS = { first: 3, then: 4 } as const;
+
+/**
+ * A biller's due date (the admin's): the banner shows a bill from `banner` days before it's due;
+ * the morning email and push go out `soon` days before, on the day, and the day after.
+ */
+export const BILL_DUE_DAYS = { banner: 7, soon: 3 } as const;
 
 export type MonthEndReminder = keyof typeof REMINDER_DAYS;
 
@@ -77,6 +83,123 @@ export function unpaidReminderDue({
  */
 export function seenAfter(sentAt: Date, seenAt: Date | null): Date | null {
   return seenAt && seenAt >= sentAt ? seenAt : null;
+}
+
+/** A bill column, as the biller due-date reminder reads it. */
+export interface DueBillRow {
+  id: number;
+  name: string;
+  periodId: number;
+  year: number;
+  month: number;
+  kind: "standard" | "helper";
+  dueDate: string | null;
+  paidOn: string | null;
+  total: Centavos;
+  /** Filled in from a bill email and not confirmed yet. */
+  pending: boolean;
+}
+
+/** A Bill inbox email (unmatched) with a due date. */
+export interface DueInboxRow {
+  emailId: number;
+  /** The bill column it's for ("Meralco"). */
+  name: string;
+  year: number | null;
+  month: number | null;
+  dueDate: string | null;
+  /** That month's column of the same name, if there is one. */
+  column: { dueDate: string | null; paidOn: string | null } | null;
+}
+
+export type BillDue = { dueDate: string; daysLeft: number; name: string } & (
+  | { source: "bill"; id: number; periodId: number; year: number; month: number; total: Centavos; pending: boolean }
+  | { source: "inbox"; emailId: number; year: number | null; month: number | null }
+);
+
+/**
+ * The bills the admin still has to pay the biller for (docs/features/reminders.md → Biller due
+ * dates): a Due date, no Date paid, an amount, due within `BILL_DUE_DAYS.banner` days or
+ * overdue, in any month (a month's bills fall due after it ends, often after it's closed). Not
+ * the Helper, who has no biller. Pending bills count: they still need paying. A Bill inbox email
+ * counts too, so a bill that couldn't fill its column isn't missed — unless its column has its
+ * own Due date (it shows from there) or a Date paid. Soonest first.
+ */
+export function billsDue(bills: readonly DueBillRow[], inbox: readonly DueInboxRow[], today: string): BillDue[] {
+  const near = (dueDate: string) => daysBetween(today, dueDate) <= BILL_DUE_DAYS.banner;
+  const due: BillDue[] = [];
+  for (const b of bills) {
+    if (b.kind === "helper" || !b.dueDate || b.paidOn || b.total <= 0 || !near(b.dueDate)) continue;
+    const { id, name, periodId, year, month, total, pending, dueDate } = b;
+    due.push({ source: "bill", id, name, periodId, year, month, total, pending, dueDate, daysLeft: daysBetween(today, dueDate) });
+  }
+  for (const e of inbox) {
+    if (!e.dueDate || !near(e.dueDate) || e.column?.dueDate || e.column?.paidOn) continue;
+    const { emailId, name, year, month, dueDate } = e;
+    due.push({ source: "inbox", emailId, name, year, month, dueDate, daysLeft: daysBetween(today, dueDate) });
+  }
+  return due.sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.name.localeCompare(b.name));
+}
+
+/**
+ * What housemates and view-only logins see of it: a calm "coming up" note, no email or push.
+ * Bill columns due today or later only: an overdue one stays on the admin's banner (a late
+ * "Paid today" shouldn't worry anyone), and the Bill inbox is the admin's chore.
+ */
+export function billsComingUp(due: readonly BillDue[]): Extract<BillDue, { source: "bill" }>[] {
+  return due.filter((b): b is Extract<BillDue, { source: "bill" }> => b.source === "bill" && b.daysLeft >= 0);
+}
+
+/** The housemates' note: "Coming up: Water today · PLDT Wifi Oct. 30. PA pays these billers, nothing for you to do." */
+export function comingUpText(bills: readonly { name: string; dueDate: string; daysLeft: number }[], collectorName: string): string {
+  const when = (b: { dueDate: string; daysLeft: number }) =>
+    b.daysLeft === 0 ? "today" : b.daysLeft === 1 ? "tomorrow" : dayLabel(b.dueDate);
+  const list = bills.map((b) => `${b.name} ${when(b)}`).join(" · ");
+  return `Coming up: ${list}. ${collectorName} pays ${bills.length === 1 ? "this biller" : "these billers"}, nothing for you to do.`;
+}
+
+/**
+ * Whether the admin gets a month's "bills to pay" email and push this morning: some unpaid bill
+ * reached a step — `BILL_DUE_DAYS.soon` days before it's due, the due day, or the day after —
+ * since the last one (`lastSentOn`, Manila's date). A day the job missed is caught up, each step
+ * is told once, and a step more than `BILL_DUE_DAYS.banner` days ago is never dug up.
+ */
+export function billDueReminderDue({
+  dueDates,
+  lastSentOn,
+  today,
+}: {
+  /** The month's bills still to pay (billsDue → source "bill"). */
+  dueDates: readonly string[];
+  lastSentOn: string | null;
+  /** Manila's date, "YYYY-MM-DD". */
+  today: string;
+}): boolean {
+  return dueDates.some((due) =>
+    [addDays(due, -BILL_DUE_DAYS.soon), due, addDays(due, 1)].some(
+      (step) =>
+        step <= today &&
+        daysBetween(step, today) <= BILL_DUE_DAYS.banner &&
+        (lastSentOn === null || step > lastSentOn),
+    ),
+  );
+}
+
+/** The banner's short pill: "in 3 days", "tomorrow", "today", "2 days overdue". */
+export function dueIn(daysLeft: number): string {
+  if (daysLeft > 1) return `in ${daysLeft} days`;
+  if (daysLeft === 1) return "tomorrow";
+  if (daysLeft === 0) return "today";
+  return `${-daysLeft} day${daysLeft === -1 ? "" : "s"} overdue`;
+}
+
+/** "due in 3 days (Nov. 14)", "due tomorrow (Nov. 12)", "due today", "2 days overdue (due Nov. 2)". */
+export function dueWhen({ daysLeft, dueDate }: { daysLeft: number; dueDate: string }): string {
+  const day = dayLabel(dueDate);
+  if (daysLeft > 1) return `due in ${daysLeft} days (${day})`;
+  if (daysLeft === 1) return `due tomorrow (${day})`;
+  if (daysLeft === 0) return "due today";
+  return `${-daysLeft} day${daysLeft === -1 ? "" : "s"} overdue (due ${day})`;
 }
 
 /** A housemate's payment with the House Budget, in the bill's month or a later one. */

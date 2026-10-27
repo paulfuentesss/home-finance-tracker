@@ -1,12 +1,13 @@
-import { CalendarClock, CalendarPlus, Hourglass, Lock, Mail, ReceiptText } from "lucide-react";
+import { CalendarClock, CalendarPlus, Hourglass, Lock, Mail, Receipt, ReceiptText } from "lucide-react";
 import Link from "next/link";
+import { BillsDueList } from "@/components/bills-due";
 import { buttonVariants } from "@/components/ui/button";
 import { monthLabel } from "@/lib/format";
 import { monthAfter, monthHasEnded } from "@/lib/month-lock";
 import { isAdmin, isViewOnly, type Viewer } from "@/lib/permissions";
 import type { PeriodView } from "@/lib/periods";
 import type { BillNotice } from "@/lib/reminder-status";
-import { housemateNotice, type AdminNudge } from "@/lib/reminders";
+import { BILL_DUE_DAYS, comingUpText, housemateNotice, type AdminNudge, type BillDue } from "@/lib/reminders";
 import { cn } from "@/lib/utils";
 
 // The month pages' notices about month ends and bills (docs/features/reminders.md): the in-app
@@ -17,6 +18,7 @@ export function MonthNotices({
   viewer,
   bill,
   nudge,
+  billsDue,
   startBlock,
   today,
 }: {
@@ -25,6 +27,9 @@ export function MonthNotices({
   bill: BillNotice | null;
   /** The admin's next step (null for anyone else). */
   nudge: AdminNudge | null;
+  /** Bills still to pay the billers: the admin's whole list, or the "coming up" note everyone else
+   * sees (lib/reminder-status.ts → getBillsDue). */
+  billsDue: BillDue[];
   /** Why the next month can't start yet (lib/month-start.ts → startBlockReason), or null. */
   startBlock: string | null;
   /** Manila's date, "YYYY-MM-DD". */
@@ -52,6 +57,17 @@ export function MonthNotices({
           {startBlock
             ? `It can't start until this is fixed: ${startBlock}`
             : "It starts by itself around 9am, or start it now from the month picker."}
+        </Notice>
+      )}
+      {/* The admin's bills still to pay the billers, from any month (lib/reminders.ts → billsDue):
+          amber once one is a few days away. */}
+      {admin && billsDue.length > 0 && latest && (
+        <Notice
+          icon={<Receipt />}
+          tone={billsDue.some((b) => b.daysLeft <= BILL_DUE_DAYS.soon) ? "amber" : "zinc"}
+          block
+        >
+          <BillsDueList bills={billsDue} inboxHref={`/periods/${latest.year}/${latest.month}/manage#bill-inbox`} />
         </Notice>
       )}
       {/* The admin's next step for the month that just ended (lib/reminders.ts → adminNudge). */}
@@ -118,6 +134,16 @@ export function MonthNotices({
           {notice.text}
         </Notice>
       )}
+      {/* Housemates and view-only logins: the bills coming up, for their information — the admin
+          pays them. Last, and a slim line rather than a box, so it never competes with their own
+          notices; nothing to tap. */}
+      {!admin && billsDue.length > 0 && (
+        // px-[17px]: the icon lines up with the notices' icons (1px border + p-4).
+        <p className="flex items-start gap-2 px-[17px] text-xs text-muted-foreground">
+          <Receipt className="mt-px size-3.5 shrink-0" />
+          {comingUpText(billsDue, collectorName)}
+        </p>
+      )}
     </>
   );
 }
@@ -126,23 +152,28 @@ function Notice({
   icon,
   tone,
   action,
+  block,
   children,
 }: {
   icon: React.ReactNode;
   tone: "amber" | "zinc";
   action?: React.ReactNode;
+  /** Children are blocks (a list), not a sentence: a div instead of a p, the icon at the top. */
+  block?: boolean;
   children: React.ReactNode;
 }) {
+  const Body = block ? "div" : "p";
   return (
     <div
       role="status"
       className={cn(
         "flex flex-wrap items-center gap-3 rounded-xl border p-4 text-sm [&>svg]:size-4 [&>svg]:shrink-0",
+        block && "items-start [&>svg]:mt-0.5",
         tone === "amber" ? "border-amber-300 bg-amber-50 text-amber-900" : "border-zinc-200 bg-zinc-50 text-zinc-700",
       )}
     >
       {icon}
-      <p className="min-w-48 flex-1">{children}</p>
+      <Body className="min-w-48 flex-1">{children}</Body>
       {action}
     </div>
   );

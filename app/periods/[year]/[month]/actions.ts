@@ -193,8 +193,21 @@ export async function updateBillDates(_prev: ActionState, formData: FormData): P
   const schema = z.object({ billId: id, field: z.enum(["dueDate", "paidOn"]), value: optionalDate });
   return run("admin", schema, formData, async ({ billId, field, value }) => {
     await db.transaction(async (tx) => {
-      await loadBill(tx, billId);
+      // Date paid can still be set once the month is closed: the biller is often paid after
+      // (docs/settlement-rules.md → Closing). The Due date can't.
+      if (field === "paidOn") await loadBillForDatePaid(tx, billId);
+      else await loadBill(tx, billId);
       await tx.update(billItems).set({ [field]: value }).where(eq(billItems.id, billId));
+    });
+  });
+}
+
+/** The banner's "Paid today" (docs/features/reminders.md → Biller due dates). */
+export async function markBillPaid(billId: number): Promise<ActionState> {
+  return run("admin", z.object({ billId: id }), { billId }, async ({ billId }) => {
+    await db.transaction(async (tx) => {
+      await loadBillForDatePaid(tx, billId);
+      await tx.update(billItems).set({ paidOn: todayInManila() }).where(eq(billItems.id, billId));
     });
   });
 }
@@ -1716,6 +1729,17 @@ async function loadBill(tx: Tx, billId: number) {
   if (!bill) throw new ActionError("That bill no longer exists.");
   const { period, order } = await loadOpenPeriod(tx, bill.periodId);
   return { bill, period, order };
+}
+
+/**
+ * For a bill's Date paid only, which a closed month allows: it's a note of when the biller was
+ * paid, not part of the numbers closing locks. The month is locked like loadOpenPeriod does, so
+ * a delete waits.
+ */
+async function loadBillForDatePaid(tx: Tx, billId: number) {
+  const bill = await tx.query.billItems.findFirst({ where: eq(billItems.id, billId) });
+  if (!bill) throw new ActionError("That bill no longer exists.");
+  await tx.select({ id: billingPeriods.id }).from(billingPeriods).where(eq(billingPeriods.id, bill.periodId)).for("share");
 }
 
 async function loadColumn(tx: Tx, columnId: number) {

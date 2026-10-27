@@ -1,8 +1,8 @@
 // The daily job (lib/reminder-send.ts → runDailyReminders) against a real Postgres (PGlite:
 // docs/testing.md → Database tests), with the made-up August 2026. Emails and pushes are caught
 // here instead of sent. What it checks: each email goes out once (claim, then send), a failed
-// one is retried the next run, the next month starts by itself, and the unpaid follow-ups' days
-// (docs/features/reminders.md).
+// one is retried the next run, the next month starts by itself, the unpaid follow-ups' days and
+// the admin's bills to pay the billers (docs/features/reminders.md).
 //
 // Not shown here: two runs at the same instant (Vercel calling the cron twice). PGlite has one
 // connection, so runs can only go one after the other; the claim's unique index is what keeps
@@ -10,7 +10,7 @@
 
 import { and, eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { billingPeriods, members, payments, reminderSends } from "@/db/schema";
+import { billingPeriods, billItems, members, payments, reminderSends } from "@/db/schema";
 import type { MemberName } from "@/lib/__fixtures__/august-2026";
 import { loadAugust, type LoadedAugust } from "@/lib/__fixtures__/load-august";
 import { runDailyReminders } from "@/lib/reminder-send";
@@ -209,5 +209,76 @@ describe("unpaid follow-ups", () => {
     });
     expect(unpaidSent(await runOn("2026-09-05"))).toEqual([]);
     expect(await claims("unpaid")).toEqual([]);
+  });
+});
+
+describe("bills to pay the billers (the admin's)", () => {
+  // August's Meralco is due Sept. 6 and Water Sept. 3; the fixture has both paid, so take that off.
+  async function notPaid(...names: string[]) {
+    for (const name of names) {
+      await db
+        .update(billItems)
+        .set({ paidOn: null })
+        .where(and(eq(billItems.periodId, august.periodId), eq(billItems.name, name)));
+    }
+  }
+  const dueSent = (outcome: { sent: string[] }) => outcome.sent.filter((s) => s.startsWith("bill_due"));
+  const dueSubjects = () => mail.sent.filter((s) => s.to === "PA" && /Meralco|Water/.test(s.subject)).map((s) => s.subject);
+
+  it("tells the admin 3 days before, on the due day and the day after, once each", async () => {
+    await notPaid("Meralco");
+    expect(dueSent(await runOn("2026-09-02"))).toEqual([]);
+    expect(dueSent(await runOn("2026-09-03"))).toEqual(["bill_due → PA"]);
+    expect(dueSent(await runOn("2026-09-04"))).toEqual([]);
+    expect(dueSent(await runOn("2026-09-06"))).toEqual(["bill_due → PA"]);
+    expect(dueSent(await runOn("2026-09-07"))).toEqual(["bill_due → PA"]);
+    expect(dueSent(await runOn("2026-09-08"))).toEqual([]);
+    expect(dueSubjects()).toEqual([
+      "Meralco (August) is due in 3 days (Sept. 6)",
+      "Meralco (August) is due today",
+      "Meralco (August) is 1 day overdue (due Sept. 6)",
+    ]);
+    // One row for the month, its time moved to the latest.
+    const rows = await claims("bill_due");
+    expect(rows).toHaveLength(1);
+    expect(rows[0].sentAt.toISOString().slice(0, 10)).toBe("2026-09-07");
+    expect(mail.sendPush).toHaveBeenCalledWith(
+      [expect.objectContaining({ name: "PA" })],
+      expect.objectContaining({ tag: "bill-due-2026-8" }),
+    );
+  });
+
+  it("puts a month's bills in one email", async () => {
+    await notPaid("Meralco", "Water");
+    // Sept. 3: Water's due day and Meralco's 3 days before.
+    expect(dueSent(await runOn("2026-09-03"))).toEqual(["bill_due → PA"]);
+    expect(dueSubjects()).toEqual(["August's bills to pay: Water, Meralco"]);
+  });
+
+  it("stops once the bill is marked paid", async () => {
+    await notPaid("Meralco");
+    await runOn("2026-09-03");
+    await db.update(billItems).set({ paidOn: "2026-09-04" }).where(eq(billItems.name, "Meralco"));
+    expect(dueSent(await runOn("2026-09-06"))).toEqual([]);
+  });
+
+  it("puts the old time back when it fails, so the next day retries it", async () => {
+    await notPaid("Meralco");
+    await runOn("2026-09-03");
+    const [before] = await claims("bill_due");
+
+    mail.failFor.add("PA");
+    expect((await runOn("2026-09-06")).failed).toEqual(["bill_due → PA"]);
+    const [after] = await claims("bill_due");
+    expect(after.sentAt.getTime()).toBe(before.sentAt.getTime());
+
+    // The retry the next morning also covers the day-after step.
+    expect(dueSent(await runOn("2026-09-07"))).toEqual(["bill_due → PA"]);
+    expect(dueSent(await runOn("2026-09-08"))).toEqual([]);
+  });
+
+  it("says nothing about the Helper, or bills already paid", async () => {
+    expect(dueSent(await runOn("2026-09-03"))).toEqual([]);
+    expect(await claims("bill_due")).toEqual([]);
   });
 });

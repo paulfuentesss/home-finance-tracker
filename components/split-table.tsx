@@ -47,6 +47,8 @@ const squeezeGap = "ml-2 max-sm:group-data-scrolled-left/scroller:ml-0";
 export function SplitTable({ view }: { view: PeriodView }) {
   // PA in an open month; everyone else sees plain values.
   const editable = useCanEdit(view.period.status);
+  // A bill's Date paid: PA in any month, closed ones too (the biller is often paid after closing).
+  const canSetDatePaid = useCanEdit("open");
   const viewer = useViewer();
   const { bills, columns, members } = view;
   const rowOf = new Map(view.rows.map((r) => [r.memberId, r]));
@@ -248,7 +250,9 @@ export function SplitTable({ view }: { view: PeriodView }) {
                   </th>
                   {bills.map((bill) => (
                     <td key={bill.id} className={cn(cellBase, "text-center")}>
-                      {hasDates(bill) && <DateCell bill={bill} field={field} editable={editable} />}
+                      {hasDates(bill) && (
+                        <DateCell bill={bill} field={field} editable={field === "paidOn" ? canSetDatePaid : editable} />
+                      )}
                     </td>
                   ))}
                   <td colSpan={columns.length} />

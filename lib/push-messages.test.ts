@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { reminderKind } from "../db/schema";
 import {
   billArrivedPush,
+  billDuePush,
   billEmailStuckPush,
   billReadyPush,
   monthEndPush,
@@ -129,6 +130,24 @@ describe("the admin's", () => {
     expect(readyPush({ kind: "email_bill", ...OCT }).body).toBe("Ready to email everyone their bill.");
     expect(readyPush({ kind: "close", ...OCT }).title).toBe("Everyone has paid for October");
   });
+
+  it("bills nearing their due date: one, or several by name", () => {
+    expect(billDuePush({ ...OCT, bills: [{ name: "Meralco", dueDate: "2026-11-14", daysLeft: 3 }] })).toEqual({
+      title: "🧾 Meralco is due in 3 days (Nov. 14)",
+      body: 'Pay the biller, then tap "Paid today" in My House.',
+      url: "/periods/2026/10",
+      tag: "bill-due-2026-10",
+    });
+    const two = billDuePush({
+      ...OCT,
+      bills: [
+        { name: "Water", dueDate: "2026-11-10", daysLeft: -1 },
+        { name: "Meralco", dueDate: "2026-11-11", daysLeft: 0 },
+      ],
+    });
+    expect(two.title).toBe("🧾 2 bills to pay the billers");
+    expect(two.body).toBe("Water: 1 day overdue (due Nov. 10) · Meralco: due today");
+  });
 });
 
 it("a test push says who it was for", () => {
@@ -150,6 +169,14 @@ it("no push shows an amount or links outside the app (the lock screen is public)
     startBlockedPush(OCT),
     readyPush({ kind: "email_bill", ...OCT }),
     readyPush({ kind: "close", ...OCT }),
+    billDuePush({ ...OCT, bills: [{ name: "Meralco", dueDate: "2026-11-14", daysLeft: 3 }] }),
+    billDuePush({
+      ...OCT,
+      bills: [
+        { name: "Meralco", dueDate: "2026-11-14", daysLeft: 3 },
+        { name: "Water", dueDate: "2026-11-10", daysLeft: -1 },
+      ],
+    }),
   ];
   for (const push of all) {
     expect(push).not.toBeNull();

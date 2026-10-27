@@ -88,8 +88,6 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
   verification (shows "My House"; needs a privacy policy page). Supabase's custom domain
   does it too, but is paid.
 
-- More reminders ([reminders](features/reminders.md)): a biller's due date coming up.
-
 - Keep a bill's history across column renames on Trends ([trends](features/trends.md)): bills
   are matched by name, so a renamed column starts a new series. Would need a stable id carried
   from month to month (copied by Start next month).
@@ -100,7 +98,8 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
 
 - Read payment-confirmation emails to fill "Date paid" automatically
   ([email-bills](features/email-bills.md)). Wouldn't catch every payment fee, since some
-  providers only report what they received.
+  providers only report what they received. It would also stop the bills-to-pay reminders by
+  itself ([reminders](features/reminders.md)).
 
 - More secure ([auth](features/auth.md), [billers](features/billers.md),
   [operations → Privacy & security](operations.md#privacy--security)). Nothing is unhackable;

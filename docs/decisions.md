@@ -1208,3 +1208,37 @@ for the cash he keeps at home ([cash-drawer.md](features/cash-drawer.md)).
 drawer's edit. Keeping the drawer out of the split means none of the money rules, Finals or bill
 emails change. Blocking a Helper save over the drawer's balance would get in the way of the
 household's real records for the sake of PA's private one, so the drawer only warns.
+
+## 2026-10-27 — Biller due dates: Date paid is the signal, and stays editable once closed
+**Decision:** the admin is reminded about a bill while it has a Due date and no Date paid
+([reminders.md](features/reminders.md) → Biller due dates):
+- **On the screen:** a banner on every month page, with a Paid today button.
+- **By email and push:** a morning email and push 3 days before the due date, on the day and the
+  day after.
+- **Housemates and view-only logins see a calm "coming up" note** on the month pages: bills due
+  today or later, no overdue ones, no buttons, no email or push. They don't pay billers, so it's
+  for information only. Hiding overdue bills means a late tap on Paid today never worries anyone.
+- **Date paid stays editable on a closed month** (admin only; [Closing](settlement-rules.md#closing-and-reopening-a-month)).
+  The Due date and everything else stay locked. The How it works page still says a closed month
+  is "locked for everyone": for housemates it is, and that page leaves out admin-only detail.
+- **One `reminder_sends` row per month (`bill_due`), moving forward** like the unpaid follow-up,
+  so one email covers that month's bills.
+- **Bill inbox emails** with a due date are on the banner only. They already push when they get
+  stuck.
+
+**Why:**
+- The two date columns already existed, and the bill emails fill in the Due date, but nothing
+  read them.
+- Before this, every past month's dated bills had a Date paid, so "no Date paid" reliably means
+  "not paid yet".
+- A month's bills fall due after it ends, often after it's closed. With a full lock, a bill paid
+  after closing could never be marked, and its banner would nag forever. Date paid is a note,
+  not part of any number closing freezes.
+- A per-bill row would need a new column on a table keyed by month + kind + member.
+- A bill that arrives already inside the 3-day window misses its "3 days before" step. It still
+  gets its "bill came in" push, then its due-day step.
+
+**Instead of:**
+- A banner only: Paul wants to be told on days he doesn't open the app.
+- Keeping closed months fully locked, with a "reopen to mark it paid" step.
+- Reminding until paid with no cap: a step more than a week old is never dug up.
