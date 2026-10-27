@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { billsInEmail, monthEndEmail, payablesEmail, readyEmail, startBlockedEmail, unpaidEmail } from "@/lib/reminder-emails";
+import type { Centavos } from "@/lib/money";
+import {
+  billDueEmail,
+  billsInEmail,
+  monthEndEmail,
+  payablesEmail,
+  readyEmail,
+  startBlockedEmail,
+  unpaidEmail,
+} from "@/lib/reminder-emails";
 
 const link = "https://example.test/periods/2026/10/advances";
 
@@ -171,5 +180,27 @@ describe("readyEmail", () => {
     const email = readyEmail({ name: "PA", kind: "close", year: 2026, month: 10, link });
     expect(email.subject).toBe("Everyone has paid for October: ready to close");
     expect(email.text).toContain("To do: close October in Settle Up.");
+  });
+});
+
+describe("billDueEmail", () => {
+  const meralco = { name: "Meralco", dueDate: "2026-11-14", daysLeft: 3, total: 1_250_754 as Centavos, pending: false };
+
+  it("one bill: in the subject, with its amount and when", () => {
+    const email = billDueEmail({ name: "PA", year: 2026, month: 10, bills: [meralco], link });
+    expect(email.subject).toBe("Meralco (October) is due in 3 days (Nov. 14)");
+    expect(email.text).toContain("Hi PA,");
+    expect(email.text).toContain("This bill isn't marked paid yet:\n\n- Meralco: ₱12,507.54, due in 3 days (Nov. 14)");
+    expect(email.text).toContain('tap "Paid today"');
+    expect(email.text).toContain(`Split Table: ${link}`);
+    expect(email.text).not.toContain("👋");
+  });
+
+  it("several: named in the subject, a pending one says so", () => {
+    const water = { name: "Water", dueDate: "2026-11-11", daysLeft: 0, total: 194_863 as Centavos, pending: true };
+    const email = billDueEmail({ name: "PA", year: 2026, month: 10, bills: [water, meralco], link });
+    expect(email.subject).toBe("October's bills to pay: Water, Meralco");
+    expect(email.text).toContain("These bills aren't marked paid yet:");
+    expect(email.text).toContain("- Water: ₱1,948.63, due today — pending, confirm it first\n- Meralco: ₱12,507.54");
   });
 });

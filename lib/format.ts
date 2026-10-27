@@ -47,6 +47,11 @@ export function daysBetween(from: string, to: string): number {
   return Math.round((Date.parse(to) - Date.parse(from)) / DAY_MS);
 }
 
+/** A "YYYY-MM-DD" date moved by whole days: ("2026-11-01", -3) → "2026-10-29". */
+export function addDays(isoDate: string, days: number): string {
+  return new Date(Date.parse(isoDate) + days * DAY_MS).toISOString().slice(0, 10);
+}
+
 /** A moment in Manila as "Oct. 11, 2026, 3:00 PM" (e.g. when the last backup was taken). */
 export function momentLabel(moment: Date): string {
   const time = moment.toLocaleTimeString("en-US", { timeZone: "Asia/Manila", hour: "numeric", minute: "2-digit" });

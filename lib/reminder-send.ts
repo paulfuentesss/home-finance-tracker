@@ -9,14 +9,24 @@ import { after } from "next/server";
 import { billingPeriods, db, members, reminderSends, type Member } from "@/db";
 import { appLink, EmailNotSetUpError, emailIsLive, sendEmail } from "@/lib/email";
 import { ActionError } from "@/lib/errors";
-import { monthLabel } from "@/lib/format";
+import { dateInManila, monthLabel } from "@/lib/format";
 import { sharesCosts } from "@/lib/members";
 import { monthHasEnded, payablesCheck } from "@/lib/month-lock";
 import { startNextMonthIn } from "@/lib/month-start";
 import { computeForPayables, payablesIn, pendingBillNames } from "@/lib/periods";
 import { sendPush } from "@/lib/push";
-import { billReadyPush, monthEndPush, PUSHES, readyPush, startBlockedPush, unpaidPush, type Push } from "@/lib/push-messages";
 import {
+  billDuePush,
+  billReadyPush,
+  monthEndPush,
+  PUSHES,
+  readyPush,
+  startBlockedPush,
+  unpaidPush,
+  type Push,
+} from "@/lib/push-messages";
+import {
+  billDueEmail,
   billsInEmail,
   monthEndEmail,
   payablesEmail,
@@ -25,8 +35,8 @@ import {
   unpaidEmail,
   type Email,
 } from "@/lib/reminder-emails";
-import { findAdminNudge, latestBillSends } from "@/lib/reminder-status";
-import { daysLeftIn, reminderDue, unpaidReminderDue } from "@/lib/reminders";
+import { findAdminNudge, latestBillSends, loadBillsDue } from "@/lib/reminder-status";
+import { billDueReminderDue, daysLeftIn, reminderDue, unpaidReminderDue, type BillDue } from "@/lib/reminders";
 
 type ReminderKind = (typeof reminderSends.$inferInsert)["kind"];
 type Recipient = Pick<Member, "id" | "name"> & { email: string };
@@ -50,9 +60,10 @@ function recipientsOf(inMonth: readonly Member[]): Recipient[] {
 /**
  * The daily job. `today` is Manila's date. Sends the month-end reminder due today to each
  * housemate (lib/reminders.ts → reminderDue); starts the next month once the latest has ended
- * (telling the admin when it can't); follows up on emailed bills still unpaid; and emails the
- * admin's "ready to email the bill" / "ready to close" nudge. Each email is sent at most once
- * (the unpaid follow-up at most once each time it's due).
+ * (telling the admin when it can't); follows up on emailed bills still unpaid; emails the
+ * admin's "ready to email the bill" / "ready to close" nudge; and tells the admin about bills
+ * nearing their due date. Each email is sent at most once (the unpaid follow-up and the bills to
+ * pay at most once each time they're due).
  */
 export async function runDailyReminders(today: string): Promise<ReminderOutcome> {
   const outcome: ReminderOutcome = { today, live: emailIsLive(), sent: [], failed: [] };
@@ -119,6 +130,9 @@ export async function runDailyReminders(today: string): Promise<ReminderOutcome>
     const push = readyPush({ kind: nudge.kind, year: nudge.year, month: nudge.month });
     await sendOnce(nudge.periodId, nudge.kind === "email_bill" ? "ready_bill" : "ready_close", admin, email, outcome, push);
   }
+
+  // The admin's bills still to pay the billers, as their due dates near.
+  if (admin) await sendBillDueReminders(today, admin, outcome);
   return outcome;
 }
 
@@ -197,18 +211,43 @@ async function sendUnpaidReminders(today: string, outcome: ReminderOutcome) {
       link: appLink(`/periods/${latest.year}/${latest.month}/settle`),
     });
     const push = unpaidPush({ year: bill.year, month: bill.month, path: `/periods/${latest.year}/${latest.month}/settle` });
-    await sendAgain(bill.periodId, member, last ?? null, email, outcome, push);
+    await sendAgain(bill.periodId, "unpaid", member, last ?? null, email, outcome, push);
   }
 }
 
 /**
- * Like sendOnce, for the follow-up that repeats: its one row's time moves forward each time.
- * Only the run that moves it from the time it read sends (Vercel can call a cron twice), and a
- * failed send puts the old time back so the next day's run retries. The push, like sendOnce's,
- * only once the email has gone.
+ * The admin's "bills to pay" (lib/reminders.ts → billDueReminderDue): one email and push per
+ * month whose bills are nearing their due date and not marked paid, on each step. Bill columns
+ * only: a Bill inbox email is on the banner, and its own push went out when it got stuck.
+ */
+async function sendBillDueReminders(today: string, admin: Recipient, outcome: ReminderOutcome) {
+  const due = (await loadBillsDue(today)).filter((b): b is Extract<BillDue, { source: "bill" }> => b.source === "bill");
+  if (due.length === 0) return;
+  const sends = await db
+    .select()
+    .from(reminderSends)
+    .where(and(eq(reminderSends.kind, "bill_due"), eq(reminderSends.memberId, admin.id)));
+  const months = new Map<number, typeof due>();
+  for (const bill of due) months.set(bill.periodId, [...(months.get(bill.periodId) ?? []), bill]);
+  for (const [periodId, bills] of months) {
+    const last = sends.find((s) => s.periodId === periodId) ?? null;
+    const lastSentOn = last && dateInManila(last.sentAt);
+    if (!billDueReminderDue({ dueDates: bills.map((b) => b.dueDate), lastSentOn, today })) continue;
+    const { year, month } = bills[0];
+    const email = billDueEmail({ name: admin.name, year, month, bills, link: appLink(`/periods/${year}/${month}`) });
+    await sendAgain(periodId, "bill_due", admin, last, email, outcome, billDuePush({ year, month, bills }));
+  }
+}
+
+/**
+ * Like sendOnce, for the reminders that repeat ("still unpaid", "bills to pay"): one row per
+ * month and person, whose time moves forward each time. Only the run that moves it from the
+ * time it read sends (Vercel can call a cron twice), and a failed send puts the old time back so
+ * the next day's run retries. The push, like sendOnce's, only once the email has gone.
  */
 async function sendAgain(
   periodId: number,
+  kind: "unpaid" | "bill_due",
   to: Recipient,
   last: { id: number; sentAt: Date } | null,
   email: Email,
@@ -231,25 +270,25 @@ async function sendAgain(
           .returning({ id: reminderSends.id })
       : await db
           .insert(reminderSends)
-          .values({ periodId, kind: "unpaid", memberId: to.id })
+          .values({ periodId, kind, memberId: to.id })
           .onConflictDoNothing()
           .returning({ id: reminderSends.id });
     if (claimed.length === 0) return;
   }
   try {
     await sendEmail(to.email, to.name, email);
-    outcome.sent.push(`unpaid → ${to.name}`);
+    outcome.sent.push(`${kind} → ${to.name}`);
   } catch (error) {
-    console.error(`Couldn't send the unpaid email to ${to.name}`, error);
-    outcome.failed.push(`unpaid → ${to.name}`);
+    console.error(`Couldn't send the ${kind} email to ${to.name}`, error);
+    outcome.failed.push(`${kind} → ${to.name}`);
     if (live) {
-      const mine = and(eq(reminderSends.periodId, periodId), eq(reminderSends.kind, "unpaid"), eq(reminderSends.memberId, to.id));
+      const mine = and(eq(reminderSends.periodId, periodId), eq(reminderSends.kind, kind), eq(reminderSends.memberId, to.id));
       if (last) await db.update(reminderSends).set({ sentAt: last.sentAt }).where(mine);
       else await db.delete(reminderSends).where(mine);
     }
     return;
   }
-  if (PUSHES.unpaid) await sendPush([to], push);
+  if (PUSHES[kind]) await sendPush([to], push);
 }
 
 /**

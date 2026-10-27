@@ -15,7 +15,7 @@ import { monthHasEnded } from "@/lib/month-lock";
 import { startBlockReason } from "@/lib/month-start";
 import { isAdmin } from "@/lib/permissions";
 import { getPeriodView } from "@/lib/periods";
-import { getAdminNudge, getBillNotice } from "@/lib/reminder-status";
+import { getAdminNudge, getBillNotice, getBillsDue } from "@/lib/reminder-status";
 import { parsePeriodParams } from "./params";
 
 type Props = LayoutProps<"/periods/[year]/[month]">;
@@ -36,15 +36,17 @@ export default async function PeriodLayout({ params, children }: Props) {
   // Who the page is drawn for: the housemate being previewed, or the real viewer. Only this
   // layout decides; the tabs read it from the context.
   const viewerP = getPreview().then((preview) => preview ?? real);
-  // All at once. The notices (a housemate's emailed bill still to pay, or the admin's next step)
-  // need only the viewer, and share the month view's load of the history (lib/periods.ts).
-  const [preview, view, previewChoices, reminder, bill, nudge] = await Promise.all([
+  // All at once. The notices (a housemate's emailed bill still to pay, or the admin's next step
+  // and bills to pay the billers) need only the viewer, and share the month view's load of the
+  // history (lib/periods.ts).
+  const [preview, view, previewChoices, reminder, bill, nudge, billsDue] = await Promise.all([
     getPreview(),
     getPeriodView(year, month),
     getPreviewChoices(),
     getBackupReminder(real),
     viewerP.then(getBillNotice),
     viewerP.then(getAdminNudge),
+    viewerP.then(getBillsDue),
   ]);
   if (!view) notFound();
   const viewer = preview ?? real;
@@ -64,14 +66,24 @@ export default async function PeriodLayout({ params, children }: Props) {
       <main className="mx-auto w-full max-w-7xl space-y-6 px-4 py-8">
         {/* The admin's own reminder: hidden while previewing as a housemate. */}
         {admin && reminder && <BackupReminderBanner text={backupReminderText(reminder)} />}
-        <MonthNotices view={view} viewer={viewer} bill={bill} nudge={nudge} startBlock={startBlock} today={today} />
+        <MonthNotices
+          view={view}
+          viewer={viewer}
+          bill={bill}
+          nudge={nudge}
+          billsDue={billsDue}
+          startBlock={startBlock}
+          today={today}
+        />
         {/* Marks the real viewer's bill email seen (the admin's Settle Up shows it); never while previewing. */}
         {!preview && !isAdmin(real) && <BillSeen drawnAt={drawnAt.getTime()} />}
         {view.period.status === "closed" && (
           <div className="flex items-start gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700">
             <Lock className="mt-0.5 size-4 shrink-0" />
             <p>
-              {monthLabel(year, month)} is closed, so nothing in it can be changed.{" "}
+              {admin
+                ? `${monthLabel(year, month)} is closed, so nothing in it can be changed except a bill's Date paid. `
+                : `${monthLabel(year, month)} is closed, so nothing in it can be changed. `}
               {admin ? (
                 <>
                   <Link href={`/periods/${year}/${month}/settle`} className="font-medium underline underline-offset-2">

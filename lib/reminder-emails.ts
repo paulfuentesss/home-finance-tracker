@@ -10,7 +10,7 @@ import { monthLabel } from "@/lib/format";
 import { HOUSE_BUDGET_LABEL } from "@/lib/household-config";
 import { formatPHP, type Centavos } from "@/lib/money";
 import { monthAfter } from "@/lib/month-lock";
-import { lastDayName, UNPAID_REMINDER_DAYS, type MonthEndReminder, type Payables } from "@/lib/reminders";
+import { dueWhen, lastDayName, UNPAID_REMINDER_DAYS, type MonthEndReminder, type Payables } from "@/lib/reminders";
 
 export interface Email {
   subject: string;
@@ -260,6 +260,40 @@ export function readyEmail({
       `Everyone has settled ${label}, and nothing is pending or waiting.`,
       `To do: close ${label} in Settle Up. That locks its numbers for good (you can reopen it if needed).`,
       `Settle Up: ${link}`,
+      ADMIN_SIGN_OFF,
+    ),
+  };
+}
+
+/** To the admin: a month's bills still to pay the billers, as their due dates near. */
+export function billDueEmail({
+  name,
+  year,
+  month,
+  bills,
+  link,
+}: {
+  name: string;
+  year: number;
+  month: number;
+  bills: readonly { name: string; dueDate: string; daysLeft: number; total: Centavos; pending: boolean }[];
+  link: string;
+}): Email {
+  const label = monthName(year, month);
+  const [first] = bills;
+  return {
+    subject:
+      bills.length === 1
+        ? `${first.name} (${label}) is ${dueWhen(first)}`
+        : `${label}'s bills to pay: ${bills.map((b) => b.name).join(", ")}`,
+    text: paragraphs(
+      `Hi ${name},`,
+      `${bills.length === 1 ? "This bill isn't" : "These bills aren't"} marked paid yet:`,
+      bills
+        .map((b) => `- ${b.name}: ${formatPHP(b.total)}, ${dueWhen(b)}${b.pending ? " — pending, confirm it first" : ""}`)
+        .join("\n"),
+      `To do: pay the biller, then tap "Paid today" on the banner in My House (or set the Date paid on the Split Table). The reminders stop once it's marked paid.`,
+      `Split Table: ${link}`,
       ADMIN_SIGN_OFF,
     ),
   };

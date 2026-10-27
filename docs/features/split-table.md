@@ -11,7 +11,10 @@
   and Final still come to ₱0.00 ([rules](../settlement-rules.md#house-budget)).
 - Bill totals and Manual amounts are edited in place (Enter or click away saves, Escape undoes).
 - Due date and date paid per bill, except the Helper (`bill_items.kind = 'helper'`), whose
-  cells stay blank: her visits have their own dates on the [Helper tab](helper.md).
+  cells stay blank: her visits have their own dates on the [Helper tab](helper.md). A bill with a
+  Due date and no Date paid is on the admin's "Bills to pay" banner
+  ([reminders](reminders.md)). Date paid stays editable for the admin once the month is closed;
+  the Due date doesn't.
 - Once a month has Helper visits or early pay logged, the Helper column's total comes from the
   Helper tab: shown read-only, linked to it.
 - A shared column's total is the advances logged into it, so once something is logged there it
@@ -31,7 +34,8 @@
   they last paid: "Last paid Aug. 12 · 2 months ago" (their latest confirmed payment, from any
   month; just the date if it's under a month). With no payment on record there's no line. Only
   their own, never someone else's. The collector sees "You get back ₱X overall" (they paid the bills upfront), as in Who owes what. A view-only login
-  gets only the hello; a closed month just says it's closed.
+  gets the hello and "Hope you're doing well wherever you are! 💛" (no number: they're in no
+  month); a closed month just says it's closed.
 - "Who owes what" cards above the table: who pays into the House Budget, who gets paid from
   it, and what's left for the collector — readable on a phone where the wide table isn't.
 - **"You"**: your own row in the table and in Who owes what has a "You" tag, and the table row a

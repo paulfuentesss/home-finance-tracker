@@ -4,10 +4,11 @@
 // Nothing here goes to the browser except names, amounts and dates — never an email address.
 
 import "server-only";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
-import { billingPeriods, db, members, reminderSends } from "@/db";
+import { and, asc, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
+import { billEmails, billingPeriods, billItems, db, members, reminderSends } from "@/db";
 import { emailIsLive } from "@/lib/email";
 import { dateInManila, dayLabel, momentLabel, todayInManila } from "@/lib/format";
+import { BILL_EMAIL_COLUMNS } from "@/lib/household-config";
 import { sharesCosts } from "@/lib/members";
 import { toCentavos, type Centavos } from "@/lib/money";
 import { closeCheck, monthHasEnded, payablesCheck, type LockCheck } from "@/lib/month-lock";
@@ -15,9 +16,12 @@ import { isAdmin, type Viewer } from "@/lib/permissions";
 import { computeForPayables, loadPeriods, payablesIn, pendingBillNames, waitingPaymentLabels } from "@/lib/periods";
 import {
   adminNudge,
+  billsComingUp,
+  billsDue,
   REMINDER_DAYS,
   seenAfter,
   type AdminNudge,
+  type BillDue,
   type MonthEndReminder,
   type Payables,
 } from "@/lib/reminders";
@@ -122,6 +126,83 @@ export async function findAdminNudge(today: string): Promise<AdminNudge | null> 
 /** The nudge for the admin's month pages (null for anyone else, or while previewing as a housemate). */
 export async function getAdminNudge(viewer: Viewer): Promise<AdminNudge | null> {
   return isAdmin(viewer) ? findAdminNudge(todayInManila()) : null;
+}
+
+/**
+ * The bills still to pay the billers (lib/reminders.ts → billsDue): every month's bill columns
+ * with a Due date and no Date paid, and the Bill inbox's unmatched emails with a due date. Used
+ * by the admin's banner and the daily job's "bills to pay" email.
+ */
+export async function loadBillsDue(today: string): Promise<BillDue[]> {
+  const inMonth = eq(billingPeriods.id, billItems.periodId);
+  const [bills, emails] = await Promise.all([
+    db
+      .select({
+        id: billItems.id,
+        name: billItems.name,
+        periodId: billItems.periodId,
+        year: billingPeriods.year,
+        month: billingPeriods.month,
+        kind: billItems.kind,
+        dueDate: billItems.dueDate,
+        paidOn: billItems.paidOn,
+        totalAmount: billItems.totalAmount,
+        status: billItems.status,
+      })
+      .from(billItems)
+      .innerJoin(billingPeriods, inMonth)
+      .where(and(isNotNull(billItems.dueDate), isNull(billItems.paidOn))),
+    db
+      .select({
+        id: billEmails.id,
+        provider: billEmails.provider,
+        year: billEmails.billYear,
+        month: billEmails.billMonth,
+        dueDate: billEmails.dueDate,
+      })
+      .from(billEmails)
+      .where(and(eq(billEmails.status, "unmatched"), isNotNull(billEmails.dueDate), isNotNull(billEmails.provider))),
+  ]);
+  // The emails' own columns, to see whether they already have a Due date or a Date paid.
+  const columns =
+    emails.length === 0
+      ? []
+      : await db
+          .select({
+            name: billItems.name,
+            year: billingPeriods.year,
+            month: billingPeriods.month,
+            dueDate: billItems.dueDate,
+            paidOn: billItems.paidOn,
+          })
+          .from(billItems)
+          .innerJoin(billingPeriods, inMonth)
+          .where(inArray(billItems.name, Object.values(BILL_EMAIL_COLUMNS)));
+  return billsDue(
+    bills.map(({ totalAmount, status, ...b }) => ({ ...b, total: toCentavos(totalAmount), pending: status === "pending" })),
+    emails.map((e) => {
+      const name = BILL_EMAIL_COLUMNS[e.provider!];
+      const column = columns.find((c) => c.name === name && c.year === e.year && c.month === e.month);
+      return {
+        emailId: e.id,
+        name,
+        year: e.year,
+        month: e.month,
+        dueDate: e.dueDate,
+        column: column ? { dueDate: column.dueDate, paidOn: column.paidOn } : null,
+      };
+    }),
+    today,
+  );
+}
+
+/**
+ * The bills banner, for whoever the page is drawn for: the admin's whole list, or the "coming
+ * up" note housemates and view-only logins see (billsComingUp), so a preview shows theirs.
+ */
+export async function getBillsDue(viewer: Viewer): Promise<BillDue[]> {
+  const due = await loadBillsDue(todayInManila());
+  return isAdmin(viewer) ? due : billsComingUp(due);
 }
 
 export interface EmailStatus {

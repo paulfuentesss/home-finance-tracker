@@ -1,8 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
   adminNudge,
+  billDueReminderDue,
+  billsComingUp,
+  billsDue,
+  comingUpText,
   daysLeftIn,
+  dueIn,
+  dueWhen,
   housemateNotice,
+  type DueBillRow,
+  type DueInboxRow,
   lastDayName,
   lastDayOf,
   payablesOf,
@@ -107,6 +115,159 @@ describe("unpaidReminderDue", () => {
     const morning = new Date("2026-10-31T23:30:00Z");
     expect(unpaidReminderDue({ billSentAt: morning, lastReminderAt: null, today: "2026-11-03" })).toBe(false);
     expect(unpaidReminderDue({ billSentAt: morning, lastReminderAt: null, today: "2026-11-04" })).toBe(true);
+  });
+});
+
+describe("billsDue", () => {
+  // The made-up August 2026: its bills fall due in early September.
+  const bill = (over: Partial<DueBillRow>): DueBillRow => ({
+    id: 1,
+    name: "Meralco",
+    periodId: 8,
+    year: 2026,
+    month: 8,
+    kind: "standard",
+    dueDate: "2026-09-06",
+    paidOn: null,
+    total: 1_250_754,
+    pending: false,
+    ...over,
+  });
+  const email = (over: Partial<DueInboxRow>): DueInboxRow => ({
+    emailId: 5,
+    name: "PLDT Wifi",
+    year: 2026,
+    month: 8,
+    dueDate: "2026-09-04",
+    column: { dueDate: null, paidOn: null },
+    ...over,
+  });
+
+  it("lists unpaid bills due within a week or overdue, soonest first, with the days left", () => {
+    const due = billsDue(
+      [
+        bill({ id: 1, name: "Meralco", dueDate: "2026-09-06" }),
+        bill({ id: 2, name: "Water", dueDate: "2026-09-03" }),
+        // Overdue: still listed, however late.
+        bill({ id: 3, name: "PLDT Wifi", dueDate: "2026-08-20" }),
+        // 8 days away: not yet.
+        bill({ id: 4, name: "Rent", dueDate: "2026-09-09" }),
+      ],
+      [],
+      "2026-09-01",
+    );
+    expect(due.map((d) => [d.name, d.daysLeft])).toEqual([
+      ["PLDT Wifi", -12],
+      ["Water", 2],
+      ["Meralco", 5],
+    ]);
+  });
+
+  it("leaves out paid, undated, ₱0 and Helper bills, and keeps pending ones (flagged)", () => {
+    const due = billsDue(
+      [
+        bill({ id: 1, paidOn: "2026-08-31" }),
+        bill({ id: 2, dueDate: null }),
+        bill({ id: 3, total: 0 }),
+        bill({ id: 4, name: "Helper", kind: "helper" }),
+        bill({ id: 5, name: "Water", pending: true }),
+      ],
+      [],
+      "2026-09-01",
+    );
+    expect(due).toEqual([
+      expect.objectContaining({ source: "bill", id: 5, name: "Water", pending: true, daysLeft: 5, total: 1_250_754 }),
+    ]);
+  });
+
+  it("lists a Bill inbox email unless its column already has a Due date or a Date paid", () => {
+    const due = (column: DueInboxRow["column"]) => billsDue([], [email({ column })], "2026-09-01");
+    expect(due(null)).toEqual([
+      { source: "inbox", emailId: 5, name: "PLDT Wifi", year: 2026, month: 8, dueDate: "2026-09-04", daysLeft: 3 },
+    ]);
+    expect(due({ dueDate: null, paidOn: null })).toHaveLength(1);
+    // The column shows it itself (from its own Due date)…
+    expect(due({ dueDate: "2026-09-04", paidOn: null })).toEqual([]);
+    // …or it's been paid.
+    expect(due({ dueDate: null, paidOn: "2026-09-01" })).toEqual([]);
+    expect(billsDue([], [email({ dueDate: null })], "2026-09-01")).toEqual([]);
+    expect(billsDue([], [email({ dueDate: "2026-09-20" })], "2026-09-01")).toEqual([]);
+  });
+});
+
+describe("billsComingUp", () => {
+  it("keeps bill columns due today or later: no overdue ones, no Bill inbox emails", () => {
+    const all = billsDue(
+      [
+        { id: 1, name: "PLDT Wifi", periodId: 8, year: 2026, month: 8, kind: "standard", dueDate: "2026-08-30", paidOn: null, total: 189_900, pending: false },
+        { id: 2, name: "Water", periodId: 8, year: 2026, month: 8, kind: "standard", dueDate: "2026-09-01", paidOn: null, total: 194_863, pending: false },
+        { id: 3, name: "Meralco", periodId: 8, year: 2026, month: 8, kind: "standard", dueDate: "2026-09-06", paidOn: null, total: 1_250_754, pending: true },
+      ],
+      [{ emailId: 5, name: "Rent", year: 2026, month: 8, dueDate: "2026-09-02", column: null }],
+      "2026-09-01",
+    );
+    expect(all.map((b) => b.name)).toEqual(["PLDT Wifi", "Water", "Rent", "Meralco"]);
+    expect(billsComingUp(all).map((b) => [b.name, b.daysLeft])).toEqual([
+      ["Water", 0],
+      ["Meralco", 5],
+    ]);
+    expect(comingUpText(billsComingUp(all), "PA")).toBe(
+      "Coming up: Water today · Meralco Sept. 6. PA pays these billers, nothing for you to do.",
+    );
+    expect(comingUpText([{ name: "Water", dueDate: "2026-09-02", daysLeft: 1 }], "PA")).toBe(
+      "Coming up: Water tomorrow. PA pays this biller, nothing for you to do.",
+    );
+  });
+});
+
+describe("billDueReminderDue", () => {
+  // Due Sept. 6: the steps are Sept. 3 (3 days before), Sept. 6 and Sept. 7 (the day after).
+  const due = (today: string, lastSentOn: string | null, dueDates = ["2026-09-06"]) =>
+    billDueReminderDue({ dueDates, lastSentOn, today });
+
+  it("is due on each step, once", () => {
+    expect(due("2026-09-02", null)).toBe(false);
+    expect(due("2026-09-03", null)).toBe(true);
+    expect(due("2026-09-03", "2026-09-03")).toBe(false);
+    expect(due("2026-09-05", "2026-09-03")).toBe(false);
+    expect(due("2026-09-06", "2026-09-03")).toBe(true);
+    expect(due("2026-09-07", "2026-09-06")).toBe(true);
+    expect(due("2026-09-08", "2026-09-07")).toBe(false);
+    expect(due("2026-09-20", "2026-09-07")).toBe(false);
+  });
+
+  it("catches up a day the job missed", () => {
+    // Nothing went out on Sept. 3 (the database paused): Sept. 4 sends it.
+    expect(due("2026-09-04", "2026-08-30")).toBe(true);
+  });
+
+  it("never digs up a step more than a week old", () => {
+    // Sept. 7 + 7 = Sept. 14 is the last day the day-after step can still go out.
+    expect(due("2026-09-14", null)).toBe(true);
+    expect(due("2026-09-15", null)).toBe(false);
+  });
+
+  it("goes by any of the month's bills", () => {
+    // Water (due Sept. 3) was told on its due day; Meralco's 3-days-before step is the same day.
+    expect(due("2026-09-03", null, ["2026-09-03", "2026-09-06"])).toBe(true);
+    // Sept. 4: Water's day-after step.
+    expect(due("2026-09-04", "2026-09-03", ["2026-09-03", "2026-09-06"])).toBe(true);
+    expect(due("2026-09-05", "2026-09-04", ["2026-09-03", "2026-09-06"])).toBe(false);
+    expect(due("2026-09-03", null, [])).toBe(false);
+  });
+});
+
+describe("dueWhen", () => {
+  it("says when, in the household's words", () => {
+    expect(dueWhen({ daysLeft: 3, dueDate: "2026-09-06" })).toBe("due in 3 days (Sept. 6)");
+    expect(dueWhen({ daysLeft: 1, dueDate: "2026-09-06" })).toBe("due tomorrow (Sept. 6)");
+    expect(dueWhen({ daysLeft: 0, dueDate: "2026-09-06" })).toBe("due today");
+    expect(dueWhen({ daysLeft: -1, dueDate: "2026-09-06" })).toBe("1 day overdue (due Sept. 6)");
+    expect(dueWhen({ daysLeft: -4, dueDate: "2026-09-06" })).toBe("4 days overdue (due Sept. 6)");
+  });
+
+  it("and the banner's short pill", () => {
+    expect([3, 1, 0, -1, -4].map(dueIn)).toEqual(["in 3 days", "tomorrow", "today", "1 day overdue", "4 days overdue"]);
   });
 });
 

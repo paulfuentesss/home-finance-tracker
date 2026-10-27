@@ -309,7 +309,8 @@ bills usually arrive after the month has ended. Housemates log anything new in t
 [reminders](features/reminders.md)). Ending changes no numbers.
 
 **Closing** locks a month (`billing_periods.status = 'closed'`): every change to it is
-rejected. It saves each member's Final as `period_balances.closing_balance`, and — when the
+rejected, except a bill's Date paid (the admin's; a note of when the biller was paid, which is
+often after closing, not part of any number). It saves each member's Final as `period_balances.closing_balance`, and — when the
 next month already exists — as that month's `opening_balance`, which is used from then on
 instead of the live carry-over. Unpaid amounts carry over; nobody has to be at ₱0.
 
