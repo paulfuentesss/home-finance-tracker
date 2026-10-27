@@ -50,7 +50,8 @@ banner at the top of the month pages.
   bill is coming due. A bill counts while it has a **Due date** (bill emails fill it in) and no
   **Date paid**, has an amount, and isn't the Helper; from any month, closed ones too, since a
   month's bills fall due after it ends. A **"Bills to pay"** banner on every month
-  page lists each one due within a week or overdue ("Meralco (October) due in 3 days (Nov. 14)"),
+  page, folded to one line (how many, the next one and how soon; tap to open), lists each one
+  due within a week or overdue ("Meralco (October) due in 3 days (Nov. 14)"),
   amber once one is a few days away (the days are `BILL_DUE_DAYS`), with a **Paid today**
   button that sets its Date paid. A pending bill says to confirm it; a Bill inbox email with a
   due date shows too (with a Bill inbox button) unless its column already has a Due date or a
