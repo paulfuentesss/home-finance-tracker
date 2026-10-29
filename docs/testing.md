@@ -23,7 +23,7 @@ keep it that way.
 | `lib/month-lock.test.ts` | Closing / reopening rules, pending bills and waiting payments blocking a close, starting the next month waiting for them, balances that would vanish; when a month has ended (Manila date, year's end), when the bill can be emailed |
 | `lib/advances-log.test.ts` | Advances Log grouping, split labels and the column filter (`?column=`) |
 | `lib/bill-email/parse.test.ts` | Reading the August sample bill emails; refusing other senders; bill month; dates |
-| `lib/bill-email/intake.test.ts` | What `/api/bill-email` accepts from the Gmail script: Gmail's DKIM verdict for the biller's domain (lookalikes, other domains, headers not from Gmail refused), the body's shape |
+| `lib/bill-email/intake.test.ts` | What `/api/bill-email` accepts from the Gmail script: Gmail's verdict that the biller sent it — DKIM, DMARC, or a forwarded bill's ARC sealed by Google (lookalikes, other domains, other sealers, headers not from Gmail refused), a sender's address planting a result in the header, the body's shape |
 | `lib/bill-email/fees.test.ts` | The payment fee setting turns the sample emails into the fixture's bills |
 | `lib/local-database.test.ts` | Test-data scripts recognise only a database on this machine as local |
 | `lib/permissions.test.ts` | Who may change which advance; who may log in an ended month (`canLogIn`); who may send / cancel a payment and see its proof; `safeNext` blocking open redirects after sign-in |

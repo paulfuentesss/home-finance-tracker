@@ -34,8 +34,11 @@ Nothing personal here: this repo is public. Household-specific to-dos go in `.pr
 
 - [ ] **See bills arrive by email** ([email-bills](features/email-bills.md)) — set up
       (2026-10-11, [setup.md](setup.md) step 7); *waiting for the first real bills.* Check each
-      biller's first one shows as Pending — one forwarded from PA's personal Gmail too (if that
-      one is refused, its DKIM didn't survive forwarding: switch to a second script there).
+      biller's first one shows as Pending — one forwarded from PA's personal Gmail too.
+      Meralco's October bill (forwarded) was refused by the sender check; fixed
+      ([decisions](decisions.md), 2026-10-30). Once that's deployed: paste the new
+      `scripts/gmail/bill-forwarder.gs` into the My House Gmail's Apps Script, run
+      `retryRejected()`, and check October's Meralco column shows it as Pending.
       Remove the forwarding filter once every biller sends to the My House Gmail.
 
 - [ ] **Watch where sign-in emails land** ([auth](features/auth.md)): the first code went to

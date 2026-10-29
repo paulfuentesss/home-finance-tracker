@@ -3,7 +3,9 @@
 ## Status
 🚧 Built, waiting for its first real bill. Reading emails, Pending bills, the Bill Inbox,
 payment fees and the intake (a script in the My House Gmail → `/api/bill-email`) are done; it
-counts as working once a real bill has arrived this way ([TODO.md](../TODO.md)). Setting it up:
+counts as working once a real bill has arrived this way ([TODO.md](../TODO.md)). Meralco's
+first (October 2026, forwarded) was refused by the sender check, since fixed
+([decisions](../decisions.md), 2026-10-30). Setting it up:
 [setup.md](../setup.md) step 7. Confirming, discarding and the Bill Inbox are PA's
 ([auth.md](auth.md)).
 
@@ -32,14 +34,21 @@ counts as working once a real bill has arrived this way ([TODO.md](../TODO.md)).
    (reference copy; it runs in that Google account). Hourly, it searches for the billers'
    bills received since it was set up, skips emails it has finished (fingerprints of their
    Message-IDs in Script Properties — Gmail labels whole threads, so labels are only for
-   show), and POSTs each one — Message-ID, sender, subject, date, plain text and the topmost
-   `Authentication-Results` header — to `app/api/bill-email/route.ts`. 200 → done, labelled
-   `my-house/imported`; 400/422 → done, labelled `my-house/rejected`; anything else → retried
-   next hour. A refusal, or 3 failing runs in a row, emails `NOTIFY_TO` (at most daily).
+   show), and POSTs each one — Message-ID, sender, subject, date, plain text, the topmost
+   `Authentication-Results` header and every `ARC-Seal` — to `app/api/bill-email/route.ts`.
+   200 → done, labelled `my-house/imported`; 400/422 → done, labelled `my-house/rejected`
+   (`retryRejected()`, run by hand, sends those again once the cause is fixed); anything else →
+   retried next hour. A refusal, or 3 failing runs in a row, emails `NOTIFY_TO` (at most daily).
+   Runs take a script lock, so a hand run and the hourly one don't overlap.
    The route has no login, so it checks, in order: `BILL_EMAIL_SECRET` (a shared secret,
-   constant-time), the body's shape, then Gmail's DKIM verdict for the biller's domain
-   (`lib/bill-email/intake.ts`, tested in `intake.test.ts`; `lib/actions-guard.test.ts` checks
-   the secret comes first). Only then `importBillEmail`.
+   constant-time), the body's shape, then `sentByBiller` (`lib/bill-email/intake.ts`, tested
+   in `intake.test.ts`; `lib/actions-guard.test.ts` checks the secret comes first): Gmail's
+   verdict that the biller sent it — a DKIM pass signed by the biller's domain, a DMARC pass
+   for it (Meralco signs through Salesforce, so this is how its bills pass), or, for a bill
+   forwarded from PA's personal Gmail, an ARC pass whose summary shows that DMARC pass under a
+   set sealed by google.com. The header is read strictly (`resultsOf`): if a sender's address
+   could have planted a result, it counts as unverified ([decisions](../decisions.md),
+   2026-10-30). Only then `importBillEmail`.
 1. **Parse** — `lib/bill-email/parse.ts` (pure, tested in `parse.test.ts`): sender-domain
    allow-list, the amount line per provider, dates, the bill month. Each value is read from
    after its label (`field()`), whether it's plain, in a table cell or in `*bold*` (Manila
@@ -66,8 +75,7 @@ the route and from `scripts/import-email.mts`. Test emails: [testing.md](../test
 
 ## Open items
 - Turning it on and checking it on real bills: [TODO.md](../TODO.md).
-- If a forwarded bill is refused (its DKIM didn't survive forwarding), run a second copy of the
-  script in the personal Gmail instead of the filter ([decisions.md](../decisions.md)).
+- See a forwarded Meralco bill arrive as Pending after the ARC fix ([TODO.md](../TODO.md)).
 - Idea: read payment-confirmation emails to fill "Date paid" ([TODO.md](../TODO.md)).
 
 ## Built in

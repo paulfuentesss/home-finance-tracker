@@ -50,12 +50,46 @@ function setup() {
 
 /** The hourly run. */
 function run() {
-  process_(false);
+  withLock_(() => process_(false));
 }
 
 /** One pass by hand, logging every email it looks at — for setup and checking. */
 function testRun() {
-  process_(true);
+  withLock_(() => process_(true));
+}
+
+/**
+ * Run by hand once whatever made the app refuse a bill is fixed: forgets the emails labelled
+ * my-house/rejected, so they're sent again now (logged like testRun). An email the app already
+ * has is answered as a duplicate, so sending one twice is safe.
+ */
+function retryRejected() {
+  withLock_(() => {
+    const p = props_();
+    const forget = [];
+    for (const thread of label_(LABEL_REJECTED).getThreads()) {
+      for (const message of thread.getMessages()) forget.push(fingerprint_(messageId_(message)));
+      thread.removeLabel(label_(LABEL_REJECTED));
+    }
+    const done = JSON.parse(p.getProperty('DONE') || '[]');
+    p.setProperty('DONE', JSON.stringify(done.filter((fingerprint) => forget.indexOf(fingerprint) === -1)));
+    console.log('Sending ' + forget.length + ' email(s) from rejected threads again.');
+    process_(true);
+  });
+}
+
+/** One run at a time, so the hourly run and one by hand can't overwrite each other's DONE. */
+function withLock_(fn) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) {
+    console.warn('Another run is still going; try again in a minute.');
+    return;
+  }
+  try {
+    fn();
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function process_(verbose) {
@@ -75,13 +109,14 @@ function process_(verbose) {
     // Done-ness is per message: Gmail labels whole threads, and a new bill can join an old one.
     for (const message of thread.getMessages()) {
       if (!BILLER_SENDER.test(message.getFrom()) || message.getDate() < startDate) continue;
-      const messageId = message.getHeader('Message-ID') || 'gmail-' + message.getId();
+      const messageId = messageId_(message);
       const fingerprint = fingerprint_(messageId);
       if (done.indexOf(fingerprint) !== -1) continue;
 
       let code;
       let body;
       try {
+        const raw = message.getRawContent();
         const response = UrlFetchApp.fetch(appUrl.replace(/\/$/, '') + '/api/bill-email', {
           method: 'post',
           contentType: 'application/json',
@@ -93,7 +128,9 @@ function process_(verbose) {
             subject: message.getSubject(),
             receivedAt: message.getDate().toISOString(),
             text: message.getPlainBody(),
-            authResults: firstHeader_(message.getRawContent(), 'Authentication-Results'),
+            authResults: headers_(raw, 'Authentication-Results')[0] || '',
+            // Lets the app trust a bill forwarded from PA's personal Gmail (lib/bill-email/intake.ts).
+            arcSeals: headers_(raw, 'ARC-Seal'),
           }),
         });
         code = response.getResponseCode();
@@ -108,7 +145,7 @@ function process_(verbose) {
         done.push(fingerprint);
         thread.addLabel(label_(LABEL_IMPORTED));
       } else if (code === 400 || code === 422) {
-        // The app looked and said no: don't send it again (remove its fingerprint to retry).
+        // The app looked and said no: don't send it again (retryRejected() sends it once more).
         done.push(fingerprint);
         thread.addLabel(label_(LABEL_REJECTED));
         rejected.push(message.getSubject() + ' (' + message.getFrom() + '): ' + body);
@@ -145,16 +182,22 @@ function notify_(rejected, failedRuns) {
 }
 
 /**
- * The first (topmost) occurrence of a header: the one Gmail's own server added when the email
- * arrived here. Only the header block is read, so an attached PDF isn't scanned.
+ * Every occurrence of a header, topmost first: for Authentication-Results the first is the one
+ * Gmail's own server added when the email arrived here. Only the header block is read, so an
+ * attached PDF isn't scanned.
  */
-function firstHeader_(raw, name) {
+function headers_(raw, name) {
   const head = raw.split(/\r?\n\r?\n/, 1)[0].replace(/\r?\n[ \t]+/g, ' ');
   const prefix = name.toLowerCase() + ':';
+  const found = [];
   for (const line of head.split(/\r?\n/)) {
-    if (line.toLowerCase().indexOf(prefix) === 0) return line.slice(prefix.length).trim();
+    if (line.toLowerCase().indexOf(prefix) === 0) found.push(line.slice(prefix.length).trim());
   }
-  return '';
+  return found;
+}
+
+function messageId_(message) {
+  return message.getHeader('Message-ID') || 'gmail-' + message.getId();
 }
 
 function fingerprint_(messageId) {
