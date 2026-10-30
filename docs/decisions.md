@@ -1266,3 +1266,13 @@ My House Gmail. It only becomes a Pending bill, which PA confirms.
 **Instead of:** a second copy of the script in the personal Gmail (the fallback in the
 2026-10-11 entry — it would read the personal Gmail, and Meralco would still need DMARC), or
 trusting Salesforce's signing domain for Meralco (any Salesforce customer can sign with it).
+
+## 2026-10-30 — A hand-typed bill gets a fee reminder, not the fee added
+**Decision:** the payment fee is added only to emailed bills. A column with a fee shows the admin
+an "Include ₱… fee ⓘ" reminder under the amount until an email fills it; what PA types is the
+total. "Include", not "+": the app can't tell whether a typed amount has the fee in it already.
+**Why:** PA typed Water in from the email and the fee was left out. A typed amount stays exactly
+what was typed, the same everywhere else in the Split Table, and the bill can be typed with the
+fee already in it (or paid a different way, with no fee).
+**Instead of:** adding the fee on save, which would change a typed number behind PA's back and
+double the fee whenever he typed the total with it already in.

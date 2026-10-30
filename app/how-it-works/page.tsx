@@ -580,7 +580,7 @@ export default async function HowItWorksPage() {
           <p>
             The small fee for paying it is added and shared like the bill
             {fees.length > 0 ? `: ${fees.join("; ")}` : ""}. Tap <strong>From email</strong> under the amount to see
-            the emailed bill and the fee that was added.
+            the emailed bill and the fee that was added. A bill the admin types in by hand includes the same fee.
           </p>
           <p>
             A pending bill is <strong>not counted yet</strong>: nobody&apos;s totals change until the admin checks it

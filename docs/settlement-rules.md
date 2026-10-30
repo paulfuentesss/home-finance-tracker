@@ -374,7 +374,8 @@ Meralco, Water (Manila Water) and PLDT email their bills. Each email is read
   bill, so **everyone shares it**, and the column notes it (a "From email" tag under the
   amount; its popover shows the emailed bill and the fee). With the fees, August 2026 imports
   at exactly the sheet's amounts. Bills already imported keep the fee they came in with
-  (`bill_emails.fee`).
+  (`bill_emails.fee`). A bill PA **types in by hand** includes the same fee: nothing adds it,
+  so the column reminds him ("Include ₱… fee ⓘ" under the amount, admin only).
 - **Pending is ignored by the settlement** until someone confirms it. Before confirming, the
   amount can still be changed. **Discard** sets the column back to ₱0.00 (split and points
   unchanged) and sets the email aside for good.

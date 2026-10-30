@@ -11,7 +11,7 @@ import {
   type ActionState,
 } from "@/app/periods/[year]/[month]/actions";
 import { Balance } from "@/components/balance";
-import { EmailedNote, PendingBillActions } from "@/components/emailed-bills";
+import { EmailedNote, FeeReminder, PendingBillActions } from "@/components/emailed-bills";
 import { InlineInput, type FormAction } from "@/components/inline-input";
 import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { useDragScroll } from "@/hooks/use-drag-scroll";
@@ -139,6 +139,8 @@ export function SplitTable({ view }: { view: PeriodView }) {
                     )}
                     {bill.splitMode === "manual" && <div className="mt-1 text-[11px] text-muted-foreground">sum of shares</div>}
                     <EmailedNote bill={bill} />
+                    {/* Only where the amount is typed in: a hand-typed bill doesn't get the fee added. */}
+                    {editable && !bill.paidBy && bill.splitMode !== "manual" && <FeeReminder bill={bill} />}
                     {bill.status === "pending" && editable && <PendingBillActions bill={bill} />}
                   </td>
                 ))}

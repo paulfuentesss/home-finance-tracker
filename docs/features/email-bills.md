@@ -17,6 +17,9 @@ first (October 2026, forwarded) was refused by the sender check, since fixed
 - Fills that month's bill column as **Pending**, with the usual payment fee added and noted
   (a "From email ⓘ" tag under the amount; hover or tap it for the emailed bill and the fee).
   Pending bills aren't counted until confirmed.
+- A bill **typed in by hand** gets no fee added, so for PA, while the month is open, a column
+  with a fee shows an "Include ₱… fee ⓘ" reminder under the amount (hover or tap it for which fee and
+  how much) until an emailed bill fills it.
 - Fills the column's **Due date** too, which puts the bill on the admin's "Bills to pay"
   banner and reminders until its Date paid is set ([reminders](reminders.md)). An email
   left in the Bill Inbox keeps its due date there (the banner shows it), and Discard clears it.
@@ -55,6 +58,8 @@ first (October 2026, forwarded) was refused by the sender check, since fixed
    Water's layout since October 2026, which the parser didn't read before).
 2. **Fee** — `lib/bill-email/fees.ts` reads `BILL_PAYMENT_FEES` (`lib/household-config.ts`);
    the fee is stored on the email row so later setting changes don't touch old bills.
+   `columnPaymentFee` gives a column's fee by name, for the hand-typed reminder (`FeeReminder`
+   in `components/emailed-bills.tsx`).
 3. **Import** — `importBillEmail` / `placeBill` in `lib/bill-import.ts`: records the email in
    `bill_emails` (unique Message-ID; one live email per provider and month), then fills the
    column named in `BILL_EMAIL_COLUMNS` as `status = 'pending'`, `source = 'email'` inside a
