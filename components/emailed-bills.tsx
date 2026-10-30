@@ -1,8 +1,8 @@
 "use client";
 
 // Bills that arrive by email (docs/settlement-rules.md → "Email-imported bills"): the Confirm /
-// Discard buttons under a pending bill in the Split Table, and the Bill inbox for emails
-// that couldn't be placed.
+// Discard buttons under a pending bill in the Split Table, the fee reminder under a bill typed in
+// by hand, and the Bill inbox for emails that couldn't be placed.
 
 import { Check, Inbox, Info, RotateCw, X } from "lucide-react";
 import { useState, useTransition } from "react";
@@ -16,6 +16,7 @@ import {
 import { ConfirmDeleteButton } from "@/components/confirm-button";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
+import { columnPaymentFee } from "@/lib/bill-email/fees";
 import { dateLabel, monthLabel } from "@/lib/format";
 import { formatPHP, type Centavos } from "@/lib/money";
 import type { ViewBill } from "@/lib/periods";
@@ -50,6 +51,32 @@ export function EmailedNote({ bill }: { bill: ViewBill }) {
             </li>
           )}
         </ul>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/** Under a bill typed in by hand whose emailed version gets a payment fee: a reminder to add it. */
+export function FeeReminder({ bill }: { bill: ViewBill }) {
+  const payment = bill.emailed ? null : columnPaymentFee(bill.name);
+  if (!payment) return null;
+  const { fee, note } = payment;
+  return (
+    <Popover>
+      <PopoverTrigger
+        openOnHover
+        aria-label={`Add the payment fee to the ${bill.name} bill`}
+        className="mx-auto mt-1 flex items-center gap-1 rounded font-sans text-[11px] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        + {formatPHP(fee)} fee
+        <Info className="size-3" />
+      </PopoverTrigger>
+      <PopoverContent className="w-64 font-sans">
+        <PopoverTitle>Typing it in?</PopoverTitle>
+        <p className="text-xs">
+          Add the {note} (<span className="font-mono tabular-nums">{formatPHP(fee)}</span>) to the bill&apos;s
+          amount — everyone shares it. A bill that arrives by email has it added already.
+        </p>
       </PopoverContent>
     </Popover>
   );
