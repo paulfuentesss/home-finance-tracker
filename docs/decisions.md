@@ -346,7 +346,8 @@ script, in one mailbox: no script reads the personal Gmail. Duplicates were alre
 (unique Message-ID, one bill per provider and month), so a bill in both inboxes counts once.
 **Instead of:** an inbound-email service (CloudMailin's free plan caps each email at 512 KB;
 Postmark charges for inbound), or a second copy of the script in the personal Gmail — the
-fallback if forwarded bills fail the DKIM check.
+fallback if forwarded bills fail the DKIM check. (They did; ARC sealed by Google is used instead:
+2026-10-30.)
 
 ## 2026-10-11 — The backup reminder is tracked in the database
 **Decision:** each finished Download backup adds a row to `backups`. The month pages show the
@@ -1242,3 +1243,26 @@ household's real records for the sake of PA's private one, so the drawer only wa
 - A banner only: Paul wants to be told on days he doesn't open the app.
 - Keeping closed months fully locked, with a "reopen to mark it paid" step.
 - Reminding until paid with no cap: a step more than a week old is never dug up.
+
+## 2026-10-30 — Bill emails: DMARC, and ARC sealed by Google
+**Decision:** `/api/bill-email` accepts a bill when Gmail's topmost `Authentication-Results`
+shows any of: a DKIM pass signed by the biller's domain (as before), a DMARC pass for the
+biller's domain, or — for a bill forwarded from PA's personal Gmail — `arc=pass` whose summary
+says DMARC passed for the biller, under an ARC set sealed by `google.com`. The script now sends
+the `ARC-Seal` headers too. The header is read strictly: anything a sender's own address could
+use to plant a result (a `;`, `(`, quote or backslash inside a comment or quoted string) makes
+the whole header count as unverified.
+**Why:** Meralco's first real bill was refused. Meralco sends through Salesforce Marketing
+Cloud, so its only DKIM signature is Salesforce's; it proves itself with SPF on its own bounce
+domain, which Gmail reports as a DMARC pass. Forwarding then breaks SPF, so in the My House
+Gmail only the ARC summary still carries that verdict. `arc=pass` means Gmail checked every
+seal, so requiring the summarised set to be sealed by google.com means the DMARC pass is
+Google's own verdict from the first inbox; a forged email with its own ARC set on top is
+summarised at that set, which Google didn't seal. Reading the header strictly closes a gap the
+old comment-stripping had: a quoted `MAIL FROM` could close Gmail's comment early and plant a
+`dkim=pass`.
+**Still possible, as before:** someone forwarding their own real bill from the same biller to the
+My House Gmail. It only becomes a Pending bill, which PA confirms.
+**Instead of:** a second copy of the script in the personal Gmail (the fallback in the
+2026-10-11 entry — it would read the personal Gmail, and Meralco would still need DMARC), or
+trusting Salesforce's signing domain for Meralco (any Salesforce customer can sign with it).

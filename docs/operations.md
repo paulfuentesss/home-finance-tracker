@@ -176,7 +176,9 @@ The script emails `NOTIFY_TO` when the app refuses a bill or 3 runs in a row fai
   "Will retry: 401" → the secret differs between the script and Vercel; set the same value in
   both (Vercel needs a redeploy). 5xx or timeouts → the app or Supabase is down (paused?).
 - **A thread labelled `my-house/rejected`** — the app said no (the log says why: not from the
-  biller, unreadable). A bill forwarded *by hand* always ends here; type it in instead.
+  biller, unreadable). Once the cause is fixed, run `retryRejected()` in Apps Script: it sends
+  every rejected email again and logs the app's answers. A bill forwarded *by hand* always ends
+  here; type it in instead.
 - **The bill never got to the My House Gmail** — the biller still sends to the personal Gmail
   and the forwarding filter there is gone, or the email's subject doesn't have the words the
   script searches for (`SEARCHES` in `scripts/gmail/bill-forwarder.gs`; update the pasted copy
