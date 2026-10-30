@@ -68,7 +68,7 @@ export function FeeReminder({ bill }: { bill: ViewBill }) {
         aria-label={`Add the payment fee to the ${bill.name} bill`}
         className="mx-auto mt-1 flex items-center gap-1 rounded font-sans text-[11px] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
       >
-        + {formatPHP(fee)} fee
+        Include {formatPHP(fee)} fee
         <Info className="size-3" />
       </PopoverTrigger>
       <PopoverContent className="w-64 font-sans">

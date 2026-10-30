@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { columnPaymentFee, paymentFee } from "@/lib/bill-email/fees";
+import type { BillProvider } from "@/lib/bill-email/parse";
+import { BILL_EMAIL_COLUMNS } from "@/lib/household-config";
 
 describe("paymentFee", () => {
   it("turns the August 2026 sample emails into the fixture's bill amounts", () => {
@@ -24,5 +26,12 @@ describe("columnPaymentFee", () => {
     expect(columnPaymentFee("Helper")).toBeNull();
     // Names match exactly, as the email import matches them.
     expect(columnPaymentFee("meralco")).toBeNull();
+  });
+
+  it("matches paymentFee for every column an email fills, so a new biller is covered too", () => {
+    for (const provider of Object.keys(BILL_EMAIL_COLUMNS) as BillProvider[]) {
+      const { fee, note } = paymentFee(provider);
+      expect(columnPaymentFee(BILL_EMAIL_COLUMNS[provider])).toEqual(note === null ? null : { fee, note });
+    }
   });
 });

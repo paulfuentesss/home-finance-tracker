@@ -18,7 +18,7 @@ first (October 2026, forwarded) was refused by the sender check, since fixed
   (a "From email ⓘ" tag under the amount; hover or tap it for the emailed bill and the fee).
   Pending bills aren't counted until confirmed.
 - A bill **typed in by hand** gets no fee added, so for PA, while the month is open, a column
-  with a fee shows a "+ fee ⓘ" reminder under the amount (hover or tap it for which fee and
+  with a fee shows an "Include ₱… fee ⓘ" reminder under the amount (hover or tap it for which fee and
   how much) until an emailed bill fills it.
 - Fills the column's **Due date** too, which puts the bill on the admin's "Bills to pay"
   banner and reminders until its Date paid is set ([reminders](reminders.md)). An email
